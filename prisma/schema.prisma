@@ -1,0 +1,167 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgvector(map: "vector")]
+}
+
+// Users table
+model User {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                String    @unique @db.VarChar(255)
+  name                 String?   @db.VarChar(255)
+  password             String    @db.VarChar(255)
+  emailVerified        DateTime?
+  image                String?
+  subscriptionTier     String    @default("free") @db.VarChar(50)
+  subscriptionStatus   String?   @db.VarChar(50)
+  stripeCustomerId     String?   @unique @db.VarChar(255)
+  stripeSubscriptionId String?   @db.VarChar(255)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+  projects Project[]
+  usageLogs UsageLog[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String  @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionToken String   @unique
+  userId       String   @db.Uuid
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// Projects table
+model Project {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String   @db.Uuid
+  name          String   @db.VarChar(255)
+  description   String?  @db.Text
+  blenderVersion String? @db.VarChar(50)
+  thumbnailUrl  String?  @db.Text
+  createdAt     DateTime @default(now())
+  lastModified  DateTime @updatedAt
+  isDeleted     Boolean  @default(false)
+
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+  snapshots    ProjectSnapshot[]
+  usageLogs    UsageLog[]
+
+  @@map("projects")
+}
+
+// Conversations table
+model Conversation {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId     String   @db.Uuid
+  sessionId     String?  @db.VarChar(255)
+  createdAt     DateTime @default(now())
+  lastMessageAt DateTime @default(now())
+
+  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@map("conversations")
+}
+
+// Messages table
+model Message {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId String   @db.Uuid
+  role           String   @db.VarChar(20)
+  content        String   @db.Text
+  mcpCommands    Json?    @db.JsonB
+  mcpResults     Json?    @db.JsonB
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+// Project snapshots (for quick context loading)
+model ProjectSnapshot {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId String   @db.Uuid
+  objects   Json?    @db.JsonB
+  materials Json?    @db.JsonB
+  sceneInfo Json?    @db.JsonB
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_snapshots")
+}
+
+// Subscription plans
+model SubscriptionPlan {
+  id               String  @id @db.VarChar(50)
+  name             String  @db.VarChar(100)
+  priceMonthly     Decimal @db.Decimal(10, 2)
+  priceYearly      Decimal @db.Decimal(10, 2)
+  features         Json    @db.JsonB
+  maxProjects      Int
+  maxMonthlyRequests Int
+
+  @@map("subscription_plans")
+}
+
+// Usage tracking
+model UsageLog {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @db.Uuid
+  projectId   String?  @db.Uuid
+  requestType String   @db.VarChar(50)
+  tokensUsed  Int?
+  createdAt   DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@map("usage_logs")
+}
+
