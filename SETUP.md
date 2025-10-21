@@ -212,6 +212,34 @@ To enable direct Blender automation you will need the community [blender-mcp](ht
 
 See `blendermcpreadme.md` in this repository for a full offline copy of the official setup guide.
 
+### Installing `uv`
+
+Install `uv` before running `uvx blender-mcp`:
+
+- **Linux**
+  ```bash
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  ```
+  Add the path printed by the installer (commonly `~/.cargo/bin` or `~/.local/bin`) to your `PATH`.
+
+- **macOS**
+  ```bash
+  brew install uv
+  ```
+  or use the same curl script as Linux if you prefer.
+
+- **Windows**
+  ```powershell
+  powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+  ```
+  Then append `%USERPROFILE%\.local\bin` to your `PATH`.
+
+Confirm the installation with:
+
+```bash
+uv --version
+```
+
 ## Next Steps
 
 Phase 1 is complete! Here's what comes next:

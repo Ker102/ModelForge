@@ -21,8 +21,8 @@ export function Navbar() {
             <Link href="/docs" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Docs
             </Link>
-            <Link href="/download" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              Download
+            <Link href="/docs" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              Quick Start
             </Link>
           </div>
         </div>
@@ -38,4 +38,3 @@ export function Navbar() {
     </nav>
   )
 }
-

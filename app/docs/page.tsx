@@ -18,25 +18,79 @@ export default function DocsPage() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Getting Started</CardTitle>
-                <CardDescription>Quick start guide for ModelForge</CardDescription>
+                <CardTitle>Quick Start Checklist</CardTitle>
+                <CardDescription>
+                  Before installing the desktop app or running the MCP bridge
+                </CardDescription>
               </CardHeader>
               <CardContent className="prose prose-slate dark:prose-invert max-w-none">
-                <h3>Installation</h3>
                 <ol>
-                  <li>Download the ModelForge desktop app from the downloads page</li>
-                  <li>Install the Blender MCP server plugin</li>
-                  <li>Create an account and sign in</li>
-                  <li>Connect your Blender instance to ModelForge</li>
+                  <li>Install Blender 3.0+ and Python 3.10+.</li>
+                  <li>
+                    Install the <strong>uv</strong> package manager:
+                    <ul>
+                      <li>
+                        <strong>Linux:</strong>{" "}
+                        <code>curl -LsSf https://astral.sh/uv/install.sh | sh</code>
+                      </li>
+                      <li>
+                        <strong>macOS:</strong> <code>brew install uv</code> (or the Linux curl script)
+                      </li>
+                      <li>
+                    <strong>Windows (PowerShell):</strong>{" "}
+                    <code>powershell -c &quot;irm https://astral.sh/uv/install.ps1 | iex&quot;</code>
+                      </li>
+                    </ul>
+                    After installation, ensure the printed directory (typically <code>~/.local/bin</code> or{" "}
+                    <code>%USERPROFILE%\.local\bin</code>) is on your <code>PATH</code>, then run{" "}
+                    <code>uv --version</code> to confirm.
+                  </li>
+                  <li>Download the ModelForge desktop app from the downloads page.</li>
+                  <li>Install the Blender MCP addon (`addon.py`) and start the bridge with <code>uvx blender-mcp</code>.</li>
+                  <li>Launch ModelForge (web or desktop), sign in, and verify the MCP connection card shows “Connected”.</li>
                 </ol>
+              </CardContent>
+            </Card>
 
-                <h3>Your First Project</h3>
+            <Card>
+              <CardHeader>
+                <CardTitle>Blender MCP Setup</CardTitle>
+                <CardDescription>Connect Blender to ModelForge</CardDescription>
+              </CardHeader>
+              <CardContent className="prose prose-slate dark:prose-invert max-w-none">
                 <ol>
-                  <li>Create a new project from the dashboard</li>
-                  <li>Open Blender and start the MCP server</li>
-                  <li>Launch the ModelForge desktop app</li>
-                  <li>Start chatting with the AI to create your 3D models</li>
+                  <li>
+                    Install <strong>Blender 3.0+</strong>, <strong>Python 3.10+</strong>, and the{" "}
+                    <code>uv</code> package manager (see <code>blendermcpreadme.md</code> or the upstream repo).
+                  </li>
+                  <li>
+                    Download the latest <code>addon.py</code> from{" "}
+                    <a href="https://github.com/ahujasid/blender-mcp" target="_blank" rel="noreferrer">
+                      blender-mcp
+                    </a>{" "}
+                    and install it via Blender → Preferences → Add-ons → Install.
+                  </li>
+                  <li>
+                    Start the MCP server in a terminal:
+                    <pre>
+{`uvx blender-mcp`}
+                    </pre>
+                    Match the host/port with your <code>.env</code> values (
+                    <code>BLENDER_MCP_HOST</code> / <code>BLENDER_MCP_PORT</code>).
+                  </li>
+                  <li>
+                    Open ModelForge’s dashboard. The new{" "}
+                    <em>“MCP Connection”</em> card shows connectivity and lets you send a test command. The same
+                    status is available in the Electron desktop app.
+                  </li>
+                  <li>
+                    Once connected, the AI chat endpoint can translate actions into MCP commands and stream results
+                    back to the UI.
+                  </li>
                 </ol>
+                <p className="text-sm text-muted-foreground">
+                  Tip: only run a single MCP instance at a time (Cursor, Claude, or ModelForge) to avoid port conflicts.
+                </p>
               </CardContent>
             </Card>
 

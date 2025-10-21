@@ -340,6 +340,32 @@ Key steps:
 
 Consult `blendermcpreadme.md` for detailed screenshots, IDE integrations, and troubleshooting tips.
 
+### Install `uv`
+
+The Blender MCP server is distributed via the [`uv`](https://docs.astral.sh/uv) package manager. Install it once per machine:
+
+- **Linux**:
+  ```bash
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  ```
+  Then add `~/.cargo/bin` (or the path printed by the installer) to your `PATH`.
+- **macOS** (Homebrew):
+  ```bash
+  brew install uv
+  ```
+  or use the same curl script as Linux.
+- **Windows** (PowerShell):
+  ```powershell
+  powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+  ```
+  Afterwards, ensure `%USERPROFILE%\.local\bin` is in your `PATH`.
+
+You only need to install `uv` once. After that, run the MCP server with:
+
+```bash
+uvx blender-mcp
+```
+
 ## 🖥️ Desktop App (Electron)
 
 A lightweight Electron shell lives in the `desktop/` folder. It wraps the Next.js web UI and exposes native integrations (MCP configuration bridge, future filesystem access, etc.).

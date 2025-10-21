@@ -1,5 +1,3 @@
-"use server"
-
 import { McpClientConfig } from "./types"
 
 const DEFAULT_HOST = "127.0.0.1"

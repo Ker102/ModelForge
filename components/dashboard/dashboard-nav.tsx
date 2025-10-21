@@ -8,7 +8,7 @@ import { Hammer, LogOut, Settings, FolderOpen } from "lucide-react"
 import { signOut } from "next-auth/react"
 
 interface DashboardNavProps {
-  user: {
+  user?: {
     email?: string | null
     subscriptionTier?: string | null
   }
@@ -16,6 +16,8 @@ interface DashboardNavProps {
 
 export function DashboardNav({ user }: DashboardNavProps) {
   const pathname = usePathname()
+  const subscriptionTier = (user?.subscriptionTier || "free").toLowerCase()
+  const email = user?.email ?? "Unknown user"
 
   return (
     <nav className="border-b bg-background">
@@ -50,9 +52,9 @@ export function DashboardNav({ user }: DashboardNavProps) {
         </div>
         <div className="flex items-center gap-4">
           <Badge variant="secondary" className="capitalize">
-            {user.subscriptionTier}
+            {subscriptionTier}
           </Badge>
-          <span className="text-sm text-muted-foreground">{user.email}</span>
+          <span className="text-sm text-muted-foreground">{email}</span>
           <Button
             variant="ghost"
             size="sm"
@@ -67,4 +69,3 @@ export function DashboardNav({ user }: DashboardNavProps) {
     </nav>
   )
 }
-

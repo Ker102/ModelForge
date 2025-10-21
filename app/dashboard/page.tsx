@@ -3,10 +3,13 @@ import { prisma } from "@/lib/db"
 import { ProjectList } from "@/components/dashboard/project-list"
 import { CreateProjectButton } from "@/components/dashboard/create-project-button"
 import { UsageSummaryCard } from "@/components/dashboard/usage-summary"
+import { McpConnectionCard } from "@/components/dashboard/mcp-connection-card"
+import { QuickStartCard } from "@/components/dashboard/quick-start-card"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { getUsageSummary } from "@/lib/usage"
 import { SubscriptionTier } from "@/lib/subscription"
+import { getMcpConfig, checkMcpConnection } from "@/lib/mcp"
 
 export default async function DashboardPage() {
   const session = await auth()
@@ -31,6 +34,11 @@ export default async function DashboardPage() {
   })
 
   const usage = await getUsageSummary(session.user.id, tier)
+  const mcpConfig = getMcpConfig()
+  const mcpStatus = await checkMcpConnection().catch((error) => ({
+    connected: false,
+    error: error instanceof Error ? error.message : "Unable to reach MCP server",
+  }))
 
   return (
     <div className="container py-8">
@@ -48,8 +56,10 @@ export default async function DashboardPage() {
           </Button>
         </CreateProjectButton>
       </div>
-      <div className="mb-8">
+      <div className="mb-8 grid gap-4 md:grid-cols-3">
+        <QuickStartCard />
         <UsageSummaryCard tier={tier} usage={usage} />
+        <McpConnectionCard host={mcpConfig.host} port={mcpConfig.port} initialStatus={mcpStatus} />
       </div>
       <ProjectList projects={projects} />
     </div>

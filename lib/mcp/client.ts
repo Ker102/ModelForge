@@ -1,5 +1,3 @@
-"use server"
-
 import net from "net"
 import { randomUUID } from "crypto"
 import { getMcpConfig } from "./config"
@@ -120,4 +118,33 @@ export class BlenderMcpClient {
 
 export function createMcpClient() {
   return new BlenderMcpClient()
+}
+
+export async function checkMcpConnection() {
+  const config = getMcpConfig()
+
+  return new Promise<{ connected: boolean; error?: string }>((resolve) => {
+    const socket = net.createConnection(
+      { host: config.host, port: config.port },
+      () => {
+        socket.end()
+        resolve({ connected: true })
+      }
+    )
+
+    socket.setTimeout(Math.min(5_000, config.timeoutMs), () => {
+      socket.destroy()
+      resolve({
+        connected: false,
+        error: "Connection timed out",
+      })
+    })
+
+    socket.once("error", (error) => {
+      resolve({
+        connected: false,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    })
+  })
 }
