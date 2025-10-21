@@ -9,6 +9,16 @@ import type { Conversation, Message } from "@prisma/client"
 import { getUsageSummary } from "@/lib/usage"
 import { SubscriptionTier } from "@/lib/subscription"
 
+type CommandStub = {
+  id: string
+  tool: string
+  description: string
+  status: string
+  confidence?: number
+  arguments?: Record<string, unknown>
+  notes?: string
+}
+
 export default async function ProjectPage({ params }: { params: { id: string } }) {
   const session = await auth()
   
@@ -64,9 +74,38 @@ export default async function ProjectPage({ params }: { params: { id: string } }
             role: message.role === "assistant" ? "assistant" : "user",
             content: message.content,
             createdAt: message.createdAt.toISOString(),
+            mcpCommands: Array.isArray(message.mcpCommands)
+              ? (message.mcpCommands as CommandStub[])
+              : undefined,
           })),
       }
     : null
+
+  const conversationHistory = previousConversations
+    .map((conversation) => {
+      if (!conversation) return null
+
+      return {
+        id: conversation.id,
+        lastMessageAt: conversation.lastMessageAt.toISOString(),
+        preview: conversation.messages[0]?.content ?? undefined,
+        messages: conversation.messages
+          .slice()
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .slice(-20)
+          .map((message) => ({
+            id: message.id,
+            role: message.role === "assistant" ? "assistant" : "user",
+            content: message.content,
+            createdAt: message.createdAt.toISOString(),
+            mcpCommands: Array.isArray(message.mcpCommands)
+              ? (message.mcpCommands as CommandStub[])
+              : undefined,
+          })),
+      }
+    })
+    .filter((conversation): conversation is NonNullable<typeof conversation> => Boolean(conversation))
+    .sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime())
 
   return (
     <div className="container py-8">
@@ -88,6 +127,7 @@ export default async function ProjectPage({ params }: { params: { id: string } }
           projectId={project.id}
           initialConversation={initialConversation}
           initialUsage={usage}
+          conversationHistory={conversationHistory}
         />
 
         <Card>

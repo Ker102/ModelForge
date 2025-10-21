@@ -17,6 +17,11 @@ export interface GeminiResult {
   usage: GeminiUsage
 }
 
+export interface GeminiStreamChunk {
+  textDelta?: string
+  usage?: GeminiUsage
+}
+
 const SYSTEM_PROMPT = `You are ModelForge, an AI assistant that helps users work with Blender through the Model Context Protocol (MCP).
 Respond with clear, actionable instructions. When appropriate, reference Blender concepts such as objects, modifiers, materials,
 lighting, cameras, and animations. Return concise answers; list steps or commands when useful. If you need more information,
@@ -107,5 +112,156 @@ export async function generateGeminiResponse({
       responseTokens: usageMetadata.candidatesTokenCount ?? null,
       totalTokens: usageMetadata.totalTokenCount ?? null,
     },
+  }
+}
+
+export async function* streamGeminiResponse(
+  options: GenerateOptions
+): AsyncGenerator<GeminiStreamChunk> {
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not configured")
+  }
+
+  const model = process.env.GEMINI_MODEL ?? DEFAULT_MODEL
+  const url = `${GEMINI_API_ENDPOINT}/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`
+
+  const { messages, history = [], temperature = 0.4, topP = 0.8, topK = 32, maxOutputTokens = 512 } =
+    options
+
+  const contents = [...history, ...messages].map(mapMessageToGeminiContent)
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      contents,
+      systemInstruction: {
+        role: "system",
+        parts: [{ text: SYSTEM_PROMPT }],
+      },
+      generationConfig: {
+        temperature,
+        topP,
+        topK,
+        maxOutputTokens,
+      },
+    }),
+  })
+
+  if (!response.ok || !response.body) {
+    let message = `Gemini streaming request failed with status ${response.status}`
+    try {
+      const json = await response.json()
+      message =
+        json?.error?.message ??
+        message
+    } catch {
+      // ignore parse error
+    }
+    throw new Error(message)
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ""
+  let emittedText = ""
+
+  while (true) {
+    const { done, value } = await reader.read()
+    buffer += decoder.decode(value ?? new Uint8Array(), {
+      stream: !done,
+    })
+
+    let eventBoundary: number
+    while ((eventBoundary = buffer.indexOf("\n\n")) !== -1) {
+      const eventChunk = buffer.slice(0, eventBoundary)
+      buffer = buffer.slice(eventBoundary + 2)
+
+      const dataPayload = eventChunk
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.startsWith("data:"))
+        .map((line) => line.slice(5).trim())
+        .filter((payload) => payload && payload !== "[DONE]")
+        .join("")
+
+      if (!dataPayload) {
+        continue
+      }
+
+      let parsed: Record<string, unknown> | null
+      try {
+        parsed = JSON.parse(dataPayload) as Record<string, unknown>
+      } catch {
+        continue
+      }
+
+      const candidate = (parsed as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }).candidates?.[0]
+      if (candidate?.content?.parts) {
+        const text =
+          candidate.content.parts
+            .map((part: { text?: string }) => part.text ?? "")
+            .join("") ?? ""
+
+        if (text.length > emittedText.length) {
+          const delta = text.slice(emittedText.length)
+          emittedText = text
+          if (delta) {
+            yield { textDelta: delta }
+          }
+        }
+      }
+
+      const usageMetadata = (parsed as { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } }).usageMetadata
+      if (usageMetadata) {
+        yield {
+          usage: {
+            promptTokens: usageMetadata.promptTokenCount ?? null,
+            responseTokens: usageMetadata.candidatesTokenCount ?? null,
+            totalTokens: usageMetadata.totalTokenCount ?? null,
+          },
+        }
+      }
+    }
+
+    if (done) {
+      // Attempt to flush any remaining partial event
+      const trimmed = buffer.trim()
+      if (trimmed && trimmed !== "[DONE]") {
+        try {
+          const parsed = JSON.parse(trimmed) as Record<string, unknown>
+          const candidate = (parsed as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }).candidates?.[0]
+          if (candidate?.content?.parts) {
+            const text =
+              candidate.content.parts
+                .map((part: { text?: string }) => part.text ?? "")
+                .join("") ?? ""
+            if (text.length > emittedText.length) {
+              const delta = text.slice(emittedText.length)
+              emittedText = text
+              if (delta) {
+                yield { textDelta: delta }
+              }
+            }
+          }
+          const usageMetadata = (parsed as { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } }).usageMetadata
+          if (usageMetadata) {
+            yield {
+              usage: {
+                promptTokens: usageMetadata.promptTokenCount ?? null,
+                responseTokens: usageMetadata.candidatesTokenCount ?? null,
+                totalTokens: usageMetadata.totalTokenCount ?? null,
+              },
+            }
+          }
+        } catch {
+          // ignore leftover parse errors
+        }
+      }
+      break
+    }
   }
 }

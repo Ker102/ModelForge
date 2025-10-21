@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,11 +8,29 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import type { UsageSummary } from "@/lib/usage"
 
+interface CommandStub {
+  id: string
+  tool: string
+  description: string
+  status: "pending" | "ready" | "executed"
+  confidence: number
+  arguments?: Record<string, unknown>
+  notes?: string
+}
+
 interface ChatMessage {
   id?: string
   role: "user" | "assistant"
   content: string
   createdAt?: string
+  mcpCommands?: CommandStub[]
+}
+
+type ConversationHistoryItem = {
+  id: string
+  lastMessageAt: string
+  preview?: string
+  messages: ChatMessage[]
 }
 
 interface ProjectChatProps {
@@ -22,12 +40,14 @@ interface ProjectChatProps {
     messages: ChatMessage[]
   } | null
   initialUsage?: UsageSummary
+  conversationHistory?: ConversationHistoryItem[]
 }
 
 export function ProjectChat({
   projectId,
   initialConversation,
   initialUsage,
+  conversationHistory,
 }: ProjectChatProps) {
   const router = useRouter()
   const [conversationId, setConversationId] = useState<string | null>(
@@ -35,6 +55,9 @@ export function ProjectChat({
   )
   const [messages, setMessages] = useState<ChatMessage[]>(
     initialConversation?.messages ?? []
+  )
+  const [history, setHistory] = useState<ConversationHistoryItem[]>(
+    conversationHistory ?? []
   )
   const [usage, setUsage] = useState<UsageSummary | undefined>(initialUsage)
   const [input, setInput] = useState("")
@@ -55,12 +78,74 @@ export function ProjectChat({
     }
   }, [usage])
 
+  useEffect(() => {
+    setHistory(conversationHistory ?? [])
+  }, [conversationHistory])
+
+  useEffect(() => {
+    if (initialConversation?.id && initialConversation.id !== conversationId) {
+      setConversationId(initialConversation.id)
+      setMessages(initialConversation.messages.map((msg) => ({ ...msg })))
+      return
+    }
+
+    if (!initialConversation?.id && conversationId && history.length === 0) {
+      setConversationId(null)
+      setMessages([])
+    }
+  }, [initialConversation, conversationId, history])
+
+  const formatHistoryLabel = (timestamp: string) =>
+    new Date(timestamp).toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+
+  const isViewingHistory = useMemo(() => {
+    if (!conversationId) {
+      return false
+    }
+    return history.some((item) => item.id === conversationId)
+  }, [conversationId, history])
+
+  function handleLoadConversation(conversation: ConversationHistoryItem) {
+    setConversationId(conversation.id)
+    setMessages(conversation.messages.map((msg) => ({ ...msg })))
+    setError(null)
+    setInput("")
+    setIsSending(false)
+  }
+
   async function handleSend(e: React.FormEvent) {
     e.preventDefault()
     if (!canSend) return
 
+    const trimmed = input.trim()
+    const now = new Date().toISOString()
+    const tempUserId = `temp-user-${Date.now()}`
+    const tempAssistantId = `temp-assistant-${Date.now()}`
+
     setIsSending(true)
     setError(null)
+    setInput("")
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: tempUserId,
+        role: "user",
+        content: trimmed,
+        createdAt: now,
+      },
+      {
+        id: tempAssistantId,
+        role: "assistant",
+        content: "",
+        createdAt: now,
+        mcpCommands: [],
+      },
+    ])
 
     try {
       const response = await fetch("/api/ai/chat", {
@@ -72,38 +157,209 @@ export function ProjectChat({
           projectId,
           conversationId: conversationId ?? undefined,
           startNew: !conversationId,
-          message: input.trim(),
+          message: trimmed,
         }),
       })
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        setError(data?.error ?? "Failed to send message")
-        if (data?.usage) {
-          setUsage(data.usage)
+      if (!response.ok || !response.body) {
+        let data: Record<string, unknown> | null = null
+        try {
+          data = (await response.json()) as Record<string, unknown>
+        } catch {
+          data = null
         }
+        const errorMessage =
+          typeof data?.error === "string" ? data.error : "Failed to send message"
+        setError(errorMessage)
+        const usagePayload = data?.usage as UsageSummary | undefined
+        if (usagePayload) {
+          setUsage(usagePayload)
+        }
+        setMessages((prev) =>
+          prev.filter((msg) => msg.id !== tempAssistantId)
+        )
         return
       }
 
-      setConversationId(data.conversationId)
-      setMessages((prev) => [
-        ...prev,
-        ...(Array.isArray(data.messages)
-          ? data.messages.map((msg: ChatMessage) => ({
-              ...msg,
-              createdAt: msg.createdAt ?? new Date().toISOString(),
-            }))
-          : []),
-      ])
-      if (data.usage) {
-        setUsage(data.usage)
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ""
+      let assistantContent = ""
+      let streamFinished = false
+
+      while (!streamFinished) {
+        const { done, value } = await reader.read()
+        if (done) {
+          streamFinished = true
+        }
+        buffer += decoder.decode(value ?? new Uint8Array(), {
+          stream: !done,
+        })
+
+        let newlineIndex: number
+        while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
+          const line = buffer.slice(0, newlineIndex).trim()
+          buffer = buffer.slice(newlineIndex + 1)
+
+          if (!line) {
+            continue
+          }
+
+          let event: Record<string, unknown>
+          try {
+            event = JSON.parse(line) as Record<string, unknown>
+          } catch {
+            continue
+          }
+
+          const eventType = typeof event.type === "string" ? event.type : undefined
+          if (!eventType) {
+            continue
+          }
+
+          switch (eventType) {
+            case "init": {
+              const incomingConversationId =
+                typeof event.conversationId === "string"
+                  ? event.conversationId
+                  : undefined
+              if (incomingConversationId) {
+                setConversationId(incomingConversationId)
+              }
+              break
+            }
+            case "delta": {
+              const delta = typeof event.delta === "string" ? event.delta : ""
+              assistantContent += delta
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === tempAssistantId
+                    ? { ...msg, content: assistantContent }
+                    : msg
+                )
+              )
+              break
+            }
+            case "usage": {
+              const usagePayload = event.usage as UsageSummary | undefined
+              if (usagePayload) {
+                setUsage(usagePayload)
+              }
+              break
+            }
+            case "complete": {
+              const messagesPayload = Array.isArray(event.messages)
+                ? (event.messages as Array<Record<string, unknown>>)
+                : []
+              const userRecordRaw = messagesPayload[0]
+              const assistantRecordRaw = messagesPayload[1]
+              const suggestionPayload = Array.isArray(event.commandSuggestions)
+                ? (event.commandSuggestions as CommandStub[])
+                : undefined
+
+              const completedConversationId =
+                typeof event.conversationId === "string"
+                  ? event.conversationId
+                  : undefined
+              if (completedConversationId) {
+                setConversationId(completedConversationId)
+              }
+
+              if (userRecordRaw) {
+                const userRecord = userRecordRaw as ChatMessage
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === tempUserId
+                      ? {
+                          ...msg,
+                          id: userRecord.id ?? msg.id,
+                          createdAt: userRecord.createdAt ?? msg.createdAt,
+                        }
+                      : msg
+                  )
+                )
+              }
+
+              let assistantRecordId: string | undefined
+              if (assistantRecordRaw) {
+                const assistantRecord = assistantRecordRaw as ChatMessage & {
+                  mcpCommands?: CommandStub[]
+                }
+                assistantContent =
+                  assistantRecord.content ?? assistantContent
+                assistantRecordId = assistantRecord.id
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === tempAssistantId
+                      ? {
+                          ...msg,
+                          id: assistantRecord.id ?? msg.id,
+                          content:
+                            assistantRecord.content ?? assistantContent,
+                          createdAt:
+                            assistantRecord.createdAt ?? msg.createdAt,
+                          mcpCommands:
+                            assistantRecord.mcpCommands?.length
+                              ? assistantRecord.mcpCommands
+                              : suggestionPayload,
+                        }
+                      : msg
+                  )
+                )
+              }
+
+              const usagePayload = event.usage as UsageSummary | undefined
+              if (usagePayload) {
+                setUsage(usagePayload)
+              }
+
+              if (suggestionPayload && completedConversationId) {
+                setHistory((prev) =>
+                  prev.map((item) =>
+                    item.id === completedConversationId
+                      ? {
+                          ...item,
+                          messages: item.messages.map((msg) =>
+                            assistantRecordId && msg.id === assistantRecordId
+                              ? {
+                                  ...msg,
+                                  mcpCommands: suggestionPayload,
+                                }
+                              : msg
+                          ),
+                        }
+                      : item
+                  )
+                )
+              }
+
+              router.refresh()
+              streamFinished = true
+              break
+            }
+            case "error": {
+              const errorMessage =
+                typeof event.error === "string"
+                  ? event.error
+                  : "Failed to process AI request"
+              setError(errorMessage)
+              setMessages((prev) =>
+                prev.filter((msg) => msg.id !== tempAssistantId)
+              )
+              streamFinished = true
+              break
+            }
+            default:
+              break
+          }
+        }
       }
-      setInput("")
-      router.refresh()
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Something went wrong. Try again."
+      )
+      setMessages((prev) =>
+        prev.filter((msg) => msg.id !== tempAssistantId)
       )
     } finally {
       setIsSending(false)
@@ -121,7 +377,14 @@ export function ProjectChat({
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-4">
         <div>
-          <CardTitle>ModelForge Assistant</CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle>ModelForge Assistant</CardTitle>
+            {isViewingHistory && (
+              <Badge variant="outline" className="uppercase text-[10px]">
+                History
+              </Badge>
+            )}
+          </div>
           <CardDescription>
             Ask questions about your Blender project or request AI-powered changes.
           </CardDescription>
@@ -137,6 +400,27 @@ export function ProjectChat({
         )}
       </CardHeader>
       <CardContent className="space-y-4">
+        {history && history.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="font-semibold uppercase tracking-wide text-[11px]">
+              Past sessions
+            </span>
+            {history.map((item) => {
+              const isActive = conversationId === item.id
+              return (
+                <Button
+                  key={item.id}
+                  variant={isActive ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleLoadConversation(item)}
+                  title={item.preview ?? "Open conversation"}
+                >
+                  {formatHistoryLabel(item.lastMessageAt)}
+                </Button>
+              )
+            })}
+          </div>
+        )}
         <div className="h-72 overflow-y-auto rounded-md border bg-muted/30 p-4 space-y-4">
           {messages.length === 0 ? (
             <div className="text-center text-sm text-muted-foreground">
@@ -159,6 +443,33 @@ export function ProjectChat({
                 >
                   {message.content}
                 </div>
+                {message.role === "assistant" &&
+                  Array.isArray(message.mcpCommands) &&
+                  message.mcpCommands.length > 0 && (
+                    <div className="max-w-[80%] rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+                      <p className="font-medium text-primary mb-1">
+                        MCP command plan (preview)
+                      </p>
+                      <ul className="space-y-1">
+                        {message.mcpCommands.map((command) => (
+                          <li key={command.id} className="flex flex-col gap-0.5">
+                            <span className="font-medium text-foreground">
+                              {command.tool}{" "}
+                              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                {command.status}
+                              </span>
+                            </span>
+                            <span>{command.description}</span>
+                            {command.notes && (
+                              <span className="italic text-[11px] text-muted-foreground/80">
+                                {command.notes}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 {message.createdAt && (
                   <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
                     {new Date(message.createdAt).toLocaleTimeString([], {

@@ -110,9 +110,11 @@ export default function DocsPage() {
 }`}
                 </pre>
                 <p>
-                  On limit exhaustion the API responds with <code>429</code> and the current usage
-                  so you can prompt the user to upgrade or wait for resets. The response payload is
-                  identical for the desktop client and web chat surface.
+                  Responses stream back as NDJSON chunks so you can surface deltas instantly. Expect
+                  an <code>init</code> event followed by multiple <code>delta</code> payloads, and
+                  a final <code>complete</code> block like the one above. On limit exhaustion the
+                  API responds with <code>429</code> and the current usage so you can prompt the
+                  user to upgrade or wait for resets.
                 </p>
               </CardContent>
             </Card>
