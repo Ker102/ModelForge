@@ -2,8 +2,11 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { ProjectList } from "@/components/dashboard/project-list"
 import { CreateProjectButton } from "@/components/dashboard/create-project-button"
+import { UsageSummaryCard } from "@/components/dashboard/usage-summary"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
+import { getUsageSummary } from "@/lib/usage"
+import { SubscriptionTier } from "@/lib/subscription"
 
 export default async function DashboardPage() {
   const session = await auth()
@@ -11,6 +14,11 @@ export default async function DashboardPage() {
   if (!session?.user) {
     return null
   }
+
+  const tier: SubscriptionTier =
+    session.user.subscriptionTier === "starter" || session.user.subscriptionTier === "pro"
+      ? (session.user.subscriptionTier as SubscriptionTier)
+      : "free"
 
   const projects = await prisma.project.findMany({
     where: {
@@ -21,6 +29,8 @@ export default async function DashboardPage() {
       lastModified: "desc",
     },
   })
+
+  const usage = await getUsageSummary(session.user.id, tier)
 
   return (
     <div className="container py-8">
@@ -38,8 +48,10 @@ export default async function DashboardPage() {
           </Button>
         </CreateProjectButton>
       </div>
+      <div className="mb-8">
+        <UsageSummaryCard tier={tier} usage={usage} />
+      </div>
       <ProjectList projects={projects} />
     </div>
   )
 }
-

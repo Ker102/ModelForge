@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/db"
+import { getUsageSummary, logUsage, TrackedRequestType } from "@/lib/usage"
+import { z } from "zod"
 
 export async function GET() {
   try {
@@ -10,38 +11,12 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const now = new Date()
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const usage = await getUsageSummary(
+      session.user.id,
+      session.user.subscriptionTier
+    )
 
-    // Get usage logs for the current month
-    const monthlyUsage = await prisma.usageLog.count({
-      where: {
-        userId: session.user.id,
-        requestType: "ai_request",
-        createdAt: {
-          gte: startOfMonth,
-        },
-      },
-    })
-
-    // Get usage logs for today
-    const dailyUsage = await prisma.usageLog.count({
-      where: {
-        userId: session.user.id,
-        requestType: "ai_request",
-        createdAt: {
-          gte: startOfDay,
-        },
-      },
-    })
-
-    return NextResponse.json({
-      usage: {
-        monthly: monthlyUsage,
-        daily: dailyUsage,
-      },
-    })
+    return NextResponse.json({ usage })
   } catch (error) {
     console.error("Get usage error:", error)
     return NextResponse.json(
@@ -59,15 +34,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { projectId, requestType, tokensUsed } = await req.json()
+    const bodySchema = z.object({
+      projectId: z.string().optional(),
+      requestType: z.enum([
+        "ai_request",
+        "mcp_command",
+        "project_action",
+      ] as const satisfies readonly TrackedRequestType[]),
+      tokensUsed: z.number().int().nonnegative().optional(),
+    })
 
-    await prisma.usageLog.create({
-      data: {
-        userId: session.user.id,
-        projectId,
-        requestType,
-        tokensUsed,
-      },
+    const { projectId, requestType, tokensUsed } = bodySchema.parse(
+      await req.json()
+    )
+
+    await logUsage({
+      userId: session.user.id,
+      projectId,
+      requestType,
+      tokensUsed,
     })
 
     return NextResponse.json({ success: true })
@@ -79,4 +64,3 @@ export async function POST(req: Request) {
     )
   }
 }
-

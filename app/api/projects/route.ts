@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/db"
+import { PROJECT_LIMITS, SubscriptionTier } from "@/lib/subscription"
+import { logUsage } from "@/lib/usage"
 import { z } from "zod"
 
 const createProjectSchema = z.object({
@@ -56,13 +58,13 @@ export async function POST(req: Request) {
       },
     })
 
-    const limits: Record<string, number> = {
-      free: 1,
-      starter: 10,
-      pro: -1, // unlimited
-    }
+    const tier =
+      session.user.subscriptionTier === "starter" ||
+      session.user.subscriptionTier === "pro"
+        ? (session.user.subscriptionTier as SubscriptionTier)
+        : "free"
 
-    const maxProjects = limits[session.user.subscriptionTier] ?? 1
+    const maxProjects = PROJECT_LIMITS[tier] ?? PROJECT_LIMITS.free
 
     if (maxProjects !== -1 && userProjects >= maxProjects) {
       return NextResponse.json(
@@ -78,6 +80,12 @@ export async function POST(req: Request) {
         description,
         blenderVersion,
       },
+    })
+
+    await logUsage({
+      userId: session.user.id,
+      projectId: project.id,
+      requestType: "project_action",
     })
 
     return NextResponse.json({ project }, { status: 201 })
@@ -96,4 +104,3 @@ export async function POST(req: Request) {
     )
   }
 }
-

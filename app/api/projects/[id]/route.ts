@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/db"
+import { logUsage } from "@/lib/usage"
 import { z } from "zod"
 
 const updateProjectSchema = z.object({
@@ -81,6 +82,12 @@ export async function PUT(
       data,
     })
 
+    await logUsage({
+      userId: session.user.id,
+      projectId: params.id,
+      requestType: "project_action",
+    })
+
     return NextResponse.json({ project: updatedProject })
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -126,6 +133,12 @@ export async function DELETE(
       data: { isDeleted: true },
     })
 
+    await logUsage({
+      userId: session.user.id,
+      projectId: params.id,
+      requestType: "project_action",
+    })
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Delete project error:", error)
@@ -135,4 +148,3 @@ export async function DELETE(
     )
   }
 }
-
