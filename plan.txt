@@ -1,0 +1,495 @@
+PROJECT OVERVIEW: AI-POWERED BLENDER MCP APPLICATION
+Project Name: ModelForge
+Core Mission: Build a scalable, monetizable application that integrates LLM capabilities with Blender through Model Context Protocol (MCP), enabling users to create 3D models and projects using natural language AI assistance.
+Target Deployment: Progressive rollout starting with marketing website → desktop application → optional Blender addon
+Technology Stack Foundation:
+Frontend/Web: Next.js 14+ (App Router), React, TypeScript, TailwindCSS
+
+
+Desktop Wrapper: Electron.js with Next.js integration
+
+
+LLM Integration: Gemini 2.0 Flash (recommended for speed/cost) or Gemini Pro (for complex reasoning)
+
+
+MCP Connection: Blender MCP Server (Python-based socket server)
+
+
+Memory/Context: LangChain.js with Vector Database (Pinecone or local FAISS)
+
+
+Authentication: Clerk or NextAuth.js
+
+
+Payments: Stripe (recommended over Lemon Squeezy for scaling)
+
+
+Database: PostgreSQL with Prisma ORM
+
+
+Hosting: Vercel (web) + self-distributed Electron app
+
+
+ARCHITECTURE DESIGN
+System Components
+1. Marketing Website (Next.js - Phase 1)
+text
+Purpose: Landing page, documentation, user authentication, subscription management
+Routes:
+- / (homepage with features, pricing)
+- /docs (comprehensive documentation)
+- /login, /signup (authentication)
+- /dashboard (user project management)
+- /download (desktop app distribution)
+- /api/auth/* (authentication endpoints)
+- /api/webhooks/stripe (payment webhooks)
+
+2. Desktop Application (Electron + Next.js - Phase 2)
+text
+Purpose: Main AI interface that connects to Blender MCP
+Components:
+- Main process (Electron): handles MCP connection, IPC
+- Renderer process (Next.js): UI for chat, project management, settings
+- Preload script: secure IPC bridge
+Architecture:
+- electron/
+  ├── main.js (app lifecycle, window management, MCP client)
+  ├── preload.js (contextBridge API)
+  └── mcp-client.js (handles MCP protocol communication)
+- app/ (Next.js build output)
+
+3. Blender MCP Server (Python - External Dependency)
+text
+Already exists as open-source project
+Runs locally on user's machine (port 8000)
+Communicates via HTTP/WebSocket
+Your app acts as MCP client → sends commands to MCP server → executes in Blender
+
+4. LLM Integration Layer
+text
+Purpose: Manages conversation, context, and MCP command generation
+Components:
+- Conversation manager (stores chat history)
+- Context engine (maintains project state)
+- Command translator (converts user intent → MCP commands)
+- Memory system (vector store for project continuity)
+
+
+DETAILED FEATURE SPECIFICATIONS
+Core Feature 1: Conversational AI Interface
+User Experience Flow:
+User opens desktop app
+
+
+Connects to running Blender instance (MCP server must be active)
+
+
+Types natural language prompt: "Create a red cube at position 0,0,0"
+
+
+AI processes request through Gemini
+
+
+Gemini generates appropriate Blender Python/MCP commands
+
+
+Commands sent to MCP server
+
+
+Blender executes commands
+
+
+AI confirms action and shows preview (if viewport screenshot available)
+
+
+Technical Implementation:
+typescript
+// Conversation flow pseudocode
+interface Message {
+  id: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  timestamp: Date
+  projectId: string
+  mcpCommands?: MCPCommand[]
+}
+
+interface MCPCommand {
+  tool: string // e.g., 'create_object', 'modify_material'
+  arguments: Record<string, any>
+  result?: any
+}
+
+// Core conversation handler
+async function handleUserMessage(message: string, projectContext: ProjectContext) {
+  // 1. Retrieve relevant project memory from vector store
+  const relevantMemory = await vectorStore.similaritySearch(message, projectContext.id)
+  
+  // 2. Build enhanced prompt with context
+  const enhancedPrompt = buildPromptWithContext(message, relevantMemory, projectContext)
+  
+  // 3. Call Gemini with MCP tool definitions
+  const geminiResponse = await callGemini(enhancedPrompt, mcpTools)
+  
+  // 4. Extract MCP commands from response
+  const mcpCommands = parseGeminiResponse(geminiResponse)
+  
+  // 5. Execute commands via MCP client
+  const results = await executeMCPCommands(mcpCommands)
+  
+  // 6. Update project memory
+  await updateProjectMemory(message, results, projectContext)
+  
+  // 7. Return AI response
+  return formatAIResponse(geminiResponse, results)
+}
+
+Core Feature 2: Project Memory System
+Goal: Enable LLM to remember project-specific context across sessions
+Implementation Strategy:
+typescript
+// Project structure
+interface Project {
+  id: string
+  userId: string
+  name: string
+  description: string
+  createdAt: Date
+  lastModified: Date
+  blenderVersion: string
+  mcpServerVersion: string
+}
+
+// Memory embedding system
+interface ProjectMemory {
+  projectId: string
+  sessionId: string
+  embeddings: number[] // Vector embeddings
+  metadata: {
+    action: string
+    objects: string[]
+    materials: string[]
+    timestamp: Date
+    userIntent: string
+    mcpCommands: string
+  }
+}
+
+// Memory management flow
+class ProjectMemoryManager {
+  async storeInteraction(projectId: string, interaction: Interaction) {
+    // 1. Generate embedding of interaction
+    const embedding = await generateEmbedding(interaction.summary)
+    
+    // 2. Store in vector database
+    await vectorStore.upsert({
+      id: `${projectId}_${Date.now()}`,
+      values: embedding,
+      metadata: {
+        projectId,
+        action: interaction.action,
+        objects: interaction.affectedObjects,
+        userIntent: interaction.userMessage,
+        timestamp: new Date()
+      }
+    })
+    
+    // 3. Update project snapshot in SQL database
+    await updateProjectSnapshot(projectId, interaction)
+  }
+  
+  async retrieveRelevantContext(projectId: string, query: string) {
+    // 1. Generate query embedding
+    const queryEmbedding = await generateEmbedding(query)
+    
+    // 2. Search vector store
+    const results = await vectorStore.query({
+      vector: queryEmbedding,
+      filter: { projectId },
+      topK: 10
+    })
+    
+    // 3. Fetch latest project snapshot
+    const snapshot = await getProjectSnapshot(projectId)
+    
+    // 4. Combine and return context
+    return {
+      recentActions: results,
+      currentState: snapshot
+    }
+  }
+}
+
+Vector Database Options:
+Pinecone (recommended for production): Managed, scalable, $70/month starter
+
+
+FAISS (local): Free, fast, good for MVP, data stays on user machine
+
+
+Supabase pgvector: Open-source, PostgreSQL extension, self-hostable
+
+
+Core Feature 3: Blender Viewport Awareness
+Challenge: LLM needs to "see" what's happening in Blender
+Solution: Leverage MCP viewport screenshot capability
+typescript
+// Viewport screenshot workflow
+async function getBlenderViewportContext(projectId: string) {
+  // 1. Request screenshot from MCP
+  const screenshot = await mcpClient.call('get_viewport_screenshot')
+  
+  // 2. Send to Gemini with vision capabilities
+  const analysis = await gemini.analyzeImage(screenshot, {
+    prompt: "Describe the current Blender scene: objects, positions, materials, camera angle"
+  })
+  
+  // 3. Store analysis in project memory
+  await storeViewportSnapshot(projectId, {
+    timestamp: new Date(),
+    image: screenshot,
+    analysis: analysis
+  })
+  
+  return analysis
+}
+
+// Integration with conversation
+async function handleUserRequestWithVisualContext(message: string, projectId: string) {
+  // Get current visual state
+  const visualContext = await getBlenderViewportContext(projectId)
+  
+  // Enhance prompt
+  const enhancedPrompt = `
+    Current Blender scene: ${visualContext.analysis}
+    User request: ${message}
+    
+    Generate appropriate MCP commands to fulfill this request.
+  `
+  
+  // Continue with normal flow...
+}
+
+
+DATA FLOW ARCHITECTURE
+text
+User Input (Text)
+    ↓
+Desktop App (Electron Renderer)
+    ↓ IPC
+Electron Main Process
+    ↓
+Conversation Manager
+    ↓
+Vector Store Query (retrieve context)
+    ↓
+Prompt Builder (user input + context + viewport state)
+    ↓
+Gemini API Call (with MCP tool definitions)
+    ↓
+Response Parser (extract MCP commands)
+    ↓
+MCP Client (localhost:8000)
+    ↓
+Blender MCP Server
+    ↓
+Blender Python API Execution
+    ↓
+Result Return
+    ↓
+Memory Update (vector store + SQL)
+    ↓
+UI Update (show result to user)
+
+
+DATABASE SCHEMA
+sql
+-- Users table
+CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email VARCHAR(255) UNIQUE NOT NULL,
+  name VARCHAR(255),
+  subscription_tier VARCHAR(50) DEFAULT 'free',
+  subscription_status VARCHAR(50),
+  stripe_customer_id VARCHAR(255),
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Projects table
+CREATE TABLE projects (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  blender_version VARCHAR(50),
+  thumbnail_url TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  last_modified TIMESTAMP DEFAULT NOW(),
+  is_deleted BOOLEAN DEFAULT FALSE
+);
+
+-- Conversations table
+CREATE TABLE conversations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  session_id VARCHAR(255),
+  created_at TIMESTAMP DEFAULT NOW(),
+  last_message_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Messages table
+CREATE TABLE messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
+  role VARCHAR(20) NOT NULL, -- 'user' or 'assistant'
+  content TEXT NOT NULL,
+  mcp_commands JSONB,
+  mcp_results JSONB,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Project snapshots (for quick context loading)
+CREATE TABLE project_snapshots (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  objects JSONB, -- [{"name": "Cube", "type": "MESH", "location": [0,0,0]}]
+  materials JSONB,
+  scene_info JSONB,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Subscription plans
+CREATE TABLE subscription_plans (
+  id VARCHAR(50) PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  price_monthly DECIMAL(10,2),
+  price_yearly DECIMAL(10,2),
+  features JSONB,
+  max_projects INTEGER,
+  max_monthly_requests INTEGER
+);
+
+-- Usage tracking
+CREATE TABLE usage_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id),
+  project_id UUID REFERENCES projects(id),
+  request_type VARCHAR(50), -- 'ai_request', 'mcp_command', 'viewport_screenshot'
+  tokens_used INTEGER,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+
+API ROUTES STRUCTURE
+text
+/api/auth/
+  - /signup (POST)
+  - /login (POST)
+  - /logout (POST)
+  - /session (GET)
+
+/api/projects/
+  - / (GET, POST) - list and create projects
+  - /[id] (GET, PUT, DELETE) - CRUD operations
+  - /[id]/conversations (GET, POST)
+  - /[id]/snapshot (GET, POST) - get/update project state
+
+/api/conversations/
+  - /[id]/messages (GET, POST)
+  - /[id]/memory (GET) - retrieve relevant context
+
+/api/ai/
+  - /chat (POST) - main AI endpoint
+  - /generate-commands (POST) - convert intent to MCP
+  - /analyze-scene (POST) - analyze viewport screenshot
+
+/api/mcp/
+  - /connect (POST) - establish MCP connection
+  - /status (GET) - check MCP server status
+  - /execute (POST) - execute commands
+  - /viewport (GET) - get screenshot
+
+/api/webhooks/
+  - /stripe (POST) - handle subscription events
+
+/api/user/
+  - /subscription (GET, PUT)
+  - /usage (GET)
+  - /settings (GET, PUT)
+
+
+MONETIZATION STRATEGY
+Subscription Tiers:
+typescript
+const PRICING_TIERS = {
+  FREE: {
+    name: 'Free',
+    price: 0,
+    features: [
+      '5 AI requests per day',
+      '1 active project',
+      'Basic MCP commands',
+      'Community support'
+    ],
+    limits: {
+      maxProjects: 1,
+      dailyRequests: 5,
+      modelAccess: 'gemini-2.0-flash'
+    }
+  },
+  
+  STARTER: {
+    name: 'Starter',
+    priceMonthly: 12,
+    priceYearly: 99,
+    features: [
+      '500 AI requests per month',
+      '10 active projects',
+      'All MCP commands',
+      'Viewport analysis',
+      'Email support',
+      'Export project history'
+    ],
+    limits: {
+      maxProjects: 10,
+      monthlyRequests: 500,
+      modelAccess: 'gemini-pro'
+    }
+  },
+  
+  PRO: {
+    name: 'Pro',
+    priceMonthly: 29,
+    priceYearly: 249,
+    features: [
+      'Unlimited AI requests',
+      'Unlimited projects',
+      'Priority model access',
+      'Advanced viewport analysis',
+      'Asset library integration (PolyHaven, Sketchfab)',
+      'Priority support',
+      'API access',
+      'Team collaboration (coming soon)'
+    ],
+    limits: {
+      maxProjects: -1, // unlimited
+      monthlyRequests: -1,
+      modelAccess: 'gemini-ultra'
+    }
+  }
+}
+
+Revenue Model Considerations:
+Start with Stripe over Lemon Squeezy (lower fees: 2.9%+30¢ vs 5%+50¢, acquired by Stripe Oct 2024)
+
+
+Implement usage-based pricing for API access
+
+
+Offer one-time lifetime deal for early adopters
+
+
+Future: team/enterprise licensing
+
+
