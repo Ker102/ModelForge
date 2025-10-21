@@ -72,7 +72,39 @@ export default function DocsPage() {
                 <CardDescription>For developers building integrations</CardDescription>
               </CardHeader>
               <CardContent className="prose prose-slate dark:prose-invert max-w-none">
-                <p>API documentation coming soon for Pro subscribers.</p>
+                <p>
+                  The first ModelForge AI endpoint is available for early testing. It currently
+                  returns a placeholder response so you can integrate against the contract while
+                  we finish the Gemini hookup.
+                </p>
+                <h4>POST /api/ai/chat</h4>
+                <pre>
+{`{
+  "projectId": "optional project UUID",
+  "message": "Describe the lighting setup for my scene."
+}`}
+                </pre>
+                <p>
+                  The route validates project ownership, checks your plan&apos;s daily and monthly
+                  AI allocation, and logs usage for billing. Free tier users will receive a limit
+                  error after five requests per day. Responses include the latest usage totals:
+                </p>
+                <pre>
+{`{
+  "message": {
+    "role": "assistant",
+    "content": "Placeholder response until Gemini integration ships."
+  },
+  "usage": {
+    "daily": { "used": 3, "limit": 5 },
+    "monthly": { "used": 7, "limit": null }
+  }
+}`}
+                </pre>
+                <p>
+                  Once LLM connectivity is live the response will contain real tool outputs and
+                  conversation IDs, so you can start building your front-end today.
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -82,4 +114,3 @@ export default function DocsPage() {
     </div>
   )
 }
-

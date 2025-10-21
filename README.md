@@ -67,6 +67,9 @@ This repository contains the Next.js 14 marketing website and user platform.
    STRIPE_STARTER_YEARLY_PRICE_ID="price_..."
    STRIPE_PRO_MONTHLY_PRICE_ID="price_..."
    STRIPE_PRO_YEARLY_PRICE_ID="price_..."
+
+   # LLM Provider
+   GEMINI_API_KEY="your-gemini-api-key"
    ```
 
 4. **Set up PostgreSQL database**
@@ -350,4 +353,3 @@ For questions or issues:
 ---
 
 Built with ❤️ using Next.js, PostgreSQL, and Stripe
-

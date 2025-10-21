@@ -84,3 +84,32 @@ export async function getUsageSummary(
     },
   }
 }
+
+export async function canConsumeAiRequest(
+  userId: string,
+  tier?: string | null
+): Promise<{
+  allowed: boolean
+  usage: UsageSummary
+  limitType?: "daily" | "monthly"
+}> {
+  const usage = await getUsageSummary(userId, tier)
+
+  if (
+    usage.daily.limit !== null &&
+    usage.daily.limit >= 0 &&
+    usage.daily.used >= usage.daily.limit
+  ) {
+    return { allowed: false, usage, limitType: "daily" }
+  }
+
+  if (
+    usage.monthly.limit !== null &&
+    usage.monthly.limit >= 0 &&
+    usage.monthly.used >= usage.monthly.limit
+  ) {
+    return { allowed: false, usage, limitType: "monthly" }
+  }
+
+  return { allowed: true, usage }
+}

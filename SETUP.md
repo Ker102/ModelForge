@@ -39,6 +39,9 @@ STRIPE_STARTER_MONTHLY_PRICE_ID="price_..."
 STRIPE_STARTER_YEARLY_PRICE_ID="price_..."
 STRIPE_PRO_MONTHLY_PRICE_ID="price_..."
 STRIPE_PRO_YEARLY_PRICE_ID="price_..."
+
+# LLM Provider
+GEMINI_API_KEY="your-gemini-api-key"
 ```
 
 ### 2. Database Setup
@@ -213,4 +216,3 @@ Check the [full README](./README.md) for comprehensive documentation, or open an
 ---
 
 Built with Next.js, PostgreSQL, and Stripe
-
