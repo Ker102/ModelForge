@@ -327,8 +327,12 @@ ModelForge connects to Blender through the open-source [blender-mcp](https://git
 
 Key steps:
 
-1. **Install prerequisites**: Blender ≥ 3.0, Python ≥ 3.10, and the [`uv`](https://docs.astral.sh/uv/getting-started/installation/) package manager.
-2. **Install the Blender addon**: Download `addon.py` from the upstream repo, then install it via Blender → Preferences → Add-ons → Install.
+1. **Install prerequisites**:
+   - Blender ≥ 3.0 (download from [blender.org](https://www.blender.org/download/))
+   - Python ≥ 3.10 (via package manager, Homebrew, or [python.org](https://www.python.org/downloads/))
+   - Git ([git-scm.com](https://git-scm.com/downloads))
+   - [`uv`](https://docs.astral.sh/uv/getting-started/installation/) (see instructions below)
+2. **Install the Blender addon**: Either download it directly from this project at [`/downloads/blender-mcp-addon.py`](/downloads/blender-mcp-addon.py) or clone the upstream repo and use the bundled `addon.py`. Install it via Blender → Preferences → Add-ons → Install.
 3. **Configure the MCP server**:
    - Environment variables (already covered in `.env.example`):
      - `BLENDER_MCP_HOST` (defaults to `127.0.0.1`)
@@ -359,6 +363,8 @@ The Blender MCP server is distributed via the [`uv`](https://docs.astral.sh/uv) 
   powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
   ```
   Afterwards, ensure `%USERPROFILE%\.local\bin` is in your `PATH`.
+
+Git is only required if you prefer cloning the upstream repository instead of using the direct download.
 
 You only need to install `uv` once. After that, run the MCP server with:
 
