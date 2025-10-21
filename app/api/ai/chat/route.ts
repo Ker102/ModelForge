@@ -3,28 +3,81 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import {
   canConsumeAiRequest,
+  getUsageSummary,
   logUsage,
-  UsageSummary,
 } from "@/lib/usage"
+import { generateGeminiResponse } from "@/lib/gemini"
 import { z } from "zod"
 
+const MAX_HISTORY_MESSAGES = 12
+
 const chatRequestSchema = z.object({
-  projectId: z.string().uuid().optional(),
+  projectId: z.string().uuid(),
+  conversationId: z.string().uuid().optional(),
+  startNew: z.boolean().optional(),
   message: z.string().min(1).max(2000),
-  context: z
-    .object({
-      conversationId: z.string().uuid().optional(),
-      previousMessages: z
-        .array(
-          z.object({
-            role: z.enum(["user", "assistant", "system"]),
-            content: z.string().max(4000),
-          })
-        )
-        .optional(),
-    })
-    .optional(),
 })
+
+async function ensureConversation({
+  projectId,
+  userId,
+  conversationId,
+  startNew,
+}: {
+  projectId: string
+  userId: string
+  conversationId?: string
+  startNew?: boolean
+}) {
+  if (conversationId) {
+    const conversation = await prisma.conversation.findFirst({
+      where: {
+        id: conversationId,
+        project: {
+          id: projectId,
+          userId,
+          isDeleted: false,
+        },
+      },
+      select: { id: true },
+    })
+
+    if (!conversation) {
+      throw new Error("Conversation not found")
+    }
+
+    return conversationId
+  }
+
+  if (!startNew) {
+    const existing = await prisma.conversation.findFirst({
+      where: {
+        project: {
+          id: projectId,
+          userId,
+          isDeleted: false,
+        },
+      },
+      orderBy: {
+        lastMessageAt: "desc",
+      },
+      select: { id: true },
+    })
+
+    if (existing) {
+      return existing.id
+    }
+  }
+
+  const conversation = await prisma.conversation.create({
+    data: {
+      projectId,
+    },
+    select: { id: true },
+  })
+
+  return conversation.id
+}
 
 export async function POST(req: Request) {
   try {
@@ -35,24 +88,23 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json()
-    const { projectId, message } = chatRequestSchema.parse(body)
+    const { projectId, conversationId, startNew, message } =
+      chatRequestSchema.parse(body)
 
-    if (projectId) {
-      const project = await prisma.project.findFirst({
-        where: {
-          id: projectId,
-          userId: session.user.id,
-          isDeleted: false,
-        },
-        select: { id: true },
-      })
+    const project = await prisma.project.findFirst({
+      where: {
+        id: projectId,
+        userId: session.user.id,
+        isDeleted: false,
+      },
+      select: { id: true },
+    })
 
-      if (!project) {
-        return NextResponse.json(
-          { error: "Project not found" },
-          { status: 404 }
-        )
-      }
+    if (!project) {
+      return NextResponse.json(
+        { error: "Project not found" },
+        { status: 404 }
+      )
     }
 
     const quotaCheck = await canConsumeAiRequest(
@@ -72,34 +124,109 @@ export async function POST(req: Request) {
       )
     }
 
-    // Placeholder AI response. Replace with Gemini integration.
-    const aiResponse = {
-      role: "assistant",
-      content: `ModelForge AI endpoint is not connected to an LLM yet. I received your prompt: “${message}”. This is a placeholder response.`,
+    let resolvedConversationId: string
+    try {
+      resolvedConversationId = await ensureConversation({
+        projectId,
+        userId: session.user.id,
+        conversationId,
+        startNew,
+      })
+    } catch {
+      return NextResponse.json(
+        { error: "Conversation not found" },
+        { status: 404 }
+      )
     }
+
+    const historyMessages = await prisma.message.findMany({
+      where: { conversationId: resolvedConversationId },
+      orderBy: { createdAt: "desc" },
+      take: Math.max(0, MAX_HISTORY_MESSAGES - 1),
+      select: {
+        role: true,
+        content: true,
+      },
+    })
+
+    const trimmedHistory = historyMessages
+      .reverse()
+      .map((msg) => ({
+        role: msg.role === "assistant" ? "assistant" : "user",
+        content: msg.content,
+      }))
+
+    const { text: assistantText, usage: tokenUsage } =
+      await generateGeminiResponse({
+        history: trimmedHistory,
+        messages: [
+          {
+            role: "user",
+            content: message,
+          },
+        ],
+        maxOutputTokens: 512,
+      })
+
+    const result = await prisma.$transaction(async (tx) => {
+      const userMessageRecord = await tx.message.create({
+        data: {
+          conversationId: resolvedConversationId,
+          role: "user",
+          content: message,
+        },
+        select: {
+          id: true,
+          role: true,
+          content: true,
+          createdAt: true,
+        },
+      })
+
+      const assistantMessageRecord = await tx.message.create({
+        data: {
+          conversationId: resolvedConversationId,
+          role: "assistant",
+          content: assistantText,
+          mcpResults: tokenUsage.totalTokens
+            ? {
+                tokens: tokenUsage,
+              }
+            : undefined,
+        },
+        select: {
+          id: true,
+          role: true,
+          content: true,
+          createdAt: true,
+        },
+      })
+
+      await tx.conversation.update({
+        where: { id: resolvedConversationId },
+        data: { lastMessageAt: assistantMessageRecord.createdAt },
+      })
+
+      return { userMessageRecord, assistantMessageRecord }
+    })
 
     await logUsage({
       userId: session.user.id,
       projectId,
       requestType: "ai_request",
+      tokensUsed: tokenUsage.totalTokens ?? undefined,
     })
 
-    const usage: UsageSummary = quotaCheck.allowed
-      ? {
-          daily: {
-            used: quotaCheck.usage.daily.used + 1,
-            limit: quotaCheck.usage.daily.limit,
-          },
-          monthly: {
-            used: quotaCheck.usage.monthly.used + 1,
-            limit: quotaCheck.usage.monthly.limit,
-          },
-        }
-      : quotaCheck.usage
+    const usage = await getUsageSummary(
+      session.user.id,
+      session.user.subscriptionTier
+    )
 
     return NextResponse.json({
-      message: aiResponse,
+      conversationId: resolvedConversationId,
+      messages: [result.userMessageRecord, result.assistantMessageRecord],
       usage,
+      tokenUsage,
     })
   } catch (error) {
     console.error("AI chat error:", error)
@@ -111,7 +238,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json(
-      { error: "Failed to process AI request" },
+      { error: error instanceof Error ? error.message : "Failed to process AI request" },
       { status: 500 }
     )
   }

@@ -80,30 +80,39 @@ export default function DocsPage() {
                 <h4>POST /api/ai/chat</h4>
                 <pre>
 {`{
-  "projectId": "optional project UUID",
+  "projectId": "uuid-of-project",
+  "conversationId": "optional-conversation-uuid",
+  "startNew": true,
   "message": "Describe the lighting setup for my scene."
 }`}
                 </pre>
                 <p>
-                  The route validates project ownership, checks your plan&apos;s daily and monthly
-                  AI allocation, and logs usage for billing. Free tier users will receive a limit
-                  error after five requests per day. Responses include the latest usage totals:
+                  The endpoint verifies project ownership, enforces daily/monthly limits, and
+                  persists both sides of the conversation. Omitting <code>conversationId</code>
+                  (or passing <code>startNew: true</code>) spins up a fresh session for the project.
                 </p>
                 <pre>
 {`{
-  "message": {
-    "role": "assistant",
-    "content": "Placeholder response until Gemini integration ships."
-  },
+  "conversationId": "uuid",
+  "messages": [
+    { "role": "user", "content": "..." },
+    { "role": "assistant", "content": "..." }
+  ],
   "usage": {
     "daily": { "used": 3, "limit": 5 },
     "monthly": { "used": 7, "limit": null }
+  },
+  "tokenUsage": {
+    "promptTokens": 420,
+    "responseTokens": 180,
+    "totalTokens": 600
   }
 }`}
                 </pre>
                 <p>
-                  Once LLM connectivity is live the response will contain real tool outputs and
-                  conversation IDs, so you can start building your front-end today.
+                  On limit exhaustion the API responds with <code>429</code> and the current usage
+                  so you can prompt the user to upgrade or wait for resets. The response payload is
+                  identical for the desktop client and web chat surface.
                 </p>
               </CardContent>
             </Card>

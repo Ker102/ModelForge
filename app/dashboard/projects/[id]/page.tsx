@@ -1,10 +1,13 @@
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { notFound } from "next/navigation"
+import { formatDateTime } from "@/lib/utils"
+import { ProjectChat } from "@/components/projects/project-chat"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { formatDateTime } from "@/lib/utils"
 import type { Conversation, Message } from "@prisma/client"
+import { getUsageSummary } from "@/lib/usage"
+import { SubscriptionTier } from "@/lib/subscription"
 
 export default async function ProjectPage({ params }: { params: { id: string } }) {
   const session = await auth()
@@ -21,16 +24,15 @@ export default async function ProjectPage({ params }: { params: { id: string } }
     },
     include: {
       conversations: {
-        take: 5,
         orderBy: {
           lastMessageAt: "desc",
         },
         include: {
           messages: {
-            take: 1,
             orderBy: {
               createdAt: "desc",
             },
+            take: 20,
           },
         },
       },
@@ -41,15 +43,40 @@ export default async function ProjectPage({ params }: { params: { id: string } }
     notFound()
   }
 
+  const tier: SubscriptionTier =
+    session.user.subscriptionTier === "starter" || session.user.subscriptionTier === "pro"
+      ? (session.user.subscriptionTier as SubscriptionTier)
+      : "free"
+
+  const usage = await getUsageSummary(session.user.id, tier)
+
+  const [activeConversation, ...previousConversations] = project.conversations
+
+  const initialConversation = activeConversation
+    ? {
+        id: activeConversation.id,
+        messages: activeConversation.messages
+          .slice()
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .slice(-20)
+          .map((message) => ({
+            id: message.id,
+            role: message.role === "assistant" ? "assistant" : "user",
+            content: message.content,
+            createdAt: message.createdAt.toISOString(),
+          })),
+      }
+    : null
+
   return (
     <div className="container py-8">
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-5xl mx-auto space-y-8">
         <div>
           <h1 className="text-3xl font-bold">{project.name}</h1>
           {project.description && (
             <p className="text-muted-foreground mt-2">{project.description}</p>
           )}
-          <div className="flex gap-2 mt-4">
+          <div className="flex flex-wrap gap-2 mt-4">
             {project.blenderVersion && (
               <Badge variant="secondary">Blender {project.blenderVersion}</Badge>
             )}
@@ -57,52 +84,70 @@ export default async function ProjectPage({ params }: { params: { id: string } }
           </div>
         </div>
 
+        <ProjectChat
+          projectId={project.id}
+          initialConversation={initialConversation}
+          initialUsage={usage}
+        />
+
         <Card>
           <CardHeader>
-            <CardTitle>Desktop App Required</CardTitle>
+            <CardTitle>Connect to Blender</CardTitle>
             <CardDescription>
-              To interact with this project, you&apos;ll need to download and connect the ModelForge desktop app
+              Use the desktop add-on for viewport awareness and direct MCP command execution.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="rounded-lg border p-6 bg-muted/50">
-              <h3 className="font-semibold mb-2">How to get started:</h3>
-              <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
-                <li>Download the ModelForge desktop app</li>
-                <li>Install and run the Blender MCP server</li>
-                <li>Open this project in the desktop app</li>
-                <li>Start creating with AI</li>
-              </ol>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-lg border p-4 space-y-2">
+                <h3 className="font-semibold">Web experience</h3>
+                <p className="text-sm text-muted-foreground">
+                  Chat with ModelForge directly in the browser. Great for planning scenes,
+                  drafting scripts, or reviewing AI suggestions on the go.
+                </p>
+              </div>
+              <div className="rounded-lg border p-4 space-y-2 bg-muted/40">
+                <h3 className="font-semibold">Blender integration (recommended)</h3>
+                <p className="text-sm text-muted-foreground">
+                  Install the ModelForge desktop app and Blender MCP extension for real-time viewport
+                  snapshots and one-click command execution inside Blender.
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Recent Conversations</CardTitle>
+            <CardTitle>Conversation History</CardTitle>
             <CardDescription>
-              Your AI conversation history will appear here
+              Once you close a session, it appears here so you can revisit or continue later.
             </CardDescription>
           </CardHeader>
           <CardContent>
             {project.conversations.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                No conversations yet. Connect the desktop app to get started.
+                No conversations yet. Start chatting with ModelForge to build your history.
               </div>
             ) : (
               <div className="space-y-4">
-                {project.conversations.map((conversation: Conversation & { messages: Message[] }) => (
-                  <div key={conversation.id} className="border-l-2 border-primary pl-4">
-                    <p className="text-sm text-muted-foreground">
-                      {formatDateTime(conversation.lastMessageAt)}
-                    </p>
-                    {conversation.messages[0] && (
-                      <p className="text-sm mt-1 line-clamp-2">
-                        {conversation.messages[0].content}
+                {(previousConversations.length > 0 ? previousConversations : [activeConversation])
+                  .filter(Boolean)
+                  .map((conversation) => (
+                    <div
+                      key={(conversation as Conversation).id}
+                      className="border-l-2 border-primary pl-4"
+                    >
+                      <p className="text-sm text-muted-foreground">
+                        {formatDateTime((conversation as Conversation).lastMessageAt)}
                       </p>
-                    )}
-                  </div>
-                ))}
+                      {(conversation as Conversation & { messages: Message[] }).messages[0] && (
+                        <p className="text-sm mt-1 line-clamp-2">
+                          {(conversation as Conversation & { messages: Message[] }).messages[0].content}
+                        </p>
+                      )}
+                    </div>
+                  ))}
               </div>
             )}
           </CardContent>
@@ -111,4 +156,3 @@ export default async function ProjectPage({ params }: { params: { id: string } }
     </div>
   )
 }
-
