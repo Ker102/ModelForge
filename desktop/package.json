@@ -1,0 +1,18 @@
+{
+  "name": "modelforge-desktop",
+  "version": "0.1.0",
+  "description": "Electron shell for the ModelForge Blender assistant",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "cross-env MODELFORGE_DESKTOP_ENV=development electron .",
+    "lint": "echo \"No desktop lint configured yet\""
+  },
+  "dependencies": {
+    "electron": "^31.2.0"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3"
+  }
+}

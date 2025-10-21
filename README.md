@@ -70,6 +70,10 @@ This repository contains the Next.js 14 marketing website and user platform.
 
    # LLM Provider
    GEMINI_API_KEY="your-gemini-api-key"
+
+   # Blender MCP bridge
+   BLENDER_MCP_HOST="127.0.0.1"
+   BLENDER_MCP_PORT="9876"
    ```
 
 4. **Set up PostgreSQL database**
@@ -317,15 +321,52 @@ npm run db:generate
 - Check webhook event types are selected
 - Use Stripe CLI for local testing
 
+## 🧩 Blender MCP Integration
+
+ModelForge connects to Blender through the open-source [blender-mcp](https://github.com/ahujasid/blender-mcp) project. A copy of the upstream README is available at `blendermcpreadme.md` for offline reference.
+
+Key steps:
+
+1. **Install prerequisites**: Blender ≥ 3.0, Python ≥ 3.10, and the [`uv`](https://docs.astral.sh/uv/getting-started/installation/) package manager.
+2. **Install the Blender addon**: Download `addon.py` from the upstream repo, then install it via Blender → Preferences → Add-ons → Install.
+3. **Configure the MCP server**:
+   - Environment variables (already covered in `.env.example`):
+     - `BLENDER_MCP_HOST` (defaults to `127.0.0.1`)
+     - `BLENDER_MCP_PORT` (defaults to `9876`)
+   - Start the MCP server with `uvx blender-mcp` (per upstream docs).
+4. **Connect ModelForge**: The web and desktop clients will read the host/port from environment variables and route MCP commands through the shared client in `lib/mcp`.
+
+> ⚠️ Only run **one** MCP instance at a time (Cursor, Claude, or ModelForge) to avoid port conflicts.
+
+Consult `blendermcpreadme.md` for detailed screenshots, IDE integrations, and troubleshooting tips.
+
+## 🖥️ Desktop App (Electron)
+
+A lightweight Electron shell lives in the `desktop/` folder. It wraps the Next.js web UI and exposes native integrations (MCP configuration bridge, future filesystem access, etc.).
+
+### Run in development
+
+```bash
+# Terminal 1
+npm run dev
+
+# Terminal 2
+cd desktop
+npm install   # first run only (requires internet access)
+npm run dev
+```
+
+The desktop window loads `MODELFORGE_DESKTOP_START_URL` (defaults to `http://localhost:3000/dashboard`). MCP host/port values are read from the same `.env` file used by the web app, keeping configuration in one place.
+
 ## 🔄 Next Steps (Phase 2)
 
-- [ ] Build Electron desktop application
-- [ ] Implement MCP client connection
-- [ ] Create AI chat interface
-- [ ] Integrate Gemini API
-- [ ] Implement project memory with vector embeddings
+- [x] Build Gemini-backed AI chat with streaming responses
+- [x] Scaffold MCP command planning stubs
+- [x] Build Electron desktop application shell
+- [ ] Implement production MCP client execution
+- [ ] Persist conversation memory with vector embeddings
 - [ ] Add viewport screenshot analysis
-- [ ] Real-time Blender command execution
+- [ ] Deliver real-time Blender command execution
 
 ## 📚 Additional Resources
 
@@ -333,7 +374,7 @@ npm run db:generate
 - [Prisma Documentation](https://www.prisma.io/docs)
 - [NextAuth.js Documentation](https://next-auth.js.org)
 - [Stripe Documentation](https://stripe.com/docs)
-- [Blender MCP Server](https://github.com/example/blender-mcp) (coming soon)
+- [Blender MCP Server](https://github.com/ahujasid/blender-mcp)
 
 ## 📄 License
 

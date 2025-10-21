@@ -42,6 +42,10 @@ STRIPE_PRO_YEARLY_PRICE_ID="price_..."
 
 # LLM Provider
 GEMINI_API_KEY="your-gemini-api-key"
+
+# Blender MCP bridge
+BLENDER_MCP_HOST="127.0.0.1"
+BLENDER_MCP_PORT="9876"
 ```
 
 ### 2. Database Setup
@@ -196,6 +200,17 @@ npm run db:generate
   ```bash
   stripe listen --forward-to localhost:3000/api/webhooks/stripe
   ```
+
+## Blender MCP Bridge
+
+To enable direct Blender automation you will need the community [blender-mcp](https://github.com/ahujasid/blender-mcp) addon and server:
+
+1. Install Blender ≥ 3.0, Python ≥ 3.10, and the [`uv`](https://docs.astral.sh/uv/getting-started/installation/) package manager.
+2. Download the latest `addon.py` from the upstream repository, then install it via Blender → Preferences → Add-ons → Install.
+3. Launch the MCP server with `uvx blender-mcp` (consult the upstream README for IDE integrations). Keep the `.env` variables `BLENDER_MCP_HOST` and `BLENDER_MCP_PORT` aligned with the server.
+4. Start Blender, enable the addon, and click **Connect to Claude** (or the ModelForge desktop app once available).
+
+See `blendermcpreadme.md` in this repository for a full offline copy of the official setup guide.
 
 ## Next Steps
 
