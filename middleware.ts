@@ -1,11 +1,15 @@
-import { auth } from "@/lib/auth"
 import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
+import { getToken } from "next-auth/jwt"
 
-export default auth((req) => {
-  const isLoggedIn = !!req.auth
-  const isAuthPage = req.nextUrl.pathname.startsWith("/login") || 
-                      req.nextUrl.pathname.startsWith("/signup")
-  const isDashboard = req.nextUrl.pathname.startsWith("/dashboard")
+export const runtime = "edge"
+
+export default async function middleware(req: NextRequest) {
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
+  const isLoggedIn = !!token
+  const pathname = req.nextUrl.pathname
+  const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/signup")
+  const isDashboard = pathname.startsWith("/dashboard")
 
   if (isAuthPage) {
     if (isLoggedIn) {
@@ -19,9 +23,8 @@ export default auth((req) => {
   }
 
   return NextResponse.next()
-})
+}
 
 export const config = {
   matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 }
-

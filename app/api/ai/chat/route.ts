@@ -8,11 +8,12 @@ import {
   logUsage,
 } from "@/lib/usage"
 import { streamGeminiResponse } from "@/lib/gemini"
+import { createMcpClient } from "@/lib/mcp"
 import { z } from "zod"
 
 const MAX_HISTORY_MESSAGES = 12
 
-type CommandStatus = "pending" | "ready" | "executed"
+type CommandStatus = "pending" | "ready" | "executed" | "failed"
 
 interface CommandStub {
   id: string
@@ -22,6 +23,12 @@ interface CommandStub {
   confidence: number
   arguments: Record<string, unknown>
   notes?: string
+}
+
+interface ExecutedCommand extends CommandStub {
+  status: "executed" | "failed"
+  result?: unknown
+  error?: string
 }
 
 function createStubId() {
@@ -37,84 +44,142 @@ function buildCommandStubs(prompt: string, response: string): CommandStub[] {
   const promptSnippet = prompt.slice(0, 200)
   const responseSnippet = response.slice(0, 200)
 
-  const patterns: Array<{
-    tool: string
-    description: string
-    confidence: number
-    arguments: Record<string, unknown>
-  }> = []
+  const stubs: CommandStub[] = []
 
-  const objectMatch = /(create|add)\s+(?:a|an|the)?\s*(cube|sphere|plane|mesh|object)/i.exec(prompt)
-  if (objectMatch) {
-    patterns.push({
-      tool: "create_object",
-      description: `Create a ${objectMatch[2]} in Blender`,
-      confidence: 0.6,
-      arguments: {
-        objectType: objectMatch[2].toLowerCase(),
-        source: "prompt",
-      },
-    })
-  }
+  const housePattern = /(house|building|home|structure)/i
+  const primitiveMatch = /(cube|sphere|plane|cone|cylinder|torus)/i.exec(lowerPrompt)
 
-  if (/material|texture/.test(lowerPrompt)) {
-    patterns.push({
-      tool: "assign_material",
-      description: "Update or assign materials based on user request",
-      confidence: 0.45,
-      arguments: {
-        promptSnippet,
-      },
-    })
-  }
+  if (housePattern.test(lowerPrompt)) {
+    const code = `import bpy
 
-  if (/light|lighting|hdr/i.test(prompt)) {
-    patterns.push({
-      tool: "adjust_lighting",
-      description: "Modify scene lighting parameters",
-      confidence: 0.4,
-      arguments: {
-        promptSnippet,
-      },
-    })
-  }
+`
+      + `def ensure_collection(name):
+`
+      + `    coll = bpy.data.collections.get(name)
+`
+      + `    if coll is None:
+`
+      + `        coll = bpy.data.collections.new(name)
+`
+      + `        bpy.context.scene.collection.children.link(coll)
+`
+      + `    return coll
 
-  if (/camera|render|shot/i.test(prompt)) {
-    patterns.push({
-      tool: "adjust_camera",
-      description: "Update camera position or render settings",
-      confidence: 0.35,
-      arguments: {
-        promptSnippet,
-      },
-    })
-  }
+`
+      + `coll = ensure_collection("ModelForge")
+`
+      + `bpy.ops.object.select_all(action='DESELECT')
+`
+      + `bpy.ops.mesh.primitive_cube_add(size=4, location=(0, 0, 1))
+`
+      + `base = bpy.context.active_object
+`
+      + `base.name = "House_Base"
+`
+      + `base.scale[2] = 0.5
+`
+      + `bpy.ops.mesh.primitive_cube_add(size=4.5, location=(0, 0, 2.4))
+`
+      + `roof = bpy.context.active_object
+`
+      + `roof.name = "House_Roof"
+`
+      + `roof.scale[2] = 0.35
+`
+      + `roof.rotation_euler[1] = 0.785398
+`
 
-  const stubs = patterns.map((pattern) => ({
-    id: createStubId(),
-    tool: pattern.tool,
-    description: pattern.description,
-    status: "pending" as CommandStatus,
-    confidence: pattern.confidence,
-    arguments: {
-      ...pattern.arguments,
-      assistantSummary: responseSnippet,
-    },
-    notes: "Auto-generated placeholder. Replace with precise MCP command once integration is ready.",
-  }))
-
-  if (stubs.length === 0) {
     stubs.push({
       id: createStubId(),
-      tool: "context_summary",
-      description: "Review user intent and map to MCP commands",
+      tool: "execute_code",
+      description: "Create a simple house with base and roof",
       status: "pending",
-      confidence: 0.2,
+      confidence: 0.55,
       arguments: {
+        code,
         promptSnippet,
         assistantSummary: responseSnippet,
       },
-      notes: "Use this stub to draft actual MCP command sequence when the planner is available.",
+      notes: "Generated automatically from ModelForge heuristics.",
+    })
+  } else if (primitiveMatch) {
+    const primitive = primitiveMatch[1]
+    const primitiveMap: Record<string, string> = {
+      cube: "bpy.ops.mesh.primitive_cube_add",
+      sphere: "bpy.ops.mesh.primitive_uv_sphere_add",
+      plane: "bpy.ops.mesh.primitive_plane_add",
+      cone: "bpy.ops.mesh.primitive_cone_add",
+      cylinder: "bpy.ops.mesh.primitive_cylinder_add",
+      torus: "bpy.ops.mesh.primitive_torus_add",
+    }
+    const operation = primitiveMap[primitive as keyof typeof primitiveMap] || primitiveMap.cube
+    const code = `import bpy
+
+`
+      + `bpy.ops.object.select_all(action='DESELECT')
+`
+      + `${operation}(location=(0, 0, 0))
+`
+      + `obj = bpy.context.active_object
+`
+      + `obj.name = "${primitive.charAt(0).toUpperCase() + primitive.slice(1)}"
+`
+
+    stubs.push({
+      id: createStubId(),
+      tool: "execute_code",
+      description: `Create a ${primitive} primitive`,
+      status: "pending",
+      confidence: 0.45,
+      arguments: {
+        code,
+        promptSnippet,
+        assistantSummary: responseSnippet,
+      },
+      notes: "Generated automatically from ModelForge heuristics.",
+    })
+  } else if (/light|lighting|sunlamp|sun lamp|sunlight/.test(lowerPrompt)) {
+    const code = `import bpy
+
+`
+      + `bpy.ops.object.light_add(type='SUN', location=(0, 0, 5))
+`
+      + `light = bpy.context.active_object
+`
+      + `light.data.energy = 5.0
+`
+      + `light.name = "ModelForge_Sun"
+`
+
+    stubs.push({
+      id: createStubId(),
+      tool: "execute_code",
+      description: "Add a sun light source",
+      status: "pending",
+      confidence: 0.3,
+      arguments: {
+        code,
+        promptSnippet,
+        assistantSummary: responseSnippet,
+      },
+      notes: "Generated automatically from ModelForge heuristics.",
+    })
+  }
+
+  if (stubs.length === 0) {
+    const placeholderCode = `print("ModelForge placeholder: ${promptSnippet.replace(/"/g, '')}")`
+    stubs.push({
+      id: createStubId(),
+      tool: "execute_code",
+      description: "Log prompt for manual planning",
+      status: "pending",
+      confidence: 0.1,
+      arguments: {
+        code: placeholderCode,
+        promptSnippet,
+        assistantSummary: responseSnippet,
+      },
+      notes: "No direct automation rule matched. Logged prompt for review.",
     })
   }
 
@@ -187,6 +252,55 @@ async function ensureConversation({
   })
 
   return conversation.id
+}
+
+async function executeCommandPlan(commands: CommandStub[]): Promise<ExecutedCommand[]> {
+  if (commands.length === 0) {
+    return []
+  }
+
+  const client = createMcpClient()
+  const executed: ExecutedCommand[] = []
+
+  try {
+    for (const command of commands) {
+      try {
+        const response = await client.execute({
+          type: command.tool,
+          params: command.arguments,
+        })
+
+        if (response.status === "ok") {
+          executed.push({
+            ...command,
+            status: "executed",
+            result: response.result ?? response.message ?? response.raw,
+            error: undefined,
+          })
+        } else {
+          executed.push({
+            ...command,
+            status: "failed",
+            result: response.result ?? response.raw,
+            error: response.message ?? "Command returned an error",
+          })
+        }
+      } catch (error) {
+        executed.push({
+          ...command,
+          status: "failed",
+          result: undefined,
+          error: error instanceof Error ? error.message : "Failed to execute MCP command",
+        })
+      }
+    }
+  } finally {
+    await client.close().catch(() => {
+      // ignore close errors
+    })
+  }
+
+  return executed
 }
 
 export async function POST(req: Request) {
@@ -301,6 +415,7 @@ export async function POST(req: Request) {
           }
 
           const commandSuggestions = buildCommandStubs(message, assistantText)
+          const executedCommands = await executeCommandPlan(commandSuggestions)
 
           const result = await prisma.$transaction(async (tx) => {
             const userMessageRecord = await tx.message.create({
@@ -322,12 +437,17 @@ export async function POST(req: Request) {
                 conversationId: resolvedConversationId,
                 role: "assistant",
                 content: assistantText,
-                mcpCommands: commandSuggestions,
-                mcpResults: tokenUsage?.totalTokens
-                  ? {
-                      tokens: tokenUsage,
-                    }
-                  : undefined,
+                mcpCommands: executedCommands,
+                mcpResults: {
+                  tokens: tokenUsage,
+                  commands: executedCommands.map((command) => ({
+                    id: command.id,
+                    tool: command.tool,
+                    status: command.status,
+                    result: command.result,
+                    error: command.error,
+                  })),
+                },
               },
               select: {
                 id: true,
@@ -364,7 +484,7 @@ export async function POST(req: Request) {
             messages: [result.userMessageRecord, result.assistantMessageRecord],
             usage,
             tokenUsage,
-            commandSuggestions,
+            commandSuggestions: executedCommands,
           })
         } catch (error) {
           console.error("AI chat stream error:", error)

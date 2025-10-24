@@ -372,6 +372,16 @@ You only need to install `uv` once. After that, run the MCP server with:
 uvx blender-mcp
 ```
 
+### Local test account
+
+Need a Pro-tier account for QA? Seed one with:
+
+```bash
+npm run test:user
+```
+
+This creates (or updates) `test@modelforge.dev` with password `TestPass123!`. Override credentials via `TEST_USER_EMAIL`, `TEST_USER_PASSWORD`, and `TEST_USER_NAME` environment variables when running the script.
+
 ## 🖥️ Desktop App (Electron)
 
 A lightweight Electron shell lives in the `desktop/` folder. It wraps the Next.js web UI and exposes native integrations (MCP configuration bridge, future filesystem access, etc.).

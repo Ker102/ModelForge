@@ -1,11 +1,17 @@
 export type McpCommandType =
-  | "create_object"
-  | "delete_object"
-  | "update_material"
-  | "execute_python"
-  | "adjust_lighting"
-  | "adjust_camera"
-  | "context_summary"
+  | "execute_code"
+  | "get_scene_info"
+  | "get_object_info"
+  | "get_viewport_screenshot"
+  | "get_polyhaven_categories"
+  | "search_polyhaven_assets"
+  | "download_polyhaven_asset"
+  | "set_texture"
+  | "create_rodin_job"
+  | "poll_rodin_job_status"
+  | "import_generated_asset"
+  | "search_sketchfab_models"
+  | "download_sketchfab_model"
   | string
 
 export interface McpCommand {

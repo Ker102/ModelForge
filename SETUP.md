@@ -243,6 +243,16 @@ Confirm the installation with:
 uv --version
 ```
 
+### Create a local test user
+
+Run the seeding script to provision a Pro-tier test account:
+
+```bash
+npm run test:user
+```
+
+Defaults to email `test@modelforge.dev` with password `TestPass123!`. Override using `TEST_USER_EMAIL` / `TEST_USER_PASSWORD` environment variables when running the command.
+
 ## Next Steps
 
 Phase 1 is complete! Here's what comes next:

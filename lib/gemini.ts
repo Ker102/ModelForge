@@ -1,5 +1,5 @@
-const GEMINI_API_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta"
-const DEFAULT_MODEL = "gemini-1.5-flash"
+const GEMINI_API_ENDPOINT = "https://generativelanguage.googleapis.com/v1"
+const DEFAULT_MODEL = "gemini-2.0-flash"
 
 export interface GeminiMessage {
   role: "user" | "assistant"
@@ -43,6 +43,19 @@ function mapMessageToGeminiContent(message: GeminiMessage) {
   }
 }
 
+function buildContents(history: GeminiMessage[], messages: GeminiMessage[]) {
+  const systemContent = {
+    role: "user",
+    parts: [{ text: SYSTEM_PROMPT }],
+  }
+
+  return [
+    systemContent,
+    ...history.map(mapMessageToGeminiContent),
+    ...messages.map(mapMessageToGeminiContent),
+  ]
+}
+
 export async function generateGeminiResponse({
   messages,
   history = [],
@@ -59,14 +72,10 @@ export async function generateGeminiResponse({
   const model = process.env.GEMINI_MODEL ?? DEFAULT_MODEL
   const url = `${GEMINI_API_ENDPOINT}/models/${model}:generateContent?key=${apiKey}`
 
-  const contents = [...history, ...messages].map(mapMessageToGeminiContent)
+  const contents = buildContents(history, messages)
 
   const body = {
     contents,
-    systemInstruction: {
-      role: "system",
-      parts: [{ text: SYSTEM_PROMPT }],
-    },
     generationConfig: {
       temperature,
       topP,
@@ -74,6 +83,7 @@ export async function generateGeminiResponse({
       maxOutputTokens,
     },
   }
+
 
   const response = await fetch(url, {
     method: "POST",
@@ -129,7 +139,7 @@ export async function* streamGeminiResponse(
   const { messages, history = [], temperature = 0.4, topP = 0.8, topK = 32, maxOutputTokens = 512 } =
     options
 
-  const contents = [...history, ...messages].map(mapMessageToGeminiContent)
+  const contents = buildContents(history, messages)
 
   const response = await fetch(url, {
     method: "POST",
@@ -138,10 +148,6 @@ export async function* streamGeminiResponse(
     },
     body: JSON.stringify({
       contents,
-      systemInstruction: {
-        role: "system",
-        parts: [{ text: SYSTEM_PROMPT }],
-      },
       generationConfig: {
         temperature,
         topP,

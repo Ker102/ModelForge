@@ -12,10 +12,12 @@ interface CommandStub {
   id: string
   tool: string
   description: string
-  status: "pending" | "ready" | "executed"
+  status: "pending" | "ready" | "executed" | "failed"
   confidence: number
   arguments?: Record<string, unknown>
   notes?: string
+  result?: unknown
+  error?: string
 }
 
 interface ChatMessage {
@@ -94,6 +96,31 @@ export function ProjectChat({
       setMessages([])
     }
   }, [initialConversation, conversationId, history])
+
+  const renderStatusBadge = (status: CommandStub["status"]) => {
+    const variantMap: Record<CommandStub["status"], { variant: "default" | "secondary" | "outline" | "destructive"; label: string }> = {
+      pending: { variant: "outline", label: "Pending" },
+      ready: { variant: "secondary", label: "Ready" },
+      executed: { variant: "default", label: "Executed" },
+      failed: { variant: "destructive", label: "Failed" },
+    }
+    const { variant, label } = variantMap[status]
+    return (
+      <Badge variant={variant} className="uppercase text-[10px] tracking-wide">
+        {label}
+      </Badge>
+    )
+  }
+
+  const formatResult = (value: unknown) => {
+    if (value === undefined || value === null) return null
+    if (typeof value === "string") return value
+    try {
+      return JSON.stringify(value, null, 2)
+    } catch {
+      return String(value)
+    }
+  }
 
   const formatHistoryLabel = (timestamp: string) =>
     new Date(timestamp).toLocaleString([], {
@@ -446,24 +473,32 @@ export function ProjectChat({
                 {message.role === "assistant" &&
                   Array.isArray(message.mcpCommands) &&
                   message.mcpCommands.length > 0 && (
-                    <div className="max-w-[80%] rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
-                      <p className="font-medium text-primary mb-1">
-                        MCP command plan (preview)
+                    <div className="max-w-[80%] rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground space-y-2">
+                      <p className="font-medium text-primary">
+                        MCP execution summary
                       </p>
-                      <ul className="space-y-1">
+                      <ul className="space-y-2">
                         {message.mcpCommands.map((command) => (
-                          <li key={command.id} className="flex flex-col gap-0.5">
-                            <span className="font-medium text-foreground">
-                              {command.tool}{" "}
-                              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                                {command.status}
-                              </span>
-                            </span>
-                            <span>{command.description}</span>
+                          <li key={command.id} className="flex flex-col gap-1 rounded-md border border-border/60 bg-background/70 p-2 text-xs">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium text-foreground">{command.tool}</span>
+                              {renderStatusBadge(command.status)}
+                            </div>
+                            <span className="text-muted-foreground">{command.description}</span>
                             {command.notes && (
                               <span className="italic text-[11px] text-muted-foreground/80">
                                 {command.notes}
                               </span>
+                            )}
+                            {command.status === "failed" && command.error && (
+                              <div className="rounded border border-destructive/40 bg-destructive/10 px-2 py-1 text-[11px] text-destructive">
+                                {command.error}
+                              </div>
+                            )}
+                            {command.status === "executed" && formatResult(command.result) && (
+                              <pre className="rounded bg-muted/60 px-2 py-1 text-[11px] text-muted-foreground whitespace-pre-wrap break-words">
+                                {formatResult(command.result)}
+                              </pre>
                             )}
                           </li>
                         ))}
