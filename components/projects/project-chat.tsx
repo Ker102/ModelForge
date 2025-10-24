@@ -500,6 +500,11 @@ export function ProjectChat({
                                 {formatResult(command.result)}
                               </pre>
                             )}
+                            {command.status === "failed" && command.error && (
+                              <div className="rounded border border-destructive/30 bg-destructive/10 px-2 py-1 text-[11px] text-destructive">
+                                {command.error}
+                              </div>
+                            )}
                           </li>
                         ))}
                       </ul>

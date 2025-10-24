@@ -39,34 +39,53 @@ function createStubId() {
   }
 }
 
-function buildCommandStubs(prompt: string, response: string): CommandStub[] {
+function buildCommandStubs(prompt: string): CommandStub[] {
   const lowerPrompt = prompt.toLowerCase()
   const promptSnippet = prompt.slice(0, 200)
-  const responseSnippet = response.slice(0, 200)
 
   const stubs: CommandStub[] = []
 
   const housePattern = /(house|building|home|structure)/i
   const primitiveMatch = /(cube|sphere|plane|cone|cylinder|torus)/i.exec(lowerPrompt)
 
+  const ensureHelpers = `import bpy
+
+`
+    + `def ensure_collection(name):
+`
+    + `    collection = bpy.data.collections.get(name)
+`
+    + `    if collection is None:
+`
+    + `        collection = bpy.data.collections.new(name)
+`
+    + `        bpy.context.scene.collection.children.link(collection)
+`
+    + `    return collection
+
+`
+    + `def link_object(obj, collection):
+`
+    + `    for existing in list(obj.users_collection):
+`
+    + `        if existing != collection:
+`
+    + `            existing.objects.unlink(obj)
+`
+    + `    if obj.name not in collection.objects:
+`
+    + `        collection.objects.link(obj)
+
+`
+
   if (housePattern.test(lowerPrompt)) {
-    const code = `import bpy
+    const code = ensureHelpers
+      + `collection = ensure_collection("ModelForge")
+`
+      + `for existing in list(collection.objects):
+`
+      + `    bpy.data.objects.remove(existing, do_unlink=True)
 
-`
-      + `def ensure_collection(name):
-`
-      + `    coll = bpy.data.collections.get(name)
-`
-      + `    if coll is None:
-`
-      + `        coll = bpy.data.collections.new(name)
-`
-      + `        bpy.context.scene.collection.children.link(coll)
-`
-      + `    return coll
-
-`
-      + `coll = ensure_collection("ModelForge")
 `
       + `bpy.ops.object.select_all(action='DESELECT')
 `
@@ -78,15 +97,19 @@ function buildCommandStubs(prompt: string, response: string): CommandStub[] {
 `
       + `base.scale[2] = 0.5
 `
-      + `bpy.ops.mesh.primitive_cube_add(size=4.5, location=(0, 0, 2.4))
+      + `link_object(base, collection)
+
+`
+      + `bpy.ops.mesh.primitive_cone_add(radius1=3.2, radius2=0.2, depth=2.5, location=(0, 0, 2.75))
 `
       + `roof = bpy.context.active_object
 `
       + `roof.name = "House_Roof"
 `
-      + `roof.scale[2] = 0.35
+      + `link_object(roof, collection)
+
 `
-      + `roof.rotation_euler[1] = 0.785398
+      + `print("ModelForge: simple house created")
 `
 
     stubs.push({
@@ -95,11 +118,7 @@ function buildCommandStubs(prompt: string, response: string): CommandStub[] {
       description: "Create a simple house with base and roof",
       status: "pending",
       confidence: 0.55,
-      arguments: {
-        code,
-        promptSnippet,
-        assistantSummary: responseSnippet,
-      },
+      arguments: { code },
       notes: "Generated automatically from ModelForge heuristics.",
     })
   } else if (primitiveMatch) {
@@ -113,8 +132,8 @@ function buildCommandStubs(prompt: string, response: string): CommandStub[] {
       torus: "bpy.ops.mesh.primitive_torus_add",
     }
     const operation = primitiveMap[primitive as keyof typeof primitiveMap] || primitiveMap.cube
-    const code = `import bpy
-
+    const code = ensureHelpers
+      + `collection = ensure_collection("ModelForge")
 `
       + `bpy.ops.object.select_all(action='DESELECT')
 `
@@ -124,6 +143,11 @@ function buildCommandStubs(prompt: string, response: string): CommandStub[] {
 `
       + `obj.name = "${primitive.charAt(0).toUpperCase() + primitive.slice(1)}"
 `
+      + `link_object(obj, collection)
+
+`
+      + `print("ModelForge: ${primitive} created")
+`
 
     stubs.push({
       id: createStubId(),
@@ -131,24 +155,27 @@ function buildCommandStubs(prompt: string, response: string): CommandStub[] {
       description: `Create a ${primitive} primitive`,
       status: "pending",
       confidence: 0.45,
-      arguments: {
-        code,
-        promptSnippet,
-        assistantSummary: responseSnippet,
-      },
+      arguments: { code },
       notes: "Generated automatically from ModelForge heuristics.",
     })
-  } else if (/light|lighting|sunlamp|sun lamp|sunlight/.test(lowerPrompt)) {
-    const code = `import bpy
-
+  } else if (/light|lighting|sunlamp|sun lamp|sunlight|studio/.test(lowerPrompt)) {
+    const code = ensureHelpers
+      + `collection = ensure_collection("ModelForge")
+`
+      + `bpy.ops.object.select_all(action='DESELECT')
 `
       + `bpy.ops.object.light_add(type='SUN', location=(0, 0, 5))
 `
       + `light = bpy.context.active_object
 `
-      + `light.data.energy = 5.0
-`
       + `light.name = "ModelForge_Sun"
+`
+      + `light.data.energy = 7.0
+`
+      + `link_object(light, collection)
+
+`
+      + `print("ModelForge: lighting setup added")
 `
 
     stubs.push({
@@ -157,11 +184,7 @@ function buildCommandStubs(prompt: string, response: string): CommandStub[] {
       description: "Add a sun light source",
       status: "pending",
       confidence: 0.3,
-      arguments: {
-        code,
-        promptSnippet,
-        assistantSummary: responseSnippet,
-      },
+      arguments: { code },
       notes: "Generated automatically from ModelForge heuristics.",
     })
   }
@@ -174,11 +197,7 @@ function buildCommandStubs(prompt: string, response: string): CommandStub[] {
       description: "Log prompt for manual planning",
       status: "pending",
       confidence: 0.1,
-      arguments: {
-        code: placeholderCode,
-        promptSnippet,
-        assistantSummary: responseSnippet,
-      },
+      arguments: { code: placeholderCode },
       notes: "No direct automation rule matched. Logged prompt for review.",
     })
   }
@@ -414,7 +433,7 @@ export async function POST(req: Request) {
             }
           }
 
-          const commandSuggestions = buildCommandStubs(message, assistantText)
+          const commandSuggestions = buildCommandStubs(message)
           const executedCommands = await executeCommandPlan(commandSuggestions)
 
           const result = await prisma.$transaction(async (tx) => {
