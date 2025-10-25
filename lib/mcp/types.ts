@@ -21,7 +21,7 @@ export interface McpCommand {
 }
 
 export interface McpResponse<T = unknown> {
-  status: "ok" | "error"
+  status?: "ok" | "success" | "error"
   result?: T
   message?: string
   raw?: unknown
