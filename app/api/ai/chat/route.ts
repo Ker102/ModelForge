@@ -9,6 +9,9 @@ import {
 } from "@/lib/usage"
 import { streamGeminiResponse } from "@/lib/gemini"
 import { createMcpClient } from "@/lib/mcp"
+import { BlenderPlanner } from "@/lib/orchestration/planner"
+import { PlanExecutor, type ExecutionResult } from "@/lib/orchestration/executor"
+import type { ExecutionPlan, PlanStep } from "@/lib/orchestration/types"
 import { z } from "zod"
 
 const MAX_HISTORY_MESSAGES = 12
@@ -38,6 +41,9 @@ function createStubId() {
     return `stub-${Date.now()}`
   }
 }
+
+const planner = new BlenderPlanner()
+const planExecutor = new PlanExecutor()
 
 type ColorPreset = {
   rgba: [number, number, number, number]
@@ -743,6 +749,83 @@ function buildCommandStubs(prompt: string): CommandStub[] {
   return stubs
 }
 
+interface PlanningMetadata {
+  planSummary: string
+  planSteps: PlanStep[]
+  rawPlan: string
+  retries: number
+  executionSuccess: boolean
+  errors?: string[]
+  fallbackUsed?: boolean
+}
+
+function buildExecutedCommandsFromPlan(
+  plan: ExecutionPlan,
+  execution: ExecutionResult
+): ExecutedCommand[] {
+  const completedMap = new Map<number, { step: PlanStep; result: unknown }>()
+  for (const entry of execution.completedSteps) {
+    completedMap.set(entry.step.stepNumber, entry)
+  }
+
+  const failedMap = new Map<number, string>()
+  for (const entry of execution.failedSteps) {
+    failedMap.set(entry.step.stepNumber, entry.error)
+  }
+
+  const commands: ExecutedCommand[] = []
+  let failureEncountered = false
+
+  for (const step of plan.steps) {
+    const completed = completedMap.get(step.stepNumber)
+    const failedError = failedMap.get(step.stepNumber)
+
+    if (completed) {
+      commands.push({
+        id: createStubId(),
+        tool: step.action,
+        description: step.expectedOutcome || step.rationale,
+        status: "executed",
+        confidence: 0.65,
+        arguments: step.parameters ?? {},
+        notes: `Plan rationale: ${step.rationale}`,
+        result: completed.result,
+      })
+      continue
+    }
+
+    if (failedError) {
+      commands.push({
+        id: createStubId(),
+        tool: step.action,
+        description: step.expectedOutcome || step.rationale,
+        status: "failed",
+        confidence: 0.65,
+        arguments: step.parameters ?? {},
+        notes: `Plan rationale: ${step.rationale}`,
+        error: failedError,
+      })
+      failureEncountered = true
+      continue
+    }
+
+    if (failureEncountered) {
+      commands.push({
+        id: createStubId(),
+        tool: step.action,
+        description: step.expectedOutcome || step.rationale,
+        status: "failed",
+        confidence: 0.4,
+        arguments: step.parameters ?? {},
+        notes: `Plan rationale: ${step.rationale}`,
+        error: "Step skipped due to earlier failure",
+      })
+    }
+  }
+
+  return commands
+}
+
 const chatRequestSchema = z.object({
   projectId: z.string().uuid(),
   conversationId: z.string().uuid().optional(),
@@ -974,8 +1057,76 @@ export async function POST(req: Request) {
             }
           }
 
-          const commandSuggestions = buildCommandStubs(message)
-          const executedCommands = await executeCommandPlan(commandSuggestions)
+          const runFallback = async (): Promise<ExecutedCommand[]> => {
+            const commandSuggestions = buildCommandStubs(message)
+            const executed = await executeCommandPlan(commandSuggestions)
+            return executed.map((command) => ({
+              ...command,
+              notes: command.notes
+                ? `${command.notes} | Heuristic fallback execution`
+                : "Heuristic fallback execution",
+            }))
+          }
+
+          let executedCommands: ExecutedCommand[] = []
+          let planningMetadata: PlanningMetadata | null = null
+
+          try {
+            const planResult = await planner.generatePlan(message)
+
+            if (planResult.plan) {
+              const executionResult = await planExecutor.executePlan(planResult.plan, message)
+              executedCommands = buildExecutedCommandsFromPlan(planResult.plan, executionResult)
+              planningMetadata = {
+                planSummary: planResult.plan.planSummary,
+                planSteps: planResult.plan.steps,
+                rawPlan: planResult.rawResponse,
+                retries: planResult.retries,
+                executionSuccess: executionResult.success,
+                errors: planResult.errors,
+              }
+
+              if (!executionResult.success) {
+                const fallbackCommands = await runFallback()
+                executedCommands = executedCommands.concat(fallbackCommands)
+                planningMetadata.executionSuccess = false
+                planningMetadata.fallbackUsed = true
+              }
+            } else {
+              planningMetadata = {
+                planSummary: "Plan generation failed",
+                planSteps: [],
+                rawPlan: planResult.rawResponse,
+                retries: planResult.retries,
+                executionSuccess: false,
+                errors: planResult.errors,
+                fallbackUsed: true,
+              }
+              executedCommands = await runFallback()
+            }
+          } catch (error) {
+            console.error("Planning pipeline error:", error)
+            const messageText =
+              error instanceof Error ? error.message : "Unknown planning error"
+            planningMetadata = planningMetadata ?? {
+              planSummary: "Planner error",
+              planSteps: [],
+              rawPlan: "",
+              retries: 0,
+              executionSuccess: false,
+              errors: [messageText],
+              fallbackUsed: true,
+            }
+            executedCommands = await runFallback()
+          }
+
+          if (executedCommands.length === 0) {
+            executedCommands = await runFallback()
+            if (planningMetadata) {
+              planningMetadata.executionSuccess = false
+              planningMetadata.fallbackUsed = true
+            }
+          }
 
           const result = await prisma.$transaction(async (tx) => {
             const userMessageRecord = await tx.message.create({
@@ -1000,6 +1151,7 @@ export async function POST(req: Request) {
                 mcpCommands: executedCommands,
                 mcpResults: {
                   tokens: tokenUsage,
+                  plan: planningMetadata ?? undefined,
                   commands: executedCommands.map((command) => ({
                     id: command.id,
                     tool: command.tool,
@@ -1045,6 +1197,7 @@ export async function POST(req: Request) {
             usage,
             tokenUsage,
             commandSuggestions: executedCommands,
+            planning: planningMetadata,
           })
         } catch (error) {
           console.error("AI chat stream error:", error)

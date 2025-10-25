@@ -5,7 +5,7 @@ import { createMcpClient } from "@/lib/mcp"
 import type { McpCommand } from "@/lib/mcp"
 import { ExecutionLogEntry, ExecutionPlan, PlanStep } from "./types"
 
-interface ExecutionResult {
+export interface ExecutionResult {
   success: boolean
   completedSteps: Array<{ step: PlanStep; result: unknown }>
   failedSteps: Array<{ step: PlanStep; error: string }>
