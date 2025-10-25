@@ -1,3 +1,5 @@
+import { buildSystemPrompt } from "@/lib/orchestration/prompts"
+
 const GEMINI_API_ENDPOINT = "https://generativelanguage.googleapis.com/v1"
 const DEFAULT_MODEL = "gemini-2.0-flash"
 
@@ -22,10 +24,7 @@ export interface GeminiStreamChunk {
   usage?: GeminiUsage
 }
 
-const SYSTEM_PROMPT = `You are ModelForge, an AI assistant that helps users work with Blender through the Model Context Protocol (MCP).
-Respond with clear, actionable instructions. When appropriate, reference Blender concepts such as objects, modifiers, materials,
-lighting, cameras, and animations. Return concise answers; list steps or commands when useful. If you need more information,
-ask clarifying questions.`
+const SYSTEM_PROMPT = buildSystemPrompt()
 
 interface GenerateOptions {
   messages: GeminiMessage[]
@@ -34,6 +33,7 @@ interface GenerateOptions {
   topP?: number
   topK?: number
   maxOutputTokens?: number
+  systemPrompt?: string
 }
 
 function mapMessageToGeminiContent(message: GeminiMessage) {
@@ -43,10 +43,14 @@ function mapMessageToGeminiContent(message: GeminiMessage) {
   }
 }
 
-function buildContents(history: GeminiMessage[], messages: GeminiMessage[]) {
+function buildContents(
+  history: GeminiMessage[],
+  messages: GeminiMessage[],
+  systemPrompt = SYSTEM_PROMPT
+) {
   const systemContent = {
     role: "user",
-    parts: [{ text: SYSTEM_PROMPT }],
+    parts: [{ text: systemPrompt }],
   }
 
   return [
@@ -63,6 +67,7 @@ export async function generateGeminiResponse({
   topP = 0.8,
   topK = 32,
   maxOutputTokens = 512,
+  systemPrompt,
 }: GenerateOptions): Promise<GeminiResult> {
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) {
@@ -72,7 +77,7 @@ export async function generateGeminiResponse({
   const model = process.env.GEMINI_MODEL ?? DEFAULT_MODEL
   const url = `${GEMINI_API_ENDPOINT}/models/${model}:generateContent?key=${apiKey}`
 
-  const contents = buildContents(history, messages)
+  const contents = buildContents(history, messages, systemPrompt)
 
   const body = {
     contents,
@@ -136,10 +141,17 @@ export async function* streamGeminiResponse(
   const model = process.env.GEMINI_MODEL ?? DEFAULT_MODEL
   const url = `${GEMINI_API_ENDPOINT}/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`
 
-  const { messages, history = [], temperature = 0.4, topP = 0.8, topK = 32, maxOutputTokens = 512 } =
-    options
+  const {
+    messages,
+    history = [],
+    temperature = 0.4,
+    topP = 0.8,
+    topK = 32,
+    maxOutputTokens = 512,
+    systemPrompt,
+  } = options
 
-  const contents = buildContents(history, messages)
+  const contents = buildContents(history, messages, systemPrompt)
 
   const response = await fetch(url, {
     method: "POST",
