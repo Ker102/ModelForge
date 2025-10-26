@@ -43,7 +43,7 @@ export class PlanExecutor {
         const command: McpCommand = {
           id: randomUUID(),
           type: step.action,
-          params: step.parameters,
+          params: normalizeParameters(step.action, step.parameters),
         }
 
         let result: unknown
@@ -202,4 +202,34 @@ ${RECOVERY_OUTPUT_FORMAT}`
       return null
     }
   }
+}
+
+function normalizeParameters(action: string, parameters: Record<string, unknown> = {}) {
+  if (!parameters) return {}
+
+  const clone: Record<string, unknown> = { ...parameters }
+
+  if (action === "execute_code") {
+    if (typeof clone.code !== "string" && typeof clone.script === "string") {
+      clone.code = clone.script
+    }
+    if (typeof clone.code !== "string" && Array.isArray(clone.lines)) {
+      clone.code = clone.lines.join("\n")
+    }
+    if (typeof clone.code !== "string" && typeof clone.python === "string") {
+      clone.code = clone.python
+    }
+
+    if (typeof clone.code === "string") {
+      clone.code = clone.code
+    } else {
+      throw new Error("execute_code requires a string 'code' parameter")
+    }
+
+    delete clone.script
+    delete clone.lines
+    delete clone.python
+  }
+
+  return clone
 }

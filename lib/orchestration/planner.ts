@@ -30,6 +30,7 @@ Follow these principles:
 - Always begin with \"get_scene_info\" to capture current context unless a previous step already provided a fresh snapshot.
 - Choose tools from the provided list only. If a capability is unavailable, omit it instead of inventing new tools.
 - Prefer declarative tools over generic code. Resort to \"execute_code\" only when no other tool can accomplish the task, and keep scripts short, idempotent, and focused.
+- When using \"execute_code\", the parameters object must include a single key \"code\" containing the Python string (do not use alternate names like \"script\", \"python\", or \"body\").
 - Use descriptive object names (snake_case, no spaces). Default coordinates are Blender units in [x, y, z]. Colors are RGBA floats 0.0–1.0.
 - Break complex requests into atomic steps; each step must call exactly one tool with just the parameters that tool understands.
 - Note dependencies or cautions when a later step assumes a previous result (e.g., material application requires the object to exist).
