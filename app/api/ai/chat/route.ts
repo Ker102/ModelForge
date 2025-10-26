@@ -311,7 +311,87 @@ function buildCommandStubs(prompt: string, options: StubOptions): CommandStub[] 
     /(dungeon|dragon|pot of gold|torch|castle)/.test(lowerPrompt) &&
     /house/.test(lowerPrompt) === false
 
-  const detectedColor = detectColor(lowerPrompt)
+    const wantsCar = /car|vehicle|supercar|sportscar|race car/.test(lowerPrompt)
+  if (wantsCar && !alreadyHandled.has("car")) {
+    const carCode = formatPython([
+      CODE_HELPERS,
+      "",
+      "collection = ensure_collection('ModelForge_Car')",
+      "clear_collection(collection)",
+      "",
+      "# Car body",
+      "bpy.ops.object.select_all(action='DESELECT')",
+      "bpy.ops.mesh.primitive_cube_add(size=4, location=(0, 0, 1))",
+      "body = bpy.context.active_object",
+      "body.name = 'Car_Body'",
+      "body.scale = (1.6, 0.7, 0.4)",
+      "body_mat = ensure_material('Car_Paint', (0.9, 0.12, 0.12, 1.0), metallic=0.85, roughness=0.25)",
+      "assign_material(body, body_mat)",
+      "link_object(body, collection)",
+      "",
+      "# Wheels",
+      "wheel_positions = [(-1.4, 0.9), (1.4, 0.9), (-1.4, -0.9), (1.4, -0.9)]",
+      "wheel_mat = ensure_material('Wheel_Rubber', (0.05, 0.05, 0.05, 1.0), metallic=0.1, roughness=0.7)",
+      "for index, (x, y) in enumerate(wheel_positions, start=1):",
+      "    bpy.ops.mesh.primitive_cylinder_add(radius=0.35, depth=0.25, location=(x, y, 0.35))",
+      "    wheel = bpy.context.active_object",
+      "    wheel.rotation_euler[0] = math.radians(90)",
+      "    wheel.name = f'Car_Wheel_{index}'",
+      "    assign_material(wheel, wheel_mat)",
+      "    link_object(wheel, collection)",
+      "",
+      "# Windows",
+      "glass = ensure_material('Car_Glass', (0.6, 0.8, 0.95, 0.25), metallic=0.0, roughness=0.1)",
+      "bpy.ops.mesh.primitive_plane_add(size=1.6, location=(0, 0, 1.35))",
+      "front_window = bpy.context.active_object",
+      "front_window.name = 'Car_Window_Front'",
+      "front_window.scale = (0.8, 0.01, 0.5)",
+      "front_window.rotation_euler[0] = math.radians(62)",
+      "assign_material(front_window, glass)",
+      "link_object(front_window, collection)",
+      "",
+      "# Headlights",
+      "for offset in (-0.9, 0.9):",
+      "    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.12, location=(offset, 1.4, 0.7))",
+      "    headlight = bpy.context.active_object",
+      "    headlight.name = f'Car_Headlight_{\'L\' if offset < 0 else \'R\'}'",
+      "    emitter = ensure_material('Headlight_Emitter', (1.0, 0.95, 0.8, 1.0), metallic=0.0, roughness=0.0)",
+      "    assign_material(headlight, emitter)",
+      "    link_object(headlight, collection)",
+      "",
+      "# Lighting and camera",
+      "bpy.ops.object.light_add(type='AREA', location=(6, -6, 8))",
+      "key = bpy.context.active_object",
+      "key.name = 'Car_Key_Light'",
+      "key.data.energy = 1200",
+      "key.data.shape = 'RECTANGLE'",
+      "key.data.size = 6",
+      "key.data.size_y = 4",
+      "link_object(key, collection)",
+      "",
+      "bpy.ops.object.camera_add(location=(9, -9, 6))",
+      "cam = bpy.context.active_object",
+      "cam.name = 'Car_Camera'",
+      "cam.rotation_euler = (math.radians(52), 0, math.radians(40))",
+      "bpy.context.scene.camera = cam",
+      "link_object(cam, collection)",
+      "",
+      "print('ModelForge: fallback car assembled with body, wheels, windows, headlights, and lighting.')",
+    ])
+
+    addStub(
+      createCommand(
+        "execute_code",
+        "Assemble a fallback car with body, four wheels, windows, headlights, lighting, and camera",
+        { code: carCode },
+        0.55,
+        "Fallback car scaffold to guarantee geometry even when planner fails.",
+      ),
+      "car",
+    )
+  }
+
+const detectedColor = detectColor(lowerPrompt)
   const wantsDoor = /door/.test(lowerPrompt)
 
   if (wantsDoor) {

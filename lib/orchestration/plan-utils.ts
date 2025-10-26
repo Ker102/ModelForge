@@ -1,4 +1,4 @@
-import type { PlanAnalysis, PlanStep, PlanningMetadata } from "./types"
+import type { ExecutionLogEntry, PlanAnalysis, PlanStep, PlanningMetadata } from "./types"
 
 const toNumber = (value: unknown, fallback: number) =>
   typeof value === "number" && !Number.isNaN(value) ? value : fallback
@@ -87,12 +87,32 @@ export const parsePlanningMetadata = (raw: unknown): PlanningMetadata | undefine
     executionSuccess: toBoolean(obj.executionSuccess, false) ?? false,
     errors: toStringArray(obj.errors),
     fallbackUsed: toBoolean(obj.fallbackUsed ?? obj.fallback_used),
-    executionLog: Array.isArray(obj.executionLog)
-      ? (obj.executionLog as Array<Record<string, unknown>>)
-      : undefined,
+    executionLog: parseExecutionLog(obj.executionLog),
     sceneSnapshot,
     analysis: parsePlanAnalysis(obj.analysis ?? obj.planAnalysis ?? obj.analysis_summary),
   }
+}
+
+const parseExecutionLog = (raw: unknown): ExecutionLogEntry[] | undefined => {
+  if (!Array.isArray(raw)) return undefined
+
+  const entries: ExecutionLogEntry[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue
+    const record = item as Record<string, unknown>
+    const timestamp = typeof record.timestamp === "string" ? record.timestamp : new Date().toISOString()
+    const tool = typeof record.tool === "string" ? record.tool : "unknown"
+    const parameters =
+      record.parameters && typeof record.parameters === "object"
+        ? (record.parameters as Record<string, unknown>)
+        : {}
+    const result = record.result
+    const error = typeof record.error === "string" ? record.error : undefined
+
+    entries.push({ timestamp, tool, parameters, result, error })
+  }
+
+  return entries.length ? entries : undefined
 }
 
 const parsePlanAnalysis = (raw: unknown): PlanAnalysis | undefined => {
