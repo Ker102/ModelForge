@@ -43,6 +43,7 @@ export interface ExecutionMonitorRecord {
   planErrors?: string[]
   tokenUsage?: { promptTokens?: number | null; responseTokens?: number | null; totalTokens?: number | null }
   executionLog?: ExecutionLogEntry[]
+  sceneSummary?: string | null
 }
 
 export async function recordExecutionLog(record: ExecutionMonitorRecord) {

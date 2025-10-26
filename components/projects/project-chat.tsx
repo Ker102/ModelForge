@@ -7,6 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import type { UsageSummary } from "@/lib/usage"
+import type { PlanningMetadata, PlanStep } from "@/lib/orchestration/types"
+import { parsePlanningMetadata } from "@/lib/orchestration/plan-utils"
 
 interface CommandStub {
   id: string
@@ -26,6 +28,7 @@ interface ChatMessage {
   content: string
   createdAt?: string
   mcpCommands?: CommandStub[]
+  plan?: PlanningMetadata
 }
 
 type ConversationHistoryItem = {
@@ -129,6 +132,15 @@ export function ProjectChat({
       hour: "2-digit",
       minute: "2-digit",
     })
+
+  const resolveCommandForStep = (
+    step: PlanStep,
+    index: number,
+    commands?: CommandStub[]
+  ) => {
+    if (!commands?.length) return null
+    return commands[index] ?? commands.find((command) => command.tool === step.action) ?? null
+  }
 
   const isViewingHistory = useMemo(() => {
     if (!conversationId) {
@@ -283,6 +295,7 @@ export function ProjectChat({
               const suggestionPayload = Array.isArray(event.commandSuggestions)
                 ? (event.commandSuggestions as CommandStub[])
                 : undefined
+              const planPayload = parsePlanningMetadata(event.planning)
 
               const completedConversationId =
                 typeof event.conversationId === "string"
@@ -329,6 +342,7 @@ export function ProjectChat({
                             assistantRecord.mcpCommands?.length
                               ? assistantRecord.mcpCommands
                               : suggestionPayload,
+                          plan: planPayload ?? assistantRecord.plan ?? msg.plan,
                         }
                       : msg
                   )
@@ -340,7 +354,7 @@ export function ProjectChat({
                 setUsage(usagePayload)
               }
 
-              if (suggestionPayload && completedConversationId) {
+              if ((suggestionPayload || planPayload) && completedConversationId) {
                 setHistory((prev) =>
                   prev.map((item) =>
                     item.id === completedConversationId
@@ -350,7 +364,8 @@ export function ProjectChat({
                             assistantRecordId && msg.id === assistantRecordId
                               ? {
                                   ...msg,
-                                  mcpCommands: suggestionPayload,
+                                  mcpCommands: suggestionPayload ?? msg.mcpCommands,
+                                  plan: planPayload ?? msg.plan,
                                 }
                               : msg
                           ),
@@ -470,6 +485,75 @@ export function ProjectChat({
                 >
                   {message.content}
                 </div>
+                {message.role === "assistant" && message.plan && (
+                  <div className="max-w-[80%] rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-primary">Planning summary</span>
+                      <div className="flex items-center gap-1">
+                        <Badge
+                          variant={message.plan.executionSuccess ? "default" : "destructive"}
+                          className="uppercase text-[10px]"
+                        >
+                          {message.plan.executionSuccess ? "Plan executed" : "Plan incomplete"}
+                        </Badge>
+                        {message.plan.fallbackUsed && (
+                          <Badge variant="outline" className="uppercase text-[10px]">
+                            Fallback used
+                          </Badge>
+                        )}
+                        {message.plan.retries > 0 && (
+                          <Badge variant="secondary" className="uppercase text-[10px]">
+                            Retries: {message.plan.retries}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-muted-foreground">{message.plan.planSummary}</p>
+                    {message.plan.sceneSnapshot && (
+                      <details className="rounded bg-background/70 px-2 py-1 text-[11px] text-muted-foreground">
+                        <summary className="cursor-pointer text-primary">Scene snapshot used</summary>
+                        <pre className="mt-1 whitespace-pre-wrap break-words text-[11px]">
+                          {message.plan.sceneSnapshot}
+                        </pre>
+                      </details>
+                    )}
+                    <div className="space-y-2">
+                      {message.plan.planSteps.map((step, stepIndex) => {
+                        const commandForStep = resolveCommandForStep(step, stepIndex, message.mcpCommands)
+                        const inferredStatus: CommandStub["status"] = commandForStep?.status
+                          ?? (message.plan.executionSuccess ? "executed" : "failed")
+                        return (
+                          <div
+                            key={`${step.stepNumber}-${step.action}-${stepIndex}`}
+                            className="rounded-md border border-border/60 bg-background px-2 py-1"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium text-foreground">
+                                Step {step.stepNumber}: {step.action}
+                              </span>
+                              {renderStatusBadge(inferredStatus)}
+                            </div>
+                            {step.rationale && (
+                              <p className="text-[11px] text-muted-foreground">
+                                {step.rationale}
+                              </p>
+                            )}
+                            {commandForStep?.error && (
+                              <div className="mt-1 rounded border border-destructive/30 bg-destructive/10 px-2 py-1 text-[11px] text-destructive">
+                                {commandForStep.error}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                    {message.plan.errors?.length ? (
+                      <div className="rounded border border-destructive/40 bg-destructive/10 px-2 py-1 text-[11px] text-destructive">
+                        {message.plan.errors.join("; ")}
+                      </div>
+                    ) : null}
+                  </div>
+                )}
                 {message.role === "assistant" &&
                   Array.isArray(message.mcpCommands) &&
                   message.mcpCommands.length > 0 && (
@@ -499,11 +583,6 @@ export function ProjectChat({
                               <pre className="rounded bg-muted/60 px-2 py-1 text-[11px] text-muted-foreground whitespace-pre-wrap break-words">
                                 {formatResult(command.result)}
                               </pre>
-                            )}
-                            {command.status === "failed" && command.error && (
-                              <div className="rounded border border-destructive/30 bg-destructive/10 px-2 py-1 text-[11px] text-destructive">
-                                {command.error}
-                              </div>
                             )}
                           </li>
                         ))}

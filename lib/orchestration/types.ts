@@ -43,3 +43,15 @@ export interface ExecutionLogEntry {
   result?: unknown
   error?: string
 }
+
+export interface PlanningMetadata {
+  planSummary: string
+  planSteps: PlanStep[]
+  rawPlan: string
+  retries: number
+  executionSuccess: boolean
+  errors?: string[]
+  fallbackUsed?: boolean
+  executionLog?: ExecutionLogEntry[]
+  sceneSnapshot?: string | null
+}

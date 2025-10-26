@@ -36,14 +36,21 @@ Follow these principles:
 - Note dependencies or cautions when a later step assumes a previous result (e.g., material application requires the object to exist).
 - Output strict JSON that matches the requested schema—no commentary, Markdown, or trailing text.`
 
+interface PlanningOptions {
+  sceneSummary?: string
+}
+
 export class BlenderPlanner {
   constructor(private readonly maxRetries = 1) {}
 
-  async generatePlan(userRequest: string): Promise<PlanGenerationResult> {
+  async generatePlan(userRequest: string, options: PlanningOptions = {}): Promise<PlanGenerationResult> {
     const filteredTools = filterRelevantTools(userRequest)
     const toolListing = formatToolListForPrompt(filteredTools)
+    const sceneContext = options.sceneSummary
+      ? `Current scene snapshot (use these objects when possible):\n${options.sceneSummary}\n\n`
+      : ""
 
-    const planningPrompt = `User request: "${userRequest}"
+    const planningPrompt = `${sceneContext}User request: "${userRequest}"
 
 Available tools (choose from this list):
 ${toolListing}
@@ -52,10 +59,11 @@ Produce a plan **before** executing anything. Requirement checklist:
 1. Step 1 must be get_scene_info (unless the user explicitly supplied a recent scene snapshot).
 2. Each subsequent step references exactly one tool from the list above.
 3. Parameters must match the tool expectations. Omit optional parameters when not needed.
-4. Rationale should state why the step is necessary and how it advances the user goal.
-5. Expected outcome should describe what Blender should report after the tool call.
-6. If a step depends on the result of a previous step, include that dependency in the dependencies array.
-7. Highlight any risks or manual follow-up in the warnings array.
+4. When the scene snapshot lists existing objects, modify or extend them instead of recreating duplicates with new names.
+5. Rationale should state why the step is necessary and how it advances the user goal.
+6. Expected outcome should describe what Blender should report after the tool call.
+7. If a step depends on the result of a previous step, include that dependency in the dependencies array.
+8. Highlight any risks or manual follow-up in the warnings array.
 
 Return strict JSON with this shape:
 {

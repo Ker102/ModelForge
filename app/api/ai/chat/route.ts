@@ -11,7 +11,7 @@ import { streamGeminiResponse } from "@/lib/gemini"
 import { createMcpClient } from "@/lib/mcp"
 import { BlenderPlanner } from "@/lib/orchestration/planner"
 import { PlanExecutor, type ExecutionResult } from "@/lib/orchestration/executor"
-import type { ExecutionLogEntry, PlanStep } from "@/lib/orchestration/types"
+import type { PlanStep, PlanningMetadata } from "@/lib/orchestration/types"
 import { recordExecutionLog } from "@/lib/orchestration/monitor"
 import { z } from "zod"
 
@@ -45,6 +45,79 @@ function createStubId() {
 
 const planner = new BlenderPlanner()
 const planExecutor = new PlanExecutor()
+
+async function fetchSceneSummary(): Promise<{ summary: string | null; raw: unknown }> {
+  const client = createMcpClient()
+  try {
+    const response = await client.execute({ type: "get_scene_info" })
+    if (response.status === "ok" || response.status === "success") {
+      const payload = response.result ?? response.raw ?? null
+      return { summary: formatSceneSnapshot(payload), raw: payload }
+    }
+    return {
+      summary: formatSceneSnapshot({ error: response.message ?? "Unknown MCP response" }),
+      raw: response,
+    }
+  } catch (error) {
+    return {
+      summary: formatSceneSnapshot({ error: error instanceof Error ? error.message : "Failed to fetch scene" }),
+      raw: null,
+    }
+  } finally {
+    await client.close().catch(() => undefined)
+  }
+}
+
+function formatSceneSnapshot(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") {
+    return null
+  }
+
+  const scene = payload as Record<string, unknown>
+  const name = typeof scene.name === "string" ? scene.name : "Unknown"
+  const objectCount = typeof scene.object_count === "number" ? scene.object_count : undefined
+  const errorMessage = typeof scene.error === "string" ? (scene.error as string) : undefined
+
+  const objectList = Array.isArray(scene.objects) ? scene.objects.slice(0, 12) : []
+  const objects = objectList
+    .map((raw) => {
+      if (!raw || typeof raw !== "object") {
+        return "- (unknown object)"
+      }
+      const obj = raw as Record<string, unknown>
+      const identifier = typeof obj.name === "string" ? obj.name : "(unnamed)"
+      const type = typeof obj.type === "string" ? obj.type : "UNKNOWN"
+      const locationArray = Array.isArray(obj.location) ? obj.location : []
+      const location = locationArray
+        .slice(0, 3)
+        .map((value) => (typeof value === "number" ? value.toFixed(2) : "?"))
+        .join(", ")
+      return `- ${identifier} [${type}] @ (${location})`
+    })
+    .join("\n")
+
+  const materials =
+    typeof scene.materials_count === "number"
+      ? `Materials: ${scene.materials_count}`
+      : undefined
+
+  let summary = `Scene: ${name}`
+  if (typeof objectCount === "number") {
+    summary += ` | Objects: ${objectCount}`
+  }
+  if (materials) {
+    summary += ` | ${materials}`
+  }
+  if (errorMessage) {
+    summary += ` | Error: ${errorMessage}`
+  }
+
+  if (objects) {
+    summary += `\nObjects:\n${objects}`
+  }
+
+  return summary
+}
 
 type ColorPreset = {
   rgba: [number, number, number, number]
@@ -219,6 +292,59 @@ function buildCommandStubs(prompt: string): CommandStub[] {
   const wantsDungeonScene =
     /(dungeon|dragon|pot of gold|torch|castle)/.test(lowerPrompt) &&
     /house/.test(lowerPrompt) === false
+
+  const detectedColor = detectColor(lowerPrompt)
+  const wantsDoor = /door/.test(lowerPrompt)
+
+  if (wantsDoor) {
+    const doorColorKey = detectedColor ?? "red"
+    const preset = COLOR_PRESETS[doorColorKey] ?? COLOR_PRESETS.red
+    const materialName = `ModelForge_Door_${doorColorKey.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}`
+    const doorCode = formatPython([
+      CODE_HELPERS,
+      "",
+      "collection = ensure_collection('ModelForge_House')",
+      "base = bpy.data.objects.get('House_Base')",
+      "door = bpy.data.objects.get('House_Door')",
+      "",
+      "if door is None:",
+      "    bpy.ops.object.select_all(action='DESELECT')",
+      "    bpy.ops.mesh.primitive_cube_add(size=0.5, location=(0, 1.9, 0.75))",
+      "    door = bpy.context.active_object",
+      "    door.name = 'House_Door'",
+      "else:",
+      "    bpy.ops.object.select_all(action='DESELECT')",
+      "    door.select_set(True)",
+      "    bpy.context.view_layer.objects.active = door",
+      "",
+      "door.scale[0] = 0.6",
+      "door.scale[1] = 0.15",
+      "door.scale[2] = 1.8",
+      "",
+      "if base:",
+      "    front_offset = base.location.y + (base.dimensions.y / 2) + 0.02",
+      "    door.location = (base.location.x, front_offset, base.location.z - (base.dimensions.z / 2) + 0.9)",
+      "else:",
+      "    door.location = (0, 1.65, 0.9)",
+      "",
+      `material = ensure_material('${materialName}', (${preset.rgba[0]}, ${preset.rgba[1]}, ${preset.rgba[2]}, 1.0), metallic=${preset.metallic ?? 0.1}, roughness=${preset.roughness ?? 0.45})`,
+      "assign_material(door, material)",
+      "link_object(door, collection)",
+      "",
+      "print(f'ModelForge: door material set to {material.name}')",
+    ])
+
+    addStub(
+      createCommand(
+        "execute_code",
+        `Add or update a ${doorColorKey} door on the existing house`,
+        { code: doorCode },
+        0.62,
+        "Door heuristic ensures existing structures are reused without rebuilding the house."
+      ),
+      "door"
+    )
+  }
 
   if (wantsDungeonScene) {
     const dungeonCode = formatPython([
@@ -491,7 +617,6 @@ function buildCommandStubs(prompt: string): CommandStub[] {
     )
   }
 
-  const detectedColor = detectColor(lowerPrompt)
   if (detectedColor) {
     const preset = COLOR_PRESETS[detectedColor]
     const wantsMetallic = METALLIC_KEYWORDS.some((word) => lowerPrompt.includes(word)) || ["silver", "gold", "copper"].includes(detectedColor)
@@ -748,17 +873,6 @@ function buildCommandStubs(prompt: string): CommandStub[] {
   }
 
   return stubs
-}
-
-interface PlanningMetadata {
-  planSummary: string
-  planSteps: PlanStep[]
-  rawPlan: string
-  retries: number
-  executionSuccess: boolean
-  errors?: string[]
-  fallbackUsed?: boolean
-  executionLog?: ExecutionLogEntry[]
 }
 
 function buildExecutedCommandsFromPlan(
@@ -1070,12 +1184,16 @@ export async function POST(req: Request) {
             }))
           }
 
+          const sceneSnapshotResult = await fetchSceneSummary()
+
           let executedCommands: ExecutedCommand[] = []
           let planningMetadata: PlanningMetadata | null = null
           let planExecutionResult: ExecutionResult | null = null
 
           try {
-            const planResult = await planner.generatePlan(message)
+            const planResult = await planner.generatePlan(message, {
+              sceneSummary: sceneSnapshotResult.summary ?? undefined,
+            })
 
             if (planResult.plan) {
               const executionResult = await planExecutor.executePlan(planResult.plan, message)
@@ -1089,6 +1207,7 @@ export async function POST(req: Request) {
                 executionSuccess: executionResult.success,
                 errors: planResult.errors,
                 executionLog: executionResult.logs,
+                sceneSnapshot: sceneSnapshotResult.summary,
               }
 
               if (!executionResult.success) {
@@ -1107,6 +1226,7 @@ export async function POST(req: Request) {
                 errors: planResult.errors,
                 fallbackUsed: true,
                 executionLog: planExecutionResult?.logs,
+                sceneSnapshot: sceneSnapshotResult.summary,
               }
               executedCommands = await runFallback()
             }
@@ -1123,20 +1243,24 @@ export async function POST(req: Request) {
               errors: [messageText],
               fallbackUsed: true,
               executionLog: planExecutionResult?.logs,
+              sceneSnapshot: sceneSnapshotResult.summary,
             }
             executedCommands = await runFallback()
           }
 
-          if (executedCommands.length === 0) {
-            executedCommands = await runFallback()
-            if (planningMetadata) {
-              planningMetadata.executionSuccess = false
-              planningMetadata.fallbackUsed = true
-              if (!planningMetadata.executionLog) {
-                planningMetadata.executionLog = planExecutionResult?.logs
-              }
-            }
-          }
+if (executedCommands.length === 0) {
+  executedCommands = await runFallback()
+  if (planningMetadata) {
+    planningMetadata.executionSuccess = false
+    planningMetadata.fallbackUsed = true
+    if (!planningMetadata.executionLog) {
+      planningMetadata.executionLog = planExecutionResult?.logs
+    }
+    if (!planningMetadata.sceneSnapshot) {
+      planningMetadata.sceneSnapshot = sceneSnapshotResult.summary
+    }
+  }
+}
 
           if (!planningMetadata) {
             planningMetadata = {
@@ -1174,6 +1298,7 @@ export async function POST(req: Request) {
             planErrors: planningMetadata.errors,
             tokenUsage,
             executionLog: planningMetadata.executionLog,
+            sceneSummary: planningMetadata.sceneSnapshot ?? sceneSnapshotResult.summary,
           })
 
 

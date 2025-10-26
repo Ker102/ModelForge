@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge"
 import type { Conversation, Message } from "@prisma/client"
 import { getUsageSummary } from "@/lib/usage"
 import { SubscriptionTier } from "@/lib/subscription"
+import { parsePlanningMetadata } from "@/lib/orchestration/plan-utils"
+import type { PlanningMetadata } from "@/lib/orchestration/types"
 
 type CommandStub = {
   id: string
@@ -18,6 +20,24 @@ type CommandStub = {
   arguments?: Record<string, unknown>
   notes?: string
 }
+
+const extractPlanFromMessage = (message: Message): PlanningMetadata | undefined => {
+  const results = message.mcpResults as Record<string, unknown> | null
+  if (!results || typeof results !== "object") return undefined
+  const rawPlan = (results as Record<string, unknown>).plan
+  return parsePlanningMetadata(rawPlan)
+}
+
+const mapMessageToChat = (message: Message) => ({
+  id: message.id,
+  role: message.role === "assistant" ? "assistant" : "user",
+  content: message.content,
+  createdAt: message.createdAt.toISOString(),
+  mcpCommands: Array.isArray(message.mcpCommands)
+    ? (message.mcpCommands as CommandStub[])
+    : undefined,
+  plan: extractPlanFromMessage(message),
+})
 
 export default async function ProjectPage({ params }: { params: { id: string } }) {
   const session = await auth()
@@ -69,15 +89,7 @@ export default async function ProjectPage({ params }: { params: { id: string } }
           .slice()
           .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
           .slice(-20)
-          .map((message) => ({
-            id: message.id,
-            role: message.role === "assistant" ? "assistant" : "user",
-            content: message.content,
-            createdAt: message.createdAt.toISOString(),
-            mcpCommands: Array.isArray(message.mcpCommands)
-              ? (message.mcpCommands as CommandStub[])
-              : undefined,
-          })),
+          .map(mapMessageToChat),
       }
     : null
 
@@ -93,15 +105,7 @@ export default async function ProjectPage({ params }: { params: { id: string } }
           .slice()
           .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
           .slice(-20)
-          .map((message) => ({
-            id: message.id,
-            role: message.role === "assistant" ? "assistant" : "user",
-            content: message.content,
-            createdAt: message.createdAt.toISOString(),
-            mcpCommands: Array.isArray(message.mcpCommands)
-              ? (message.mcpCommands as CommandStub[])
-              : undefined,
-          })),
+          .map(mapMessageToChat),
       }
     })
     .filter((conversation): conversation is NonNullable<typeof conversation> => Boolean(conversation))
