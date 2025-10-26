@@ -2,7 +2,7 @@ import { z } from "zod"
 
 import { generateGeminiResponse } from "@/lib/gemini"
 import { filterRelevantTools, formatToolListForPrompt } from "./tool-filter"
-import { ExecutionPlan, PlanGenerationResult, PlanStep } from "./types"
+import { ExecutionPlan, PlanAnalysis, PlanGenerationResult, PlanStep } from "./types"
 
 const PLAN_SCHEMA = z.object({
   plan_summary: z.string().min(1, "Plan summary missing"),
@@ -23,16 +23,29 @@ const PLAN_SCHEMA = z.object({
 
 type RawPlan = z.infer<typeof PLAN_SCHEMA>
 
+const ANALYSIS_SCHEMA = z.object({
+  components: z.array(z.string()).min(1, "List at least one component"),
+  material_guidelines: z.array(z.string()).default([]),
+  minimum_mesh_objects: z.number().int().positive().optional(),
+  require_lighting: z.boolean().optional(),
+  require_camera: z.boolean().optional(),
+  notes: z.array(z.string()).optional(),
+})
+
+type RawAnalysis = z.infer<typeof ANALYSIS_SCHEMA>
+
 const PLANNING_SYSTEM_PROMPT = `You are ModelForge's orchestration planner. Your job is to produce reliable, step-by-step tool plans for controlling Blender through MCP **before** any commands execute.
 
 Follow these principles:
 - Think in ReAct style: observe → plan → act; never jump straight to code.
-- Always begin with \"get_scene_info\" to capture current context unless a previous step already provided a fresh snapshot.
+- Always begin with "get_scene_info" to capture current context unless a previous step already provided a fresh snapshot.
 - Choose tools from the provided list only. If a capability is unavailable, omit it instead of inventing new tools.
-- Prefer declarative tools over generic code. Resort to \"execute_code\" only when no other tool can accomplish the task, and keep scripts short, idempotent, and focused.
-- When using \"execute_code\", the parameters object must include a single key \"code\" containing the Python string (do not use alternate names like \"script\", \"python\", or \"body\").
+- Prefer declarative tools over generic code. Resort to "execute_code" only when no other tool can accomplish the task, and keep scripts short, idempotent, and focused.
+- When using "execute_code", the parameters object must include a single key "code" containing the Python string (do not use alternate names like "script", "python", or "body").
 - Use descriptive object names (snake_case, no spaces). Default coordinates are Blender units in [x, y, z]. Colors are RGBA floats 0.0–1.0.
-- Break complex requests into atomic steps; each step must call exactly one tool with just the parameters that tool understands.
+- Break complex requests into sub-components. Each major component from the analysis must have at least one dedicated step, with extra steps for repeated elements (e.g., four wheels).
+- Materials and colors must be applied inside the same step that creates or modifies a mesh.
+- Ensure every final scene has at least one light and one camera unless the user explicitly forbids it.
 - Note dependencies or cautions when a later step assumes a previous result (e.g., material application requires the object to exist).
 - Output strict JSON that matches the requested schema—no commentary, Markdown, or trailing text.`
 
@@ -45,15 +58,22 @@ interface PlanningOptions {
 export class BlenderPlanner {
   constructor(private readonly maxRetries = 1) {}
 
-  async generatePlan(userRequest: string, options: PlanningOptions = {}): Promise<PlanGenerationResult> {
+  async generatePlan(
+    userRequest: string,
+    options: PlanningOptions = {}
+  ): Promise<PlanGenerationResult> {
+    const analysis = await this.generateAnalysis(userRequest)
+
     const filteredTools = filterRelevantTools(userRequest, undefined, {
       allowHyper3d: options.allowHyper3dAssets !== false,
       allowSketchfab: options.allowSketchfabAssets !== false,
     })
     const toolListing = formatToolListForPrompt(filteredTools)
+
     const sceneContext = options.sceneSummary
       ? `Current scene snapshot (use these objects when possible):\n${options.sceneSummary}\n\n`
       : ""
+
     const restrictions: string[] = []
     if (options.allowHyper3dAssets === false) {
       restrictions.push(
@@ -67,20 +87,33 @@ export class BlenderPlanner {
     }
     const restrictionContext = restrictions.length ? `${restrictions.join("\n")}\n\n` : ""
 
-    const planningPrompt = `${sceneContext}${restrictionContext}User request: "${userRequest}"
+    const analysisContext = analysis
+      ? `Design analysis:\n- Components: ${analysis.components.join(", ")}\n- Material guidelines: ${
+          analysis.materialGuidelines.join(", ") || "Apply realistic materials to every mesh"
+        }\n- Minimum mesh objects: ${
+          analysis.minimumMeshObjects ?? Math.max(analysis.components.length * 2, 6)
+        }\n- Require lighting: ${analysis.requireLighting ? "yes" : "no"}\n- Require camera: ${
+          analysis.requireCamera ? "yes" : "no"
+        }\n${analysis.notes?.length ? `- Notes: ${analysis.notes.join("; ")}\n` : ""}`
+      : ""
+
+    const planningPrompt = `${sceneContext}${restrictionContext}${analysisContext}
+User request: "${userRequest}"
 
 Available tools (choose from this list):
 ${toolListing}
 
 Produce a plan **before** executing anything. Requirement checklist:
 1. Step 1 must be get_scene_info (unless the user explicitly supplied a recent scene snapshot).
-2. Each subsequent step references exactly one tool from the list above.
+2. Perform component-by-component construction. Each major component from the analysis must have at least one dedicated step, and repeated components (e.g., four wheels) must each receive attention.
 3. Parameters must match the tool expectations. Omit optional parameters when not needed.
 4. When the scene snapshot lists existing objects, modify or extend them instead of recreating duplicates with new names.
-5. Rationale should state why the step is necessary and how it advances the user goal.
-6. Expected outcome should describe what Blender should report after the tool call.
-7. If a step depends on the result of a previous step, include that dependency in the dependencies array.
-8. Highlight any risks or manual follow-up in the warnings array.
+5. Every mesh created or modified must end with explicit material/color assignment inside the same execute_code payload.
+6. Ensure there is at least one light and one camera positioned for a useful render unless the user forbids it.
+7. Rationale must reference the analysis components and explain the design intent.
+8. Expected outcome should describe what Blender should report after the tool call.
+9. If a step depends on the result of a previous step, include that dependency in the dependencies array.
+10. Highlight any risks or manual follow-up in the warnings array.
 
 Return strict JSON with this shape:
 {
@@ -123,14 +156,74 @@ Return strict JSON with this shape:
 
       if (parsed.success) {
         const plan = this.toExecutionPlan(parsed.data)
-        return { plan, rawResponse: lastRaw, retries }
+
+        const minimumSteps = Math.max(
+          analysis?.minimumMeshObjects ?? 0,
+          analysis ? analysis.components.length * 2 : 0,
+          6
+        )
+
+        const hasMaterialSteps = plan.steps.some((step) => {
+          const params = step.parameters ?? {}
+          const code = typeof params.code === "string" ? params.code : ""
+          return /material|color|shader/i.test(code)
+        })
+
+        if (plan.steps.length < minimumSteps || !hasMaterialSteps) {
+          errors.push(
+            `Plan lacks sufficient detail (steps=${plan.steps.length}, minimum=${minimumSteps}) or material assignments.`
+          )
+          retries += 1
+          continue
+        }
+
+        return { plan, rawResponse: lastRaw, retries, analysis }
       }
 
       errors.push(parsed.error)
       retries += 1
     }
 
-    return { plan: null, rawResponse: lastRaw, errors, retries }
+    return { plan: null, rawResponse: lastRaw, errors, retries, analysis }
+  }
+
+  private async generateAnalysis(userRequest: string): Promise<PlanAnalysis | undefined> {
+    const analysisPrompt = `Analyze the following Blender modeling request and respond with JSON describing the required components and quality targets.
+
+Request: "${userRequest}"
+
+Return JSON with this shape:
+{
+  "components": ["component name", ...],
+  "material_guidelines": ["material or color suggestion", ...],
+  "minimum_mesh_objects": number,
+  "require_lighting": true/false,
+  "require_camera": true/false,
+  "notes": ["additional constraints", ...]
+}
+
+Components should reflect sub-assemblies (e.g., car body, four wheels, windows, lights). Materials should be realistic. Set require_lighting true unless the user explicitly forbids lighting.`
+
+    try {
+      const response = await generateGeminiResponse({
+        messages: [{ role: "user", content: analysisPrompt }],
+        temperature: 0.75,
+        topP: 0.9,
+        topK: 64,
+        maxOutputTokens: 512,
+        systemPrompt: "You are a meticulous 3D scene analyst. Return only JSON.",
+      })
+
+      const cleaned = this.extractJson(response.text)
+      if (!cleaned) return undefined
+      const parsed = JSON.parse(cleaned)
+      const result = ANALYSIS_SCHEMA.safeParse(parsed)
+      if (!result.success) return undefined
+
+      return this.toAnalysis(result.data)
+    } catch {
+      return undefined
+    }
   }
 
   private safeParsePlan(raw: string): { success: true; data: RawPlan } | { success: false; error: string } {
@@ -175,6 +268,17 @@ Return strict JSON with this shape:
       steps,
       dependencies: raw.dependencies,
       warnings: raw.warnings,
+    }
+  }
+
+  private toAnalysis(raw: RawAnalysis): PlanAnalysis {
+    return {
+      components: raw.components,
+      materialGuidelines: raw.material_guidelines,
+      minimumMeshObjects: raw.minimum_mesh_objects,
+      requireLighting: raw.require_lighting,
+      requireCamera: raw.require_camera,
+      notes: raw.notes,
     }
   }
 }

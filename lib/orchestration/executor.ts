@@ -3,7 +3,7 @@ import { randomUUID } from "crypto"
 import { generateGeminiResponse } from "@/lib/gemini"
 import { createMcpClient } from "@/lib/mcp"
 import type { McpCommand } from "@/lib/mcp"
-import { ExecutionLogEntry, ExecutionPlan, PlanStep } from "./types"
+import { ExecutionLogEntry, ExecutionPlan, PlanAnalysis, PlanStep } from "./types"
 
 export interface ExecutionResult {
   success: boolean
@@ -53,7 +53,8 @@ export class PlanExecutor {
   async executePlan(
     plan: ExecutionPlan,
     userRequest: string,
-    options: ExecutionOptions
+    options: ExecutionOptions,
+    analysis?: PlanAnalysis
   ): Promise<ExecutionResult> {
     const client = createMcpClient()
     const logs: ExecutionLogEntry[] = []
@@ -162,6 +163,20 @@ export class PlanExecutor {
           parameters: {},
           result: finalState,
         })
+        const audit = await this.auditScene(client, finalState, analysis)
+        if (!audit.success) {
+          failedSteps.push({
+            step: plan.steps[plan.steps.length - 1] ?? plan.steps[0],
+            error: audit.reason,
+          })
+          logs.push({
+            timestamp: new Date().toISOString(),
+            tool: "post_audit",
+            parameters: {},
+            error: audit.reason,
+          })
+          return { success: false, completedSteps, failedSteps, finalSceneState: finalState, logs }
+        }
         return { success: true, completedSteps, failedSteps, finalSceneState: finalState, logs }
       } catch {
         return { success: true, completedSteps, failedSteps, logs }
@@ -301,6 +316,102 @@ ${RECOVERY_OUTPUT_FORMAT}`
     }
 
     return { success: true }
+  }
+
+  private async auditScene(
+    client: ReturnType<typeof createMcpClient>,
+    finalState: unknown,
+    analysis?: PlanAnalysis
+  ): Promise<{ success: boolean; reason?: string }> {
+    const resultRecord =
+      finalState && typeof finalState === "object"
+        ? ((finalState as Record<string, unknown>).result as Record<string, unknown> | undefined)
+        : undefined
+
+    const rawObjects = Array.isArray(resultRecord?.objects) ? (resultRecord?.objects as unknown[]) : []
+    const objects = rawObjects.filter(
+      (item): item is Record<string, unknown> => typeof item === "object" && item !== null
+    )
+
+    const meshObjects = objects.filter((obj) => {
+      const typeValue = typeof obj.type === "string" ? obj.type : typeof obj["type"] === "string" ? (obj["type"] as string) : ""
+      return typeValue === "MESH"
+    })
+
+    if (analysis?.minimumMeshObjects && meshObjects.length < analysis.minimumMeshObjects) {
+      return {
+        success: false,
+        reason: `Scene contains ${meshObjects.length} mesh objects; expected at least ${analysis.minimumMeshObjects}.`,
+      }
+    }
+
+    const lights = objects.filter((obj) => {
+      const typeValue = typeof obj.type === "string" ? obj.type : typeof obj["type"] === "string" ? (obj["type"] as string) : ""
+      return typeValue === "LIGHT"
+    })
+    const cameras = objects.filter((obj) => {
+      const typeValue = typeof obj.type === "string" ? obj.type : typeof obj["type"] === "string" ? (obj["type"] as string) : ""
+      return typeValue === "CAMERA"
+    })
+
+    if (analysis?.requireLighting !== false && lights.length === 0) {
+      await this.ensureDefaultLighting(client)
+    }
+
+    if (analysis?.requireCamera !== false && cameras.length === 0) {
+      await this.ensureDefaultCamera(client)
+    }
+
+    const missingMaterials: string[] = []
+    for (const mesh of meshObjects) {
+      const rawName = typeof mesh.name === "string" ? mesh.name : typeof mesh["name"] === "string" ? (mesh["name"] as string) : undefined
+      const name = rawName?.trim()
+      if (!name) continue
+      try {
+        const info = await client.execute({
+          type: "get_object_info",
+          params: { name },
+        })
+        const infoResult = info.result as Record<string, unknown> | undefined
+        const materials = Array.isArray(infoResult?.materials)
+          ? (infoResult?.materials as unknown[])
+          : undefined
+        if (!materials || materials.length === 0) {
+          missingMaterials.push(name)
+        }
+      } catch {
+        missingMaterials.push(name)
+      }
+    }
+
+    if (missingMaterials.length > 0) {
+      await this.ensureDefaultMaterials(client, missingMaterials)
+    }
+
+    return { success: true }
+  }
+
+  private async ensureDefaultMaterials(
+    client: ReturnType<typeof createMcpClient>,
+    meshNames: string[]
+  ) {
+    if (meshNames.length === 0) return
+    const pythonList = meshNames.map((name) => JSON.stringify(name)).join(", ")
+    const script = `import bpy\n\nDEFAULT_NAME = "ModelForge_Default_Material"\nmat = bpy.data.materials.get(DEFAULT_NAME)\nif mat is None:\n    mat = bpy.data.materials.new(name=DEFAULT_NAME)\n    mat.use_nodes = True\n    bsdf = mat.node_tree.nodes.get('Principled BSDF')\n    if bsdf:\n        bsdf.inputs['Base Color'].default_value = (0.85, 0.82, 0.78, 1.0)\n        bsdf.inputs['Roughness'].default_value = 0.4\n\nfor obj_name in [${pythonList}]:\n    obj = bpy.data.objects.get(obj_name)\n    if not obj or obj.type != 'MESH':\n        continue\n    if not obj.data.materials:\n        obj.data.materials.append(mat)\n    else:\n        obj.data.materials[0] = mat\n`
+
+    await client.execute({ type: "execute_code", params: { code: script } })
+  }
+
+  private async ensureDefaultLighting(client: ReturnType<typeof createMcpClient>) {
+    const script = `import bpy\n\nif not any(obj.type == 'LIGHT' for obj in bpy.context.scene.objects):\n    bpy.ops.object.light_add(type='AREA', location=(6, -6, 8))\n    light = bpy.context.active_object\n    light.name = 'ModelForge_KeyLight'\n    light.data.energy = 1200\n    light.data.shape = 'RECTANGLE'\n    light.data.size = 6\n    light.data.size_y = 4\n`
+
+    await client.execute({ type: "execute_code", params: { code: script } })
+  }
+
+  private async ensureDefaultCamera(client: ReturnType<typeof createMcpClient>) {
+    const script = `import bpy\n\nif not bpy.context.scene.camera:\n    bpy.ops.object.camera_add(location=(10, -10, 7))\n    cam = bpy.context.active_object\n    cam.rotation_euler = (0.9, 0, 0.8)\n    bpy.context.scene.camera = cam\n`
+
+    await client.execute({ type: "execute_code", params: { code: script } })
   }
 
   private parseJson(raw: string): Record<string, unknown> | null {

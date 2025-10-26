@@ -1,4 +1,4 @@
-import type { PlanStep, PlanningMetadata } from "./types"
+import type { PlanAnalysis, PlanStep, PlanningMetadata } from "./types"
 
 const toNumber = (value: unknown, fallback: number) =>
   typeof value === "number" && !Number.isNaN(value) ? value : fallback
@@ -91,5 +91,52 @@ export const parsePlanningMetadata = (raw: unknown): PlanningMetadata | undefine
       ? (obj.executionLog as Array<Record<string, unknown>>)
       : undefined,
     sceneSnapshot,
+    analysis: parsePlanAnalysis(obj.analysis ?? obj.planAnalysis ?? obj.analysis_summary),
+  }
+}
+
+const parsePlanAnalysis = (raw: unknown): PlanAnalysis | undefined => {
+  if (!raw || typeof raw !== "object") return undefined
+  const obj = raw as Record<string, unknown>
+  const components = Array.isArray(obj.components)
+    ? obj.components.filter((item): item is string => typeof item === "string")
+    : Array.isArray(obj.component_list)
+    ? obj.component_list.filter((item): item is string => typeof item === "string")
+    : []
+  const materialGuidelines = Array.isArray(obj.materialGuidelines)
+    ? obj.materialGuidelines.filter((item): item is string => typeof item === "string")
+    : Array.isArray(obj.material_guidelines)
+    ? obj.material_guidelines.filter((item): item is string => typeof item === "string")
+    : []
+  const notes = Array.isArray(obj.notes)
+    ? obj.notes.filter((item): item is string => typeof item === "string")
+    : undefined
+
+  if (components.length === 0 && materialGuidelines.length === 0 && !notes?.length) {
+    return undefined
+  }
+
+  return {
+    components,
+    materialGuidelines,
+    minimumMeshObjects:
+      typeof obj.minimumMeshObjects === "number"
+        ? obj.minimumMeshObjects
+        : typeof obj.minimum_mesh_objects === "number"
+        ? obj.minimum_mesh_objects
+        : undefined,
+    requireLighting:
+      typeof obj.requireLighting === "boolean"
+        ? obj.requireLighting
+        : typeof obj.require_lighting === "boolean"
+        ? obj.require_lighting
+        : undefined,
+    requireCamera:
+      typeof obj.requireCamera === "boolean"
+        ? obj.requireCamera
+        : typeof obj.require_camera === "boolean"
+        ? obj.require_camera
+        : undefined,
+    notes,
   }
 }

@@ -595,6 +595,49 @@ export function ProjectChat({
                       </div>
                     </div>
                     <p className="text-muted-foreground">{message.plan.planSummary}</p>
+                    {message.plan.analysis && (
+                      <div className="rounded bg-background/70 px-2 py-1 text-[11px] text-muted-foreground space-y-1">
+                        <p className="font-semibold text-foreground">Component breakdown</p>
+                        <ul className="list-disc pl-4">
+                          {message.plan.analysis.components.map((component) => (
+                            <li key={component}>{component}</li>
+                          ))}
+                        </ul>
+                        {message.plan.analysis.materialGuidelines.length > 0 && (
+                          <div>
+                            <p className="font-medium text-foreground mt-1">Material guidelines</p>
+                            <ul className="list-disc pl-4">
+                              {message.plan.analysis.materialGuidelines.map((guideline) => (
+                                <li key={guideline}>{guideline}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-wide">
+                          {typeof message.plan.analysis.minimumMeshObjects === "number" && (
+                            <Badge variant="outline">
+                              Min meshes: {message.plan.analysis.minimumMeshObjects}
+                            </Badge>
+                          )}
+                          {message.plan.analysis.requireLighting !== false && (
+                            <Badge variant="outline">Lighting required</Badge>
+                          )}
+                          {message.plan.analysis.requireCamera !== false && (
+                            <Badge variant="outline">Camera required</Badge>
+                          )}
+                        </div>
+                        {message.plan.analysis.notes?.length ? (
+                          <div className="mt-1 text-muted-foreground">
+                            <p className="font-medium text-foreground">Notes</p>
+                            <ul className="list-disc pl-4">
+                              {message.plan.analysis.notes.map((note) => (
+                                <li key={note}>{note}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
                     {message.plan.sceneSnapshot && (
                       <details className="rounded bg-background/70 px-2 py-1 text-[11px] text-muted-foreground">
                         <summary className="cursor-pointer text-primary">Scene snapshot used</summary>

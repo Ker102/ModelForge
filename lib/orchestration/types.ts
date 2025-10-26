@@ -6,6 +6,15 @@ export interface PlanStep {
   expectedOutcome: string
 }
 
+export interface PlanAnalysis {
+  components: string[]
+  materialGuidelines: string[]
+  minimumMeshObjects?: number
+  requireLighting?: boolean
+  requireCamera?: boolean
+  notes?: string[]
+}
+
 export interface ExecutionPlan {
   planSummary: string
   steps: PlanStep[]
@@ -18,6 +27,7 @@ export interface PlanGenerationResult {
   rawResponse: string
   errors?: string[]
   retries?: number
+  analysis?: PlanAnalysis
 }
 
 export interface ToolMetadata {
@@ -54,4 +64,5 @@ export interface PlanningMetadata {
   fallbackUsed?: boolean
   executionLog?: ExecutionLogEntry[]
   sceneSnapshot?: string | null
+  analysis?: PlanAnalysis
 }

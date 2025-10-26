@@ -1137,6 +1137,11 @@ export async function POST(req: Request) {
       )
     }
 
+    const assetConfig = {
+      allowHyper3d: Boolean(project.allowHyper3dAssets),
+      allowSketchfab: Boolean(project.allowSketchfabAssets),
+    }
+
     const quotaCheck = await canConsumeAiRequest(
       session.user.id,
       session.user.subscriptionTier
@@ -1245,7 +1250,12 @@ export async function POST(req: Request) {
             })
 
             if (planResult.plan) {
-              const executionResult = await planExecutor.executePlan(planResult.plan, message, assetConfig)
+              const executionResult = await planExecutor.executePlan(
+                planResult.plan,
+                message,
+                assetConfig,
+                planResult.analysis
+              )
               planExecutionResult = executionResult
               executedCommands = buildExecutedCommandsFromPlan(planResult.plan, executionResult)
               planningMetadata = {
@@ -1257,6 +1267,7 @@ export async function POST(req: Request) {
                 errors: planResult.errors,
                 executionLog: executionResult.logs,
                 sceneSnapshot: sceneSnapshotResult.summary,
+                analysis: planResult.analysis,
               }
 
               if (!executionResult.success) {
@@ -1276,6 +1287,7 @@ export async function POST(req: Request) {
                 fallbackUsed: true,
                 executionLog: planExecutionResult?.logs,
                 sceneSnapshot: sceneSnapshotResult.summary,
+                analysis: planResult.analysis,
               }
               executedCommands = await runFallback()
             }
@@ -1293,23 +1305,27 @@ export async function POST(req: Request) {
               fallbackUsed: true,
               executionLog: planExecutionResult?.logs,
               sceneSnapshot: sceneSnapshotResult.summary,
+              analysis: planResult?.analysis,
             }
             executedCommands = await runFallback()
           }
 
-if (executedCommands.length === 0) {
-  executedCommands = await runFallback()
-  if (planningMetadata) {
-    planningMetadata.executionSuccess = false
-    planningMetadata.fallbackUsed = true
-    if (!planningMetadata.executionLog) {
-      planningMetadata.executionLog = planExecutionResult?.logs
-    }
-    if (!planningMetadata.sceneSnapshot) {
-      planningMetadata.sceneSnapshot = sceneSnapshotResult.summary
-    }
-  }
-}
+          if (executedCommands.length === 0) {
+            executedCommands = await runFallback()
+            if (planningMetadata) {
+              planningMetadata.executionSuccess = false
+              planningMetadata.fallbackUsed = true
+              if (!planningMetadata.executionLog) {
+                planningMetadata.executionLog = planExecutionResult?.logs
+              }
+              if (!planningMetadata.sceneSnapshot) {
+                planningMetadata.sceneSnapshot = sceneSnapshotResult.summary
+              }
+              if (!planningMetadata.analysis) {
+                planningMetadata.analysis = planResult?.analysis
+              }
+            }
+          }
 
           if (!planningMetadata) {
             planningMetadata = {
@@ -1320,6 +1336,8 @@ if (executedCommands.length === 0) {
               executionSuccess: executedCommands.every((command) => command.status === "executed"),
               fallbackUsed: true,
               executionLog: planExecutionResult?.logs,
+              sceneSnapshot: sceneSnapshotResult.summary,
+              analysis: planResult?.analysis,
             }
           }
 
@@ -1458,7 +1476,3 @@ if (executedCommands.length === 0) {
     )
   }
 }
-    const assetConfig = {
-      allowHyper3d: Boolean(project.allowHyper3dAssets),
-      allowSketchfab: Boolean(project.allowSketchfabAssets),
-    }
