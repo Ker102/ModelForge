@@ -67,9 +67,17 @@ export class PlanExecutor {
           return { success: false, completedSteps, failedSteps, logs }
         }
 
+        const structuralCheck = await this.performStructuredChecks(client, step)
         const validation = await this.validateStep(step, result, userRequest)
+        const mergedValidation = structuralCheck.success
+          ? validation
+          : {
+              success: false,
+              reason: structuralCheck.reason ?? validation.reason,
+              concerns: [...(validation.concerns ?? []), structuralCheck.reason].filter(Boolean),
+            }
 
-        if (validation.success) {
+        if (mergedValidation.success) {
           completedSteps.push({ step, result })
           continue
         }
@@ -78,7 +86,7 @@ export class PlanExecutor {
           client,
           step,
           result,
-          validation.reason,
+          mergedValidation.reason,
           userRequest
         )
         if (recovery.success) {
@@ -92,7 +100,7 @@ export class PlanExecutor {
           continue
         }
 
-        failedSteps.push({ step, error: validation.reason })
+        failedSteps.push({ step, error: mergedValidation.reason })
         return { success: false, completedSteps, failedSteps, logs }
       }
 
@@ -191,6 +199,59 @@ ${RECOVERY_OUTPUT_FORMAT}`
         result: error instanceof Error ? error.message : "Recovery failed",
       }
     }
+  }
+
+  private deriveObjectTargets(step: PlanStep): string[] {
+    const params = step.parameters ?? {}
+    const candidates: string[] = []
+    const keys = ["object_name", "objectName", "target", "targetName", "mesh", "name"]
+    const stepText = `${step.action} ${step.rationale} ${step.expectedOutcome}`.toLowerCase()
+    const isCreation = /(create|add|spawn|generate|new)/.test(stepText)
+
+    for (const key of keys) {
+      const value = (params as Record<string, unknown>)[key]
+      if (typeof value === "string" && value.trim()) {
+        if (key === "name" && isCreation) continue
+        candidates.push(value.trim())
+      }
+    }
+
+    return Array.from(new Set(candidates))
+  }
+
+  private async performStructuredChecks(
+    client: ReturnType<typeof createMcpClient>,
+    step: PlanStep
+  ): Promise<{ success: boolean; reason?: string }> {
+    const targets = this.deriveObjectTargets(step)
+    if (targets.length === 0) {
+      return { success: true }
+    }
+
+    const missing: string[] = []
+    for (const name of targets) {
+      try {
+        const response = await client.execute({
+          type: "get_object_info",
+          params: { name },
+        })
+        const status = typeof response.status === "string" ? response.status.toLowerCase() : "ok"
+        if (status !== "ok" && status !== "success") {
+          missing.push(name)
+        }
+      } catch {
+        missing.push(name)
+      }
+    }
+
+    if (missing.length > 0) {
+      return {
+        success: false,
+        reason: `Expected objects not found after step ${step.stepNumber}: ${missing.join(", ")}`,
+      }
+    }
+
+    return { success: true }
   }
 
   private parseJson(raw: string): Record<string, unknown> | null {
