@@ -44,9 +44,16 @@ const SKETCHFAB_TOOLS = new Set([
   "download_sketchfab_model",
 ])
 
+const POLYHAVEN_TOOLS = new Set([
+  "get_polyhaven_status",
+  "search_polyhaven_assets",
+  "download_polyhaven_asset",
+])
+
 interface ExecutionOptions {
   allowHyper3d: boolean
   allowSketchfab: boolean
+  allowPolyHaven: boolean
 }
 
 export class PlanExecutor {
@@ -63,6 +70,7 @@ export class PlanExecutor {
 
     const allowHyper3d = options.allowHyper3d
     const allowSketchfab = options.allowSketchfab
+    const allowPolyHaven = options.allowPolyHaven
 
     try {
       for (const step of plan.steps) {
@@ -80,6 +88,18 @@ export class PlanExecutor {
 
         if (!allowSketchfab && SKETCHFAB_TOOLS.has(step.action)) {
           const reason = "Sketchfab tools are disabled for this project"
+          logs.push({
+            timestamp: new Date().toISOString(),
+            tool: step.action,
+            parameters: step.parameters,
+            error: reason,
+          })
+          failedSteps.push({ step, error: reason })
+          return { success: false, completedSteps, failedSteps, logs }
+        }
+
+        if (!allowPolyHaven && POLYHAVEN_TOOLS.has(step.action)) {
+          const reason = "Poly Haven tools are disabled for this project"
           logs.push({
             timestamp: new Date().toISOString(),
             tool: step.action,
@@ -163,7 +183,7 @@ export class PlanExecutor {
           parameters: {},
           result: finalState,
         })
-        const audit = await this.auditScene(client, finalState, analysis)
+        const audit = await this.auditScene(client, finalState, userRequest, analysis)
         if (!audit.success) {
           failedSteps.push({
             step: plan.steps[plan.steps.length - 1] ?? plan.steps[0],
@@ -321,6 +341,7 @@ ${RECOVERY_OUTPUT_FORMAT}`
   private async auditScene(
     client: ReturnType<typeof createMcpClient>,
     finalState: unknown,
+    userRequest: string,
     analysis?: PlanAnalysis
   ): Promise<{ success: boolean; reason?: string }> {
     const resultRecord =
@@ -388,6 +409,13 @@ ${RECOVERY_OUTPUT_FORMAT}`
       await this.ensureDefaultMaterials(client, missingMaterials)
     }
 
+    if (/(car|vehicle|sedan|supercar|sports car|automobile|truck)/i.test(userRequest)) {
+      const carAudit = this.auditCarScene(meshObjects)
+      if (!carAudit.success) {
+        return carAudit
+      }
+    }
+
     return { success: true }
   }
 
@@ -422,6 +450,66 @@ ${RECOVERY_OUTPUT_FORMAT}`
     } catch {
       return null
     }
+  }
+
+  private auditCarScene(objects: Array<Record<string, unknown>>): { success: boolean; reason?: string } {
+    const meshByName = objects
+      .map((obj) => ({
+        name: typeof obj.name === "string" ? obj.name : typeof obj["name"] === "string" ? (obj["name"] as string) : "",
+        raw: obj,
+      }))
+      .filter((entry) => entry.name.trim().length > 0)
+
+    const carBody = meshByName.find((entry) => /car.*(body|shell|chassis)/i.test(entry.name))
+    if (!carBody) {
+      return { success: false, reason: "Car audit failed: missing a car body mesh (expected name containing 'car_body')." }
+    }
+
+    const wheels = meshByName.filter((entry) => /(wheel|tyre|tire)/i.test(entry.name))
+    const uniqueWheels = new Map<string, typeof wheels[number]>()
+    for (const wheel of wheels) {
+      uniqueWheels.set(wheel.name.toLowerCase(), wheel)
+    }
+    if (uniqueWheels.size < 4) {
+      return { success: false, reason: `Car audit failed: expected 4 wheels, found ${uniqueWheels.size}.` }
+    }
+
+    const wheelLocations = Array.from(uniqueWheels.values())
+      .map((entry) => {
+        const location = Array.isArray(entry.raw.location)
+          ? (entry.raw.location as unknown[])
+          : Array.isArray(entry.raw["location"])
+          ? (entry.raw["location"] as unknown[])
+          : []
+        return location.map((value) => (typeof value === "number" ? Number(value.toFixed(2)) : value))
+      })
+      .filter((loc) => Array.isArray(loc) && loc.length === 3)
+
+    const wheelPositionHashes = new Set(wheelLocations.map((loc) => JSON.stringify(loc)))
+    if (wheelPositionHashes.size < 3) {
+      return {
+        success: false,
+        reason: "Car audit failed: wheel locations are overlapping; ensure wheels are positioned at four corners.",
+      }
+    }
+
+    const lights = meshByName.filter((entry) => /(headlight|taillight|light)/i.test(entry.name))
+    if (lights.length < 2) {
+      return {
+        success: false,
+        reason: "Car audit failed: expected at least two headlight/taillight meshes.",
+      }
+    }
+
+    const glass = meshByName.some((entry) => /(window|glass|windshield)/i.test(entry.name))
+    if (!glass) {
+      return {
+        success: false,
+        reason: "Car audit failed: expected window or windshield meshes.",
+      }
+    }
+
+    return { success: true }
   }
 }
 

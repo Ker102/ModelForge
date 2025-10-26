@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db"
 const payloadSchema = z.object({
   allowHyper3dAssets: z.boolean().optional(),
   allowSketchfabAssets: z.boolean().optional(),
+  allowPolyHavenAssets: z.boolean().optional(),
 })
 
 export async function PATCH(
@@ -49,8 +50,12 @@ export async function PATCH(
     )
   }
 
-  const { allowHyper3dAssets, allowSketchfabAssets } = parsed.data
-  if (allowHyper3dAssets === undefined && allowSketchfabAssets === undefined) {
+  const { allowHyper3dAssets, allowSketchfabAssets, allowPolyHavenAssets } = parsed.data
+  if (
+    allowHyper3dAssets === undefined &&
+    allowSketchfabAssets === undefined &&
+    allowPolyHavenAssets === undefined
+  ) {
     return NextResponse.json(
       { error: "No recognized settings provided" },
       { status: 400 }
@@ -66,10 +71,14 @@ export async function PATCH(
       ...(allowSketchfabAssets !== undefined
         ? { allowSketchfabAssets }
         : {}),
+      ...(allowPolyHavenAssets !== undefined
+        ? { allowPolyHavenAssets }
+        : {}),
     },
     select: {
       allowHyper3dAssets: true,
       allowSketchfabAssets: true,
+      allowPolyHavenAssets: true,
     },
   })
 

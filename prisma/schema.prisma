@@ -84,6 +84,7 @@ model Project {
   thumbnailUrl  String?  @db.Text
   allowHyper3dAssets   Boolean  @default(false)
   allowSketchfabAssets Boolean  @default(false)
+  allowPolyHavenAssets Boolean  @default(true)
   createdAt     DateTime @default(now())
   lastModified  DateTime @updatedAt
   isDeleted     Boolean  @default(false)

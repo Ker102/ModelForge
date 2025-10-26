@@ -53,10 +53,11 @@ interface PlanningOptions {
   sceneSummary?: string
   allowHyper3dAssets?: boolean
   allowSketchfabAssets?: boolean
+  allowPolyHavenAssets?: boolean
 }
 
 export class BlenderPlanner {
-  constructor(private readonly maxRetries = 1) {}
+  constructor(private readonly maxRetries = 2) {}
 
   async generatePlan(
     userRequest: string,
@@ -67,6 +68,7 @@ export class BlenderPlanner {
     const filteredTools = filterRelevantTools(userRequest, undefined, {
       allowHyper3d: options.allowHyper3dAssets !== false,
       allowSketchfab: options.allowSketchfabAssets !== false,
+      allowPolyHaven: options.allowPolyHavenAssets !== false,
     })
     const toolListing = formatToolListForPrompt(filteredTools)
 
@@ -83,6 +85,11 @@ export class BlenderPlanner {
     if (options.allowSketchfabAssets === false) {
       restrictions.push(
         "Sketchfab tools are disabled for this project. Do not call get_sketchfab_status, search_sketchfab_models, or download_sketchfab_model."
+      )
+    }
+    if (options.allowPolyHavenAssets === false) {
+      restrictions.push(
+        "Poly Haven tools are disabled for this project. Do not call get_polyhaven_status, search_polyhaven_assets, or download_polyhaven_asset."
       )
     }
     const restrictionContext = restrictions.length ? `${restrictions.join("\n")}\n\n` : ""
@@ -148,6 +155,7 @@ Return strict JSON with this shape:
         topK: 32,
         maxOutputTokens: 768,
         systemPrompt: PLANNING_SYSTEM_PROMPT,
+        responseMimeType: "application/json",
       })
 
       lastRaw = response.text
@@ -212,17 +220,35 @@ Components should reflect sub-assemblies (e.g., car body, four wheels, windows, 
         topK: 64,
         maxOutputTokens: 512,
         systemPrompt: "You are a meticulous 3D scene analyst. Return only JSON.",
+        responseMimeType: "application/json",
       })
 
       const cleaned = this.extractJson(response.text)
       if (!cleaned) return undefined
       const parsed = JSON.parse(cleaned)
       const result = ANALYSIS_SCHEMA.safeParse(parsed)
-      if (!result.success) return undefined
+      if (!result.success) {
+        const repaired = this.repairJson(cleaned)
+        if (!repaired) {
+          return this.refineAnalysis(userRequest)
+        }
+        try {
+          const repairedParsed = JSON.parse(repaired)
+          const repairedResult = ANALYSIS_SCHEMA.safeParse(repairedParsed)
+          if (!repairedResult.success) {
+            return this.refineAnalysis(userRequest)
+          }
+          const baseAnalysis = this.toAnalysis(repairedResult.data)
+          return this.refineAnalysis(userRequest, baseAnalysis)
+        } catch {
+          return this.refineAnalysis(userRequest)
+        }
+      }
 
-      return this.toAnalysis(result.data)
+      const baseAnalysis = this.toAnalysis(result.data)
+      return this.refineAnalysis(userRequest, baseAnalysis)
     } catch {
-      return undefined
+      return this.refineAnalysis(userRequest)
     }
   }
 
@@ -236,7 +262,23 @@ Components should reflect sub-assemblies (e.g., car body, four wheels, windows, 
       const parsed = JSON.parse(cleaned)
       const result = PLAN_SCHEMA.safeParse(parsed)
       if (!result.success) {
-        return { success: false, error: result.error.flatten().formErrors.join("; ") }
+        const repaired = this.repairJson(cleaned)
+        if (!repaired) {
+          return { success: false, error: result.error.flatten().formErrors.join("; ") }
+        }
+        try {
+          const repairedParsed = JSON.parse(repaired)
+          const repairedResult = PLAN_SCHEMA.safeParse(repairedParsed)
+          if (!repairedResult.success) {
+            return { success: false, error: repairedResult.error.flatten().formErrors.join("; ") }
+          }
+          return { success: true, data: repairedResult.data }
+        } catch (error) {
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : "Failed to parse repaired plan JSON",
+          }
+        }
       }
       return { success: true, data: result.data }
     } catch (error) {
@@ -279,6 +321,117 @@ Components should reflect sub-assemblies (e.g., car body, four wheels, windows, 
       requireLighting: raw.require_lighting,
       requireCamera: raw.require_camera,
       notes: raw.notes,
+    }
+  }
+
+  private refineAnalysis(userRequest: string, existing?: PlanAnalysis): PlanAnalysis | undefined {
+    const isCarRequest = /(car|vehicle|sedan|supercar|sports car|automobile|truck)/i.test(userRequest)
+
+    if (!isCarRequest) {
+      return existing
+    }
+
+    const base: PlanAnalysis = existing ?? {
+      components: [],
+      materialGuidelines: [],
+      minimumMeshObjects: undefined,
+      requireLighting: undefined,
+      requireCamera: undefined,
+      notes: [],
+    }
+
+    const componentSet = new Map<string, string>()
+    for (const component of base.components) {
+      const key = component.trim().toLowerCase()
+      if (key) {
+        componentSet.set(key, component)
+      }
+    }
+
+    const ensureComponent = (key: string, label: string) => {
+      const normalized = key.trim().toLowerCase()
+      if (!componentSet.has(normalized)) {
+        componentSet.set(normalized, label)
+      }
+    }
+
+    ensureComponent("car body shell", "Car body shell with cockpit")
+    ensureComponent("front-left wheel", "Front-left wheel assembly")
+    ensureComponent("front-right wheel", "Front-right wheel assembly")
+    ensureComponent("rear-left wheel", "Rear-left wheel assembly")
+    ensureComponent("rear-right wheel", "Rear-right wheel assembly")
+    ensureComponent("windows and windshield", "Windows and windshield glazing")
+    ensureComponent("lighting", "Headlights and taillights")
+    ensureComponent("interior basics", "Interior basics (driver seat + steering wheel)")
+
+    const components = Array.from(componentSet.values())
+
+    const materialGuidelines =
+      base.materialGuidelines.length > 0
+        ? base.materialGuidelines
+        : [
+            "Apply contrasting materials to body paint, glass, tires, and lights.",
+            "Use metallic paint for the body and rubber for the tires.",
+          ]
+
+    const notes = Array.from(
+      new Set([
+        ...(base.notes ?? []),
+        "Scale wheels proportionally (0.6–0.8m diameter) and align them with the body.",
+        "Position lights at the front and rear; ensure glass materials for windows.",
+      ])
+    )
+
+    const minimumMeshObjects = Math.max(base.minimumMeshObjects ?? 0, 12)
+
+    return {
+      components,
+      materialGuidelines,
+      minimumMeshObjects,
+      requireLighting: base.requireLighting !== false ? true : base.requireLighting,
+      requireCamera: base.requireCamera !== false ? true : base.requireCamera,
+      notes,
+    }
+  }
+
+  private repairJson(raw: string): string | null {
+    let candidate = raw.trim()
+    if (!candidate) return null
+
+    const firstBrace = candidate.indexOf("{")
+    if (firstBrace === -1) {
+      return null
+    }
+    candidate = candidate.slice(firstBrace)
+
+    const lastObjectClose = candidate.lastIndexOf("}")
+    const lastArrayClose = candidate.lastIndexOf("]")
+    const lastClose = Math.max(lastObjectClose, lastArrayClose)
+    if (lastClose !== -1 && lastClose < candidate.length - 1) {
+      candidate = candidate.slice(0, lastClose + 1)
+    }
+
+    candidate = candidate.replace(/,\s*(\}|\])/g, "$1")
+
+    const openBraces = (candidate.match(/{/g) ?? []).length
+    let closeBraces = (candidate.match(/}/g) ?? []).length
+    while (closeBraces < openBraces) {
+      candidate += "}"
+      closeBraces += 1
+    }
+
+    const openBrackets = (candidate.match(/\[/g) ?? []).length
+    let closeBrackets = (candidate.match(/]/g) ?? []).length
+    while (closeBrackets < openBrackets) {
+      candidate += "]"
+      closeBrackets += 1
+    }
+
+    try {
+      JSON.parse(candidate)
+      return candidate
+    } catch {
+      return null
     }
   }
 }

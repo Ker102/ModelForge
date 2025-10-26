@@ -135,6 +135,7 @@ export default async function ProjectPage({ params }: { params: { id: string } }
           initialAssetConfig={{
             allowHyper3d: Boolean(project.allowHyper3dAssets),
             allowSketchfab: Boolean(project.allowSketchfabAssets),
+            allowPolyHaven: project.allowPolyHavenAssets !== false,
           }}
         />
 

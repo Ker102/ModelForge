@@ -49,6 +49,7 @@ interface ProjectChatProps {
   initialAssetConfig: {
     allowHyper3d: boolean
     allowSketchfab: boolean
+    allowPolyHaven: boolean
   }
 }
 
@@ -433,6 +434,7 @@ export function ProjectChat({
         body: JSON.stringify({
           allowHyper3dAssets: nextConfig.allowHyper3d,
           allowSketchfabAssets: nextConfig.allowSketchfab,
+          allowPolyHavenAssets: nextConfig.allowPolyHaven,
         }),
       })
       if (!response.ok) {
@@ -441,10 +443,12 @@ export function ProjectChat({
       const data = (await response.json()) as {
         allowHyper3dAssets?: boolean
         allowSketchfabAssets?: boolean
+        allowPolyHavenAssets?: boolean
       }
       setAssetConfig({
         allowHyper3d: Boolean(data.allowHyper3dAssets),
         allowSketchfab: Boolean(data.allowSketchfabAssets),
+        allowPolyHaven: data.allowPolyHavenAssets !== false,
       })
     } catch (err) {
       console.error(err)
@@ -489,11 +493,28 @@ export function ProjectChat({
             <div>
               <p className="font-semibold text-sm">Asset integrations</p>
               <p className="text-xs text-muted-foreground">
-                Enable only after configuring the matching API keys inside the Blender add-on.
+                Poly Haven works out of the box. Enable Hyper3D or Sketchfab only after adding their API keys in the Blender add-on.
               </p>
             </div>
           </div>
           <div className="space-y-2">
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4"
+                checked={assetConfig.allowPolyHaven}
+                onChange={(event) =>
+                  updateAssetConfig({ allowPolyHaven: event.target.checked })
+                }
+              />
+              <span>
+                <span className="font-medium text-foreground">Use Poly Haven assets</span>
+                <span className="block text-xs text-muted-foreground">
+                  Enabled by default. Provides HDRIs, textures, and models that do not require API keys.
+                  Disable if you prefer to manage downloads manually.
+                </span>
+              </span>
+            </label>
             <label className="flex items-start gap-2 text-sm">
               <input
                 type="checkbox"

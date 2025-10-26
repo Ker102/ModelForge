@@ -34,6 +34,7 @@ interface GenerateOptions {
   topK?: number
   maxOutputTokens?: number
   systemPrompt?: string
+  responseMimeType?: string
 }
 
 function mapMessageToGeminiContent(message: GeminiMessage) {
@@ -68,6 +69,7 @@ export async function generateGeminiResponse({
   topK = 32,
   maxOutputTokens = 512,
   systemPrompt,
+  responseMimeType,
 }: GenerateOptions): Promise<GeminiResult> {
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) {
@@ -87,6 +89,7 @@ export async function generateGeminiResponse({
       topK,
       maxOutputTokens,
     },
+    ...(responseMimeType ? { responseMimeType } : {}),
   }
 
 

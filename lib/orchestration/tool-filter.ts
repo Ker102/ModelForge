@@ -49,9 +49,16 @@ const SKETCHFAB_TOOLS = new Set([
   "download_sketchfab_model",
 ])
 
+const POLYHAVEN_TOOLS = new Set([
+  "get_polyhaven_status",
+  "search_polyhaven_assets",
+  "download_polyhaven_asset",
+])
+
 interface ToolFilterOptions {
   allowHyper3d?: boolean
   allowSketchfab?: boolean
+  allowPolyHaven?: boolean
 }
 
 export function filterRelevantTools(
@@ -83,6 +90,12 @@ export function filterRelevantTools(
 
   if (options.allowSketchfab === false) {
     for (const tool of SKETCHFAB_TOOLS) {
+      selected.delete(tool)
+    }
+  }
+
+  if (options.allowPolyHaven === false) {
+    for (const tool of POLYHAVEN_TOOLS) {
       selected.delete(tool)
     }
   }

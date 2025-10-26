@@ -238,6 +238,12 @@ const SKETCHFAB_TOOL_NAMES = new Set([
   "download_sketchfab_model",
 ])
 
+const POLYHAVEN_TOOL_NAMES = new Set([
+  "get_polyhaven_status",
+  "search_polyhaven_assets",
+  "download_polyhaven_asset",
+])
+
 function formatPython(lines: string[]): string {
   return lines.join("\n")
 }
@@ -281,6 +287,7 @@ function detectTarget(lowerPrompt: string): string {
 interface StubOptions {
   allowHyper3d: boolean
   allowSketchfab: boolean
+  allowPolyHaven: boolean
 }
 
 function buildCommandStubs(prompt: string, options: StubOptions): CommandStub[] {
@@ -288,6 +295,7 @@ function buildCommandStubs(prompt: string, options: StubOptions): CommandStub[] 
   const promptSnippet = prompt.slice(0, 200)
   const stubs: CommandStub[] = []
   const alreadyHandled = new Set<string>()
+  const allowPolyHaven = options.allowPolyHaven !== false
 
   const addStub = (stub: CommandStub, key?: string) => {
     if (key) {
@@ -319,70 +327,120 @@ function buildCommandStubs(prompt: string, options: StubOptions): CommandStub[] 
       "collection = ensure_collection('ModelForge_Car')",
       "clear_collection(collection)",
       "",
-      "# Car body",
-      "bpy.ops.object.select_all(action='DESELECT')",
-      "bpy.ops.mesh.primitive_cube_add(size=4, location=(0, 0, 1))",
-      "body = bpy.context.active_object",
-      "body.name = 'Car_Body'",
-      "body.scale = (1.6, 0.7, 0.4)",
-      "body_mat = ensure_material('Car_Paint', (0.9, 0.12, 0.12, 1.0), metallic=0.85, roughness=0.25)",
-      "assign_material(body, body_mat)",
-      "link_object(body, collection)",
+      "# Lower body shell",
+      "bpy.ops.mesh.primitive_cube_add(size=2, enter_editmode=False, align='WORLD', location=(0, 0, 0.7))",
+      "lower_body = bpy.context.active_object",
+      "lower_body.name = 'Car_Body_Lower'",
+      "lower_body.scale = (2.1, 1.05, 0.35)",
+      "paint = ensure_material('Car_Paint', (0.82, 0.08, 0.1, 1.0), metallic=0.85, roughness=0.28)",
+      "assign_material(lower_body, paint)",
+      "link_object(lower_body, collection)",
       "",
-      "# Wheels",
-      "wheel_positions = [(-1.4, 0.9), (1.4, 0.9), (-1.4, -0.9), (1.4, -0.9)]",
-      "wheel_mat = ensure_material('Wheel_Rubber', (0.05, 0.05, 0.05, 1.0), metallic=0.1, roughness=0.7)",
-      "for index, (x, y) in enumerate(wheel_positions, start=1):",
-      "    bpy.ops.mesh.primitive_cylinder_add(radius=0.35, depth=0.25, location=(x, y, 0.35))",
+      "# Cabin / upper body",
+      "bpy.ops.mesh.primitive_cube_add(size=2, enter_editmode=False, align='WORLD', location=(0.3, 0, 1.15))",
+      "upper_body = bpy.context.active_object",
+      "upper_body.name = 'Car_Body_Upper'",
+      "upper_body.scale = (1.4, 0.85, 0.35)",
+      "assign_material(upper_body, paint)",
+      "link_object(upper_body, collection)",
+      "",
+      "# Glass materials and windows",
+      "glass = ensure_material('Car_Glass', (0.6, 0.76, 0.92, 0.12), metallic=0.0, roughness=0.08)",
+      "bpy.ops.mesh.primitive_cube_add(size=1, location=(1.05, 0, 1.2))",
+      "windshield = bpy.context.active_object",
+      "windshield.name = 'Car_Windshield_Front'",
+      "windshield.scale = (0.18, 0.75, 0.42)",
+      "windshield.rotation_euler = (math.radians(65), 0, 0)",
+      "assign_material(windshield, glass)",
+      "link_object(windshield, collection)",
+      "",
+      "bpy.ops.mesh.primitive_cube_add(size=1, location=(-0.6, 0, 1.2))",
+      "rear_window = bpy.context.active_object",
+      "rear_window.name = 'Car_Window_Rear'",
+      "rear_window.scale = (0.2, 0.75, 0.38)",
+      "rear_window.rotation_euler = (math.radians(55), 0, 0)",
+      "assign_material(rear_window, glass)",
+      "link_object(rear_window, collection)",
+      "",
+      "for offset in (-0.55, 0.55):",
+      "    bpy.ops.mesh.primitive_cube_add(size=1, location=(0.3, offset, 1.2))",
+      "    side_window = bpy.context.active_object",
+      "    side_window.name = f\"Car_Window_Side_{'L' if offset < 0 else 'R'}\"",
+      "    side_window.scale = (0.82, 0.08, 0.36)",
+      "    assign_material(side_window, glass)",
+      "    link_object(side_window, collection)",
+      "",
+      "# Wheels and rims",
+      "wheel_mat = ensure_material('Car_Tire', (0.06, 0.06, 0.06, 1.0), metallic=0.15, roughness=0.85)",
+      "rim_mat = ensure_material('Car_Rim', (0.82, 0.82, 0.84, 1.0), metallic=0.92, roughness=0.22)",
+      "wheel_positions = [",
+      "    (-1.45, 1.05, 0.3),",
+      "    (1.45, 1.05, 0.3),",
+      "    (-1.45, -1.05, 0.3),",
+      "    (1.45, -1.05, 0.3),",
+      "    ]",
+      "for index, (x, y, z) in enumerate(wheel_positions, start=1):",
+      "    bpy.ops.mesh.primitive_cylinder_add(radius=0.45, depth=0.28, location=(x, y, z), rotation=(math.radians(90), 0, 0))",
       "    wheel = bpy.context.active_object",
-      "    wheel.rotation_euler[0] = math.radians(90)",
       "    wheel.name = f'Car_Wheel_{index}'",
       "    assign_material(wheel, wheel_mat)",
       "    link_object(wheel, collection)",
+      "    bpy.ops.mesh.primitive_cylinder_add(radius=0.32, depth=0.1, location=(x, y, z + 0.02), rotation=(math.radians(90), 0, 0))",
+      "    rim = bpy.context.active_object",
+      "    rim.name = f'Car_Rim_{index}'",
+      "    assign_material(rim, rim_mat)",
+      "    link_object(rim, collection)",
       "",
-      "# Windows",
-      "glass = ensure_material('Car_Glass', (0.6, 0.8, 0.95, 0.25), metallic=0.0, roughness=0.1)",
-      "bpy.ops.mesh.primitive_plane_add(size=1.6, location=(0, 0, 1.35))",
-      "front_window = bpy.context.active_object",
-      "front_window.name = 'Car_Window_Front'",
-      "front_window.scale = (0.8, 0.01, 0.5)",
-      "front_window.rotation_euler[0] = math.radians(62)",
-      "assign_material(front_window, glass)",
-      "link_object(front_window, collection)",
-      "",
-      "# Headlights",
-      "for offset in (-0.9, 0.9):",
-      "    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.12, location=(offset, 1.4, 0.7))",
+      "# Headlights and taillights",
+      "headlight_mat = ensure_material('Car_Headlight', (1.0, 0.97, 0.8, 1.0), metallic=0.0, roughness=0.05)",
+      "for offset in (-0.72, 0.72):",
+      "    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.12, location=(2.05, offset, 0.75))",
       "    headlight = bpy.context.active_object",
-      "    headlight.name = f'Car_Headlight_{\'L\' if offset < 0 else \'R\'}'",
-      "    emitter = ensure_material('Headlight_Emitter', (1.0, 0.95, 0.8, 1.0), metallic=0.0, roughness=0.0)",
-      "    assign_material(headlight, emitter)",
+      "    headlight.name = f\"Car_Headlight_{'L' if offset < 0 else 'R'}\"",
+      "    assign_material(headlight, headlight_mat)",
       "    link_object(headlight, collection)",
       "",
-      "# Lighting and camera",
-      "bpy.ops.object.light_add(type='AREA', location=(6, -6, 8))",
-      "key = bpy.context.active_object",
-      "key.name = 'Car_Key_Light'",
-      "key.data.energy = 1200",
-      "key.data.shape = 'RECTANGLE'",
-      "key.data.size = 6",
-      "key.data.size_y = 4",
-      "link_object(key, collection)",
+      "taillight_mat = ensure_material('Car_Taillight', (1.0, 0.25, 0.25, 1.0), metallic=0.0, roughness=0.12)",
+      "for offset in (-0.7, 0.7):",
+      "    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.1, location=(-2.2, offset, 0.7))",
+      "    taillight = bpy.context.active_object",
+      "    taillight.name = f\"Car_Taillight_{'L' if offset < 0 else 'R'}\"",
+      "    assign_material(taillight, taillight_mat)",
+      "    link_object(taillight, collection)",
       "",
-      "bpy.ops.object.camera_add(location=(9, -9, 6))",
-      "cam = bpy.context.active_object",
-      "cam.name = 'Car_Camera'",
-      "cam.rotation_euler = (math.radians(52), 0, math.radians(40))",
-      "bpy.context.scene.camera = cam",
-      "link_object(cam, collection)",
+      "# Interior basics",
+      "interior_mat = ensure_material('Car_Interior', (0.12, 0.12, 0.12, 1.0), metallic=0.1, roughness=0.6)",
+      "bpy.ops.mesh.primitive_cube_add(size=1, location=(0.45, -0.25, 0.85))",
+      "seat = bpy.context.active_object",
+      "seat.name = 'Car_Driver_Seat'",
+      "seat.scale = (0.45, 0.5, 0.4)",
+      "assign_material(seat, interior_mat)",
+      "link_object(seat, collection)",
       "",
-      "print('ModelForge: fallback car assembled with body, wheels, windows, headlights, and lighting.')",
+      "bpy.ops.mesh.primitive_torus_add(major_radius=0.28, minor_radius=0.04, location=(1.0, -0.25, 1.05), rotation=(math.radians(80), 0, 0))",
+      "steering = bpy.context.active_object",
+      "steering.name = 'Car_Steering_Wheel'",
+      "assign_material(steering, ensure_material('Car_Steering', (0.08, 0.08, 0.08, 1.0), metallic=0.0, roughness=0.4))",
+      "link_object(steering, collection)",
+      "",
+      "# Camera and lighting adjustments",
+      "camera = ensure_camera()",
+      "camera.location = (8.0, -6.5, 4.0)",
+      "camera.rotation_euler = (math.radians(55), 0, math.radians(35))",
+      "",
+      "if not any(obj.name == 'ModelForge_KeyLight' for obj in bpy.context.scene.objects):",
+      "    bpy.ops.object.light_add(type='SUN', location=(5, -5, 6))",
+      "    sun = bpy.context.active_object",
+      "    sun.name = 'ModelForge_KeyLight'",
+      "    sun.data.energy = 3.5",
+      "",
+      "print('ModelForge: fallback car assembled with detailed body, wheels, glass, lighting, and interior.')",
     ])
 
     addStub(
       createCommand(
         "execute_code",
-        "Assemble a fallback car with body, four wheels, windows, headlights, lighting, and camera",
+        "Assemble a fallback car with detailed body, four wheels, glass, lights, and interior",
         { code: carCode },
         0.55,
         "Fallback car scaffold to guarantee geometry even when planner fails.",
@@ -833,7 +891,7 @@ const detectedColor = detectColor(lowerPrompt)
   const mentionsPolyHaven = /poly ?haven/.test(lowerPrompt)
   const mentionsBeach = /beach|coast|shore/.test(lowerPrompt)
 
-  if (mentionsBeach) {
+  if (allowPolyHaven && mentionsBeach) {
     const beachCode = formatPython([
       CODE_HELPERS,
       "",
@@ -920,7 +978,7 @@ const detectedColor = detectColor(lowerPrompt)
       ],
       "polyhaven-search"
     )
-  } else if (mentionsPolyHaven) {
+  } else if (allowPolyHaven && mentionsPolyHaven) {
     addStub(
       createCommand(
         "get_polyhaven_status",
@@ -1120,6 +1178,7 @@ async function executeCommandPlan(
   const executed: ExecutedCommand[] = []
   const allowHyper3d = options.allowHyper3d
   const allowSketchfab = options.allowSketchfab
+  const allowPolyHaven = options.allowPolyHaven
 
   try {
     for (const command of commands) {
@@ -1139,6 +1198,16 @@ async function executeCommandPlan(
           status: "failed",
           result: undefined,
           error: "Sketchfab tools are disabled for this project",
+        })
+        continue
+      }
+
+      if (!allowPolyHaven && POLYHAVEN_TOOL_NAMES.has(command.tool)) {
+        executed.push({
+          ...command,
+          status: "failed",
+          result: undefined,
+          error: "Poly Haven tools are disabled for this project",
         })
         continue
       }
@@ -1207,6 +1276,7 @@ export async function POST(req: Request) {
         id: true,
         allowHyper3dAssets: true,
         allowSketchfabAssets: true,
+        allowPolyHavenAssets: true,
       },
     })
 
@@ -1220,6 +1290,7 @@ export async function POST(req: Request) {
     const assetConfig = {
       allowHyper3d: Boolean(project.allowHyper3dAssets),
       allowSketchfab: Boolean(project.allowSketchfabAssets),
+      allowPolyHaven: project.allowPolyHavenAssets !== false,
     }
 
     const quotaCheck = await canConsumeAiRequest(
@@ -1327,6 +1398,7 @@ export async function POST(req: Request) {
               sceneSummary: sceneSnapshotResult.summary ?? undefined,
               allowHyper3dAssets: assetConfig.allowHyper3d,
               allowSketchfabAssets: assetConfig.allowSketchfab,
+              allowPolyHavenAssets: assetConfig.allowPolyHaven,
             })
 
             if (planResult.plan) {

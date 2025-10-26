@@ -122,7 +122,7 @@ This repository contains the Next.js 14 marketing website and user platform.
 
 ## 🔧 Asset Integrations & MCP Settings
 
-Configure external asset providers on a per-project basis from the dashboard. Hyper3D Rodin and Sketchfab are **disabled by default** to prevent accidental API calls—enable them only after the user has entered valid keys inside the Blender add-on sidebar.
+Configure external asset providers on a per-project basis from the dashboard. Poly Haven is **enabled by default** (no API keys required) so users can browse HDRIs, textures, and models immediately. Hyper3D Rodin and Sketchfab remain **disabled by default** to prevent accidental API calls—enable them only after valid credentials are entered inside the Blender add-on sidebar.
 
 Environment variables:
 - `BLENDER_MCP_HOST` / `BLENDER_MCP_PORT` – MCP socket target (defaults to `127.0.0.1:9876`).
