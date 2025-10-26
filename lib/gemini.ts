@@ -81,56 +81,73 @@ export async function generateGeminiResponse({
 
   const contents = buildContents(history, messages, systemPrompt)
 
-  const body = {
-    contents,
-    generationConfig: {
-      temperature,
-      topP,
-      topK,
-      maxOutputTokens,
-    },
-    ...(responseMimeType ? { responseMimeType } : {}),
+  const attempts = responseMimeType ? [true, false] : [false]
+  let lastError: Error | null = null
+
+  for (const includeMimeType of attempts) {
+    const body = {
+      contents,
+      generationConfig: {
+        temperature,
+        topP,
+        topK,
+        maxOutputTokens,
+      },
+      ...(includeMimeType && responseMimeType ? { responseMimeType } : {}),
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    })
+
+    const json = await response.json()
+
+    if (!response.ok) {
+      const message =
+        json?.error?.message ??
+        `Gemini API request failed with status ${response.status}`
+
+      if (
+        includeMimeType &&
+        typeof message === "string" &&
+        message.includes('responseMimeType')
+      ) {
+        lastError = new Error(message)
+        continue
+      }
+
+      throw new Error(message)
+    }
+
+    const candidate = json?.candidates?.[0]
+    const text =
+      candidate?.content?.parts
+        ?.map((part: { text?: string }) => part.text ?? "")
+        .join("")
+        .trim() ?? ""
+
+    if (!text) {
+      lastError = new Error("Gemini returned an empty response")
+      continue
+    }
+
+    const usageMetadata = json?.usageMetadata ?? {}
+
+    return {
+      text,
+      usage: {
+        promptTokens: usageMetadata.promptTokenCount ?? null,
+        responseTokens: usageMetadata.candidatesTokenCount ?? null,
+        totalTokens: usageMetadata.totalTokenCount ?? null,
+      },
+    }
   }
 
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  })
-
-  const json = await response.json()
-
-  if (!response.ok) {
-    const message =
-      json?.error?.message ??
-      `Gemini API request failed with status ${response.status}`
-    throw new Error(message)
-  }
-
-  const candidate = json?.candidates?.[0]
-  const text =
-    candidate?.content?.parts
-      ?.map((part: { text?: string }) => part.text ?? "")
-      .join("")
-      .trim() ?? ""
-
-  if (!text) {
-    throw new Error("Gemini returned an empty response")
-  }
-
-  const usageMetadata = json?.usageMetadata ?? {}
-
-  return {
-    text,
-    usage: {
-      promptTokens: usageMetadata.promptTokenCount ?? null,
-      responseTokens: usageMetadata.candidatesTokenCount ?? null,
-      totalTokens: usageMetadata.totalTokenCount ?? null,
-    },
-  }
+  throw lastError ?? new Error("Gemini request failed without a specific error message")
 }
 
 export async function* streamGeminiResponse(

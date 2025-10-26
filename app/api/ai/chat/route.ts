@@ -11,7 +11,7 @@ import { streamGeminiResponse } from "@/lib/gemini"
 import { createMcpClient } from "@/lib/mcp"
 import { BlenderPlanner } from "@/lib/orchestration/planner"
 import { PlanExecutor, type ExecutionResult } from "@/lib/orchestration/executor"
-import type { PlanStep, PlanningMetadata } from "@/lib/orchestration/types"
+import type { PlanGenerationResult, PlanStep, PlanningMetadata } from "@/lib/orchestration/types"
 import { recordExecutionLog } from "@/lib/orchestration/monitor"
 import { z } from "zod"
 
@@ -1392,16 +1392,17 @@ export async function POST(req: Request) {
           let executedCommands: ExecutedCommand[] = []
           let planningMetadata: PlanningMetadata | null = null
           let planExecutionResult: ExecutionResult | null = null
+          let planResult: PlanGenerationResult | null = null
 
           try {
-            const planResult = await planner.generatePlan(message, {
+            planResult = await planner.generatePlan(message, {
               sceneSummary: sceneSnapshotResult.summary ?? undefined,
               allowHyper3dAssets: assetConfig.allowHyper3d,
               allowSketchfabAssets: assetConfig.allowSketchfab,
               allowPolyHavenAssets: assetConfig.allowPolyHaven,
             })
 
-            if (planResult.plan) {
+            if (planResult && planResult.plan) {
               const executionResult = await planExecutor.executePlan(
                 planResult.plan,
                 message,
@@ -1428,7 +1429,7 @@ export async function POST(req: Request) {
                 planningMetadata.executionSuccess = false
                 planningMetadata.fallbackUsed = true
               }
-            } else {
+            } else if (planResult) {
               planningMetadata = {
                 planSummary: "Plan generation failed",
                 planSteps: [],
@@ -1442,6 +1443,8 @@ export async function POST(req: Request) {
                 analysis: planResult.analysis,
               }
               executedCommands = await runFallback()
+            } else {
+              throw new Error("Planner returned no result")
             }
           } catch (error) {
             console.error("Planning pipeline error:", error)
