@@ -5,9 +5,17 @@ Transform your 3D workflow with AI-powered Blender automation. Create, modify, a
 ## 🚀 Project Overview
 
 ModelForge is a comprehensive platform that brings AI capabilities to Blender through:
-- **Marketing Website** (Phase 1 - Current): User authentication, project management, subscription handling
-- **Desktop Application** (Phase 2 - Coming Soon): AI chat interface with MCP integration
-- **Blender MCP Server** (External): Connects Blender to ModelForge
+- **AI-Orchestrated Scene Builder** (Current focus): Gemini-driven planning + execution layer that decomposes complex requests, applies materials, and validates results in Blender.
+- **Web Dashboard**: Authentication, project history, asset integration toggles, orchestration insights.
+- **Desktop Application**: Electron wrapper over the web dashboard for native MCP connectivity.
+- **Blender MCP Server** (External): Socket bridge that executes generated Python inside Blender.
+
+## ✅ Current Capabilities
+- Gemini 2.x orchestration with a ReAct-style planner, per-step validation, and fallback heuristics for common Blender tasks.
+- Post-plan review cards inside the chat UI showing component checklists, asset usage, and material assignments.
+- Automatic scene audits that ensure lighting, camera, and base materials exist (with corrective scripts when missing).
+- Per-project toggles for Hyper3D Rodin and Sketchfab assets so AI calls respect a user’s configured API keys.
+- Shared conversation history, project management, and usage tracking across the web and desktop experiences.
 
 ## 📋 Phase 1 - Marketing Website (Current)
 
@@ -105,6 +113,22 @@ This repository contains the Next.js 14 marketing website and user platform.
    ```
 
    Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+8. **Seed a local Pro test user** (optional but handy for QA)
+   ```bash
+   npm run test:user
+   ```
+   This creates `test@modelforge.dev` / `TestPass123!` with an active subscription.
+
+## 🔧 Asset Integrations & MCP Settings
+
+Configure external asset providers on a per-project basis from the dashboard. Hyper3D Rodin and Sketchfab are **disabled by default** to prevent accidental API calls—enable them only after the user has entered valid keys inside the Blender add-on sidebar.
+
+Environment variables:
+- `BLENDER_MCP_HOST` / `BLENDER_MCP_PORT` – MCP socket target (defaults to `127.0.0.1:9876`).
+- `MODELFORGE_DESKTOP_START_URL` – entry point for the Electron shell.
+
+In Blender, launch the MCP server with `uvx blender-mcp` and keep only **one** MCP client running (Cursor, Claude, or ModelForge) to avoid port conflicts.
 
 ## 📊 Database Schema
 
@@ -321,6 +345,18 @@ npm run db:generate
 - Check webhook event types are selected
 - Use Stripe CLI for local testing
 
+## 🧠 Orchestration Layer
+
+ModelForge’s orchestration stack lives in `lib/orchestration/` and includes:
+
+- **Planner (`planner.ts`)** – Generates a component-level plan with material guidelines, object counts, and asset restrictions (Hyper3D/Sketchfab). Plans are rejected unless they meet minimum complexity and material requirements, and malformed responses trigger structured retries.
+- **Executor (`executor.ts`)** – Executes each MCP command, validates object creation, and audits the final scene. Missing lighting/camera/materials are auto-added as fallbacks, and audit failures feed a recovery prompt before completion.
+- **Heuristics (`buildCommandStubs` in API)** – Provide guardrail scripts (e.g., car scaffold, door fixer) when Gemini needs extra help or a recovery path.
+- **Telemetry (`monitor.ts`)** – Every request writes NDJSON lines to `logs/orchestration.ndjson`. Summaries can be generated with `npm run analyze:orchestration`.
+- **UI surfacing** – Plan summaries, component checklists, and execution logs render beside the chat so users can review what happened and retry specific steps.
+
+The chat UI shows plan summaries, component checklists, and execution results so users understand what occurred.
+
 ## 🧩 Blender MCP Integration
 
 ModelForge connects to Blender through the open-source [blender-mcp](https://github.com/ahujasid/blender-mcp) project. A copy of the upstream README is available at `blendermcpreadme.md` for offline reference.
@@ -400,15 +436,15 @@ npm run dev
 
 The desktop window loads `MODELFORGE_DESKTOP_START_URL` (defaults to `http://localhost:3000/dashboard`). MCP host/port values are read from the same `.env` file used by the web app, keeping configuration in one place.
 
-## 🔄 Next Steps (Phase 2)
+## 🔄 Next Steps
 
-- [x] Build Gemini-backed AI chat with streaming responses
-- [x] Scaffold MCP command planning stubs
-- [x] Build Electron desktop application shell
-- [ ] Implement production MCP client execution
+- [x] Gemini-backed conversational planning
+- [x] Detailed plan auditing (components, materials, lighting)
+- [x] Electron desktop shell
+- [x] MCP orchestration logging + analyzer script
 - [ ] Persist conversation memory with vector embeddings
-- [ ] Add viewport screenshot analysis
-- [ ] Deliver real-time Blender command execution
+- [ ] Viewport screenshot analysis & critiques
+- [ ] Production packaging for the desktop app
 
 ## 📚 Additional Resources
 
@@ -424,7 +460,7 @@ The desktop window loads `MODELFORGE_DESKTOP_START_URL` (defaults to `http://loc
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please read our contributing guidelines before submitting PRs.
+We welcome pull requests! Read [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow, coding standards, and testing steps. Use the GitHub issue templates when reporting bugs or proposing enhancements.
 
 ## 📧 Support
 
