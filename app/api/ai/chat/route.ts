@@ -465,10 +465,16 @@ function buildCommandStubs(prompt: string, options: StubOptions): CommandStub[] 
     const script = formatPython([
       CODE_HELPERS,
       "",
-      "targets = [obj for obj in bpy.context.scene.objects if obj.type == 'MESH']",
+      "targets = [obj for obj in bpy.context.scene.objects if obj.type == 'MESH' and hasattr(obj, 'data') and hasattr(obj.data, 'materials')]",
       `global_material = ensure_material("${materialName}", (${preset.rgba.join(", ")}), metallic=${preset.metallic ?? 0}, roughness=${preset.roughness ?? 0.5})`,
       "for obj in targets:",
-      "    assign_material(obj, global_material)",
+      "    if not obj.data.materials:",
+      "        obj.data.materials.append(global_material)",
+      "    else:",
+      "        for slot_index in range(len(obj.data.materials)):",
+      "            obj.data.materials[slot_index] = global_material",
+      "    if hasattr(obj, 'active_material'):",
+      "        obj.active_material = global_material",
       "",
       "print(f'ModelForge: applied global color material to {len(targets)} mesh objects.')",
     ])
@@ -482,6 +488,62 @@ function buildCommandStubs(prompt: string, options: StubOptions): CommandStub[] 
         "Heuristic fallback to recolor all meshes when planner struggles with large material plans."
       ),
       "global-color"
+    )
+  }
+
+  const wantsTree =
+    /(tree|pine|spruce|fir|conifer|oak|birch)/.test(lowerPrompt) &&
+    !alreadyHandled.has("tree")
+
+  if (wantsTree) {
+    const trunkColor = COLOR_PRESETS.brown ?? { rgba: [0.32, 0.19, 0.0, 1], metallic: 0.0, roughness: 0.8 }
+    const foliageColor = COLOR_PRESETS.green ?? { rgba: [0.2, 0.6, 0.25, 1], metallic: 0.0, roughness: 0.4 }
+    const treeCode = formatPython([
+      CODE_HELPERS,
+      "",
+      "collection = ensure_collection('ModelForge_Trees')",
+      "tree_root = ensure_collection('ModelForge_Trees')",
+      "",
+      "# Base location offset next to car if it exists",
+      "car_body = bpy.data.objects.get('Car_Body_Lower') or bpy.data.objects.get('car_body')",
+      "offset_x = 3.5",
+      "offset_y = 0.0",
+      "if car_body:",
+      "    offset_x = car_body.location.x + 3.0",
+      "    offset_y = car_body.location.y + 1.5",
+      "",
+      "# Create trunk",
+      "bpy.ops.mesh.primitive_cylinder_add(radius=0.25, depth=4.5, enter_editmode=False, align='WORLD', location=(offset_x, offset_y, 2.25))",
+      "trunk = bpy.context.active_object",
+      "trunk.name = 'Tree_Trunk'",
+      `trunk_mat = ensure_material("Tree_Trunk_Mat", (${trunkColor.rgba.join(", ")}), metallic=${trunkColor.metallic ?? 0}, roughness=${trunkColor.roughness ?? 0.8})`,
+      "assign_material(trunk, trunk_mat)",
+      "link_object(trunk, collection)",
+      "",
+      "# Create foliage (stacked cones)",
+      "foliage_levels = [3.8, 5.0, 6.1]",
+      "scale_values = [(1.8, 1.8, 1.6), (1.4, 1.4, 1.4), (1.0, 1.0, 1.2)]",
+      `foliage_mat = ensure_material("Tree_Foliage_Mat", (${foliageColor.rgba.join(", ")}), metallic=${foliageColor.metallic ?? 0}, roughness=${foliageColor.roughness ?? 0.45})`,
+      "for (height, scale) in zip(foliage_levels, scale_values):",
+      "    bpy.ops.mesh.primitive_cone_add(radius1=1.0, depth=2.5, enter_editmode=False, align='WORLD', location=(offset_x, offset_y, height))",
+      "    foliage = bpy.context.active_object",
+      "    foliage.scale = scale",
+      "    foliage.name = f'Tree_Foliage_{height:.1f}'",
+      "    assign_material(foliage, foliage_mat)",
+      "    link_object(foliage, collection)",
+      "",
+      "print('ModelForge: Added stylized pine tree with trunk and foliage.')",
+    ])
+
+    addStub(
+      createCommand(
+        "execute_code",
+        "Create a stylized pine tree next to the existing car",
+        { code: treeCode },
+        0.52,
+        "Heuristic tree builder: cylinder trunk plus stacked cones for foliage."
+      ),
+      "tree"
     )
   }
 

@@ -116,7 +116,7 @@ Produce a plan **before** executing anything. Requirement checklist:
 3. Parameters must match the tool expectations. Omit optional parameters when not needed.
 4. When the scene snapshot lists existing objects, modify or extend them instead of recreating duplicates with new names.
 5. Consolidate repetitive work: prefer a single execute_code step that iterates over multiple targets instead of duplicating nearly identical steps for each object.
-6. When recoloring or applying materials, operate only on mesh objects (obj.type == "MESH") and guard with hasattr(obj, "data") / hasattr(obj.data, "materials") before editing materials. Never attempt to set materials on lights or cameras.
+6. When recoloring or applying materials, operate only on mesh objects (obj.type == "MESH") and guard with hasattr(obj, "data") / hasattr(obj.data, "materials") before editing materials. Update every material slot on the mesh and never touch lights or cameras.
 7. Every mesh created or modified must end with explicit material/color assignment inside the same execute_code payload.
 8. Ensure there is at least one light and one camera positioned for a useful render unless the user forbids it.
 9. Rationale must reference the analysis components and explain the design intent.
