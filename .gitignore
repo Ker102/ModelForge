@@ -19,6 +19,7 @@
 # misc
 .DS_Store
 *.pem
+logs/
 
 # debug
 npm-debug.log*
@@ -49,4 +50,3 @@ next-env.d.ts
 *.p12
 *.pfx
 secrets/
-

@@ -11,7 +11,8 @@ import { streamGeminiResponse } from "@/lib/gemini"
 import { createMcpClient } from "@/lib/mcp"
 import { BlenderPlanner } from "@/lib/orchestration/planner"
 import { PlanExecutor, type ExecutionResult } from "@/lib/orchestration/executor"
-import type { ExecutionPlan, PlanStep } from "@/lib/orchestration/types"
+import type { ExecutionLogEntry, PlanStep } from "@/lib/orchestration/types"
+import { recordExecutionLog } from "@/lib/orchestration/monitor"
 import { z } from "zod"
 
 const MAX_HISTORY_MESSAGES = 12
@@ -757,6 +758,7 @@ interface PlanningMetadata {
   executionSuccess: boolean
   errors?: string[]
   fallbackUsed?: boolean
+  executionLog?: ExecutionLogEntry[]
 }
 
 function buildExecutedCommandsFromPlan(
@@ -1070,12 +1072,14 @@ export async function POST(req: Request) {
 
           let executedCommands: ExecutedCommand[] = []
           let planningMetadata: PlanningMetadata | null = null
+          let planExecutionResult: ExecutionResult | null = null
 
           try {
             const planResult = await planner.generatePlan(message)
 
             if (planResult.plan) {
               const executionResult = await planExecutor.executePlan(planResult.plan, message)
+              planExecutionResult = executionResult
               executedCommands = buildExecutedCommandsFromPlan(planResult.plan, executionResult)
               planningMetadata = {
                 planSummary: planResult.plan.planSummary,
@@ -1084,6 +1088,7 @@ export async function POST(req: Request) {
                 retries: planResult.retries,
                 executionSuccess: executionResult.success,
                 errors: planResult.errors,
+                executionLog: executionResult.logs,
               }
 
               if (!executionResult.success) {
@@ -1101,6 +1106,7 @@ export async function POST(req: Request) {
                 executionSuccess: false,
                 errors: planResult.errors,
                 fallbackUsed: true,
+                executionLog: planExecutionResult?.logs,
               }
               executedCommands = await runFallback()
             }
@@ -1116,6 +1122,7 @@ export async function POST(req: Request) {
               executionSuccess: false,
               errors: [messageText],
               fallbackUsed: true,
+              executionLog: planExecutionResult?.logs,
             }
             executedCommands = await runFallback()
           }
@@ -1125,8 +1132,50 @@ export async function POST(req: Request) {
             if (planningMetadata) {
               planningMetadata.executionSuccess = false
               planningMetadata.fallbackUsed = true
+              if (!planningMetadata.executionLog) {
+                planningMetadata.executionLog = planExecutionResult?.logs
+              }
             }
           }
+
+          if (!planningMetadata) {
+            planningMetadata = {
+              planSummary: "Heuristic execution",
+              planSteps: [],
+              rawPlan: "",
+              retries: 0,
+              executionSuccess: executedCommands.every((command) => command.status === "executed"),
+              fallbackUsed: true,
+              executionLog: planExecutionResult?.logs,
+            }
+          }
+
+          const failedCommands = executedCommands.filter((command) => command.status === "failed")
+          const overallSuccess =
+            planningMetadata.executionSuccess ?? failedCommands.length === 0
+
+          await recordExecutionLog({
+            timestamp: new Date().toISOString(),
+            conversationId: resolvedConversationId,
+            userId: session.user.id,
+            projectId,
+            request: message,
+            planSummary: planningMetadata.planSummary,
+            planSteps: planningMetadata.planSteps.length,
+            success: overallSuccess,
+            fallbackUsed: planningMetadata.fallbackUsed ?? false,
+            planRetries: planningMetadata.retries,
+            failedCommands: failedCommands.map((command) => ({
+              id: command.id,
+              tool: command.tool,
+              error: command.error,
+            })),
+            commandCount: executedCommands.length,
+            planErrors: planningMetadata.errors,
+            tokenUsage,
+            executionLog: planningMetadata.executionLog,
+          })
+
 
           const result = await prisma.$transaction(async (tx) => {
             const userMessageRecord = await tx.message.create({
