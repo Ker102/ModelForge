@@ -315,6 +315,7 @@ function buildCommandStubs(prompt: string, options: StubOptions): CommandStub[] 
     stubs.push(...newStubs)
   }
 
+  const detectedColor = detectColor(lowerPrompt)
   const wantsDungeonScene =
     /(dungeon|dragon|pot of gold|torch|castle)/.test(lowerPrompt) &&
     /house/.test(lowerPrompt) === false
@@ -449,7 +450,41 @@ function buildCommandStubs(prompt: string, options: StubOptions): CommandStub[] 
     )
   }
 
-const detectedColor = detectColor(lowerPrompt)
+  const wantsGlobalColor =
+    !!detectedColor &&
+    (
+      /(all|every|entire|whole)[^a-z]*object/.test(lowerPrompt) ||
+      /(color|paint|make|turn|add)[^a-z]*all[^a-z]*objects?/.test(lowerPrompt) ||
+      /(color|paint|make|turn|add)[^a-z]*objects?/.test(lowerPrompt)
+    )
+
+  if (detectedColor && wantsGlobalColor && !alreadyHandled.has("global-color")) {
+    const colorKey = detectedColor
+    const preset = COLOR_PRESETS[colorKey] ?? COLOR_PRESETS.blue
+    const materialName = `ModelForge_Global_${colorKey.toUpperCase()}`
+    const script = formatPython([
+      CODE_HELPERS,
+      "",
+      "targets = [obj for obj in bpy.context.scene.objects if obj.type == 'MESH']",
+      `global_material = ensure_material("${materialName}", (${preset.rgba.join(", ")}), metallic=${preset.metallic ?? 0}, roughness=${preset.roughness ?? 0.5})`,
+      "for obj in targets:",
+      "    assign_material(obj, global_material)",
+      "",
+      "print(f'ModelForge: applied global color material to {len(targets)} mesh objects.')",
+    ])
+
+    addStub(
+      createCommand(
+        "execute_code",
+        `Apply a ${colorKey} material to every mesh object in the scene`,
+        { code: script },
+        0.58,
+        "Heuristic fallback to recolor all meshes when planner struggles with large material plans."
+      ),
+      "global-color"
+    )
+  }
+
   const wantsDoor = /door/.test(lowerPrompt)
 
   if (wantsDoor) {

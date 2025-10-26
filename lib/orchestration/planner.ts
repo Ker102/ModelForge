@@ -115,12 +115,14 @@ Produce a plan **before** executing anything. Requirement checklist:
 2. Perform component-by-component construction. Each major component from the analysis must have at least one dedicated step, and repeated components (e.g., four wheels) must each receive attention.
 3. Parameters must match the tool expectations. Omit optional parameters when not needed.
 4. When the scene snapshot lists existing objects, modify or extend them instead of recreating duplicates with new names.
-5. Every mesh created or modified must end with explicit material/color assignment inside the same execute_code payload.
-6. Ensure there is at least one light and one camera positioned for a useful render unless the user forbids it.
-7. Rationale must reference the analysis components and explain the design intent.
-8. Expected outcome should describe what Blender should report after the tool call.
-9. If a step depends on the result of a previous step, include that dependency in the dependencies array.
-10. Highlight any risks or manual follow-up in the warnings array.
+5. Consolidate repetitive work: prefer a single execute_code step that iterates over multiple targets instead of duplicating nearly identical steps for each object.
+6. When recoloring or applying materials, operate only on mesh objects (obj.type == "MESH") and guard with hasattr(obj, "data") / hasattr(obj.data, "materials") before editing materials. Never attempt to set materials on lights or cameras.
+7. Every mesh created or modified must end with explicit material/color assignment inside the same execute_code payload.
+8. Ensure there is at least one light and one camera positioned for a useful render unless the user forbids it.
+9. Rationale must reference the analysis components and explain the design intent.
+10. Expected outcome should describe what Blender should report after the tool call.
+11. If a step depends on the result of a previous step, include that dependency in the dependencies array.
+12. Highlight any risks or manual follow-up in the warnings array.
 
 Return strict JSON with this shape:
 {
@@ -153,7 +155,7 @@ Return strict JSON with this shape:
         temperature: 0.2,
         topP: 0.8,
         topK: 32,
-        maxOutputTokens: 768,
+        maxOutputTokens: 1536,
         systemPrompt: PLANNING_SYSTEM_PROMPT,
         responseMimeType: "application/json",
       })
@@ -165,11 +167,8 @@ Return strict JSON with this shape:
       if (parsed.success) {
         const plan = this.toExecutionPlan(parsed.data)
 
-        const minimumSteps = Math.max(
-          analysis?.minimumMeshObjects ?? 0,
-          analysis ? analysis.components.length * 2 : 0,
-          6
-        )
+        const componentTarget = analysis ? Math.min(analysis.components.length + 1, 6) : 0
+        const minimumSteps = Math.max(componentTarget, 2)
 
         const hasMaterialSteps = plan.steps.some((step) => {
           const params = step.parameters ?? {}
