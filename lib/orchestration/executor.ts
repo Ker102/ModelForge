@@ -31,15 +31,64 @@ const RECOVERY_OUTPUT_FORMAT = `Return strict JSON with:
   "explanation": "why this helps"
 }`
 
+const HYPER3D_TOOLS = new Set([
+  "get_hyper3d_status",
+  "create_rodin_job",
+  "poll_rodin_job_status",
+  "import_generated_asset",
+])
+
+const SKETCHFAB_TOOLS = new Set([
+  "get_sketchfab_status",
+  "search_sketchfab_models",
+  "download_sketchfab_model",
+])
+
+interface ExecutionOptions {
+  allowHyper3d: boolean
+  allowSketchfab: boolean
+}
+
 export class PlanExecutor {
-  async executePlan(plan: ExecutionPlan, userRequest: string): Promise<ExecutionResult> {
+  async executePlan(
+    plan: ExecutionPlan,
+    userRequest: string,
+    options: ExecutionOptions
+  ): Promise<ExecutionResult> {
     const client = createMcpClient()
     const logs: ExecutionLogEntry[] = []
     const completedSteps: Array<{ step: PlanStep; result: unknown }> = []
     const failedSteps: Array<{ step: PlanStep; error: string }> = []
 
+    const allowHyper3d = options.allowHyper3d
+    const allowSketchfab = options.allowSketchfab
+
     try {
       for (const step of plan.steps) {
+        if (!allowHyper3d && HYPER3D_TOOLS.has(step.action)) {
+          const reason = "Hyper3D tools are disabled for this project"
+          logs.push({
+            timestamp: new Date().toISOString(),
+            tool: step.action,
+            parameters: step.parameters,
+            error: reason,
+          })
+          failedSteps.push({ step, error: reason })
+          return { success: false, completedSteps, failedSteps, logs }
+        }
+
+        if (!allowSketchfab && SKETCHFAB_TOOLS.has(step.action)) {
+          const reason = "Sketchfab tools are disabled for this project"
+          logs.push({
+            timestamp: new Date().toISOString(),
+            tool: step.action,
+            parameters: step.parameters,
+            error: reason,
+          })
+          failedSteps.push({ step, error: reason })
+          return { success: false, completedSteps, failedSteps, logs }
+        }
+
         const command: McpCommand = {
           id: randomUUID(),
           type: step.action,

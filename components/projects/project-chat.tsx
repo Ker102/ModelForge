@@ -46,6 +46,10 @@ interface ProjectChatProps {
   } | null
   initialUsage?: UsageSummary
   conversationHistory?: ConversationHistoryItem[]
+  initialAssetConfig: {
+    allowHyper3d: boolean
+    allowSketchfab: boolean
+  }
 }
 
 export function ProjectChat({
@@ -53,6 +57,7 @@ export function ProjectChat({
   initialConversation,
   initialUsage,
   conversationHistory,
+  initialAssetConfig,
 }: ProjectChatProps) {
   const router = useRouter()
   const [conversationId, setConversationId] = useState<string | null>(
@@ -68,6 +73,7 @@ export function ProjectChat({
   const [input, setInput] = useState("")
   const [isSending, setIsSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [assetConfig, setAssetConfig] = useState(initialAssetConfig)
 
   const canSend = input.trim().length > 0 && !isSending
 
@@ -415,6 +421,42 @@ export function ProjectChat({
     setInput("")
   }
 
+  async function updateAssetConfig(partial: Partial<typeof assetConfig>) {
+    setError(null)
+    const previousConfig = assetConfig
+    const nextConfig = { ...assetConfig, ...partial }
+    setAssetConfig(nextConfig)
+    try {
+      const response = await fetch(`/api/projects/${projectId}/settings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          allowHyper3dAssets: nextConfig.allowHyper3d,
+          allowSketchfabAssets: nextConfig.allowSketchfab,
+        }),
+      })
+      if (!response.ok) {
+        throw new Error("Failed to update asset preferences")
+      }
+      const data = (await response.json()) as {
+        allowHyper3dAssets?: boolean
+        allowSketchfabAssets?: boolean
+      }
+      setAssetConfig({
+        allowHyper3d: Boolean(data.allowHyper3dAssets),
+        allowSketchfab: Boolean(data.allowSketchfabAssets),
+      })
+    } catch (err) {
+      console.error(err)
+      setAssetConfig(previousConfig)
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to update asset preferences right now."
+      )
+    }
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-4">
@@ -442,6 +484,50 @@ export function ProjectChat({
         )}
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="rounded-md border border-border/60 bg-muted/40 p-4 space-y-3">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="font-semibold text-sm">Asset integrations</p>
+              <p className="text-xs text-muted-foreground">
+                Enable only after configuring the matching API keys inside the Blender add-on.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4"
+                checked={assetConfig.allowHyper3d}
+                onChange={(event) =>
+                  updateAssetConfig({ allowHyper3d: event.target.checked })
+                }
+              />
+              <span>
+                <span className="font-medium text-foreground">Use Hyper3D Rodin assets</span>
+                <span className="block text-xs text-muted-foreground">
+                  Requires Hyper3D credentials in Blender. When disabled, the planner will avoid Hyper3D commands.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4"
+                checked={assetConfig.allowSketchfab}
+                onChange={(event) =>
+                  updateAssetConfig({ allowSketchfab: event.target.checked })
+                }
+              />
+              <span>
+                <span className="font-medium text-foreground">Use Sketchfab assets</span>
+                <span className="block text-xs text-muted-foreground">
+                  Requires Sketchfab API token in Blender. When disabled, the planner skips Sketchfab search/download.
+                </span>
+              </span>
+            </label>
+          </div>
+        </div>
         {history && history.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span className="font-semibold uppercase tracking-wide text-[11px]">

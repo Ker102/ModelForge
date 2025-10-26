@@ -36,7 +36,29 @@ const KEYWORD_CATEGORY_MAP: Array<{ keywords: RegExp; categories: Array<keyof ty
 
 const BASELINE_TOOLS = new Set<string>(["get_scene_info"])
 
-export function filterRelevantTools(userRequest: string, planStepCount?: number): string[] {
+const HYPER3D_TOOLS = new Set([
+  "get_hyper3d_status",
+  "create_rodin_job",
+  "poll_rodin_job_status",
+  "import_generated_asset",
+])
+
+const SKETCHFAB_TOOLS = new Set([
+  "get_sketchfab_status",
+  "search_sketchfab_models",
+  "download_sketchfab_model",
+])
+
+interface ToolFilterOptions {
+  allowHyper3d?: boolean
+  allowSketchfab?: boolean
+}
+
+export function filterRelevantTools(
+  userRequest: string,
+  planStepCount?: number,
+  options: ToolFilterOptions = {}
+): string[] {
   const normalized = userRequest.toLowerCase()
   const selected = new Set<string>(BASELINE_TOOLS)
 
@@ -51,6 +73,18 @@ export function filterRelevantTools(userRequest: string, planStepCount?: number)
 
   if ((planStepCount ?? 0) > 5) {
     CATEGORY_GROUPS.advanced.forEach((tool) => selected.add(tool))
+  }
+
+  if (options.allowHyper3d === false) {
+    for (const tool of HYPER3D_TOOLS) {
+      selected.delete(tool)
+    }
+  }
+
+  if (options.allowSketchfab === false) {
+    for (const tool of SKETCHFAB_TOOLS) {
+      selected.delete(tool)
+    }
   }
 
   return Array.from(selected)

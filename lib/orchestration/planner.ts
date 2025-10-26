@@ -38,19 +38,36 @@ Follow these principles:
 
 interface PlanningOptions {
   sceneSummary?: string
+  allowHyper3dAssets?: boolean
+  allowSketchfabAssets?: boolean
 }
 
 export class BlenderPlanner {
   constructor(private readonly maxRetries = 1) {}
 
   async generatePlan(userRequest: string, options: PlanningOptions = {}): Promise<PlanGenerationResult> {
-    const filteredTools = filterRelevantTools(userRequest)
+    const filteredTools = filterRelevantTools(userRequest, undefined, {
+      allowHyper3d: options.allowHyper3dAssets !== false,
+      allowSketchfab: options.allowSketchfabAssets !== false,
+    })
     const toolListing = formatToolListForPrompt(filteredTools)
     const sceneContext = options.sceneSummary
       ? `Current scene snapshot (use these objects when possible):\n${options.sceneSummary}\n\n`
       : ""
+    const restrictions: string[] = []
+    if (options.allowHyper3dAssets === false) {
+      restrictions.push(
+        "Hyper3D / Rodin tools are disabled for this project. Do not call get_hyper3d_status, create_rodin_job, poll_rodin_job_status, or import_generated_asset."
+      )
+    }
+    if (options.allowSketchfabAssets === false) {
+      restrictions.push(
+        "Sketchfab tools are disabled for this project. Do not call get_sketchfab_status, search_sketchfab_models, or download_sketchfab_model."
+      )
+    }
+    const restrictionContext = restrictions.length ? `${restrictions.join("\n")}\n\n` : ""
 
-    const planningPrompt = `${sceneContext}User request: "${userRequest}"
+    const planningPrompt = `${sceneContext}${restrictionContext}User request: "${userRequest}"
 
 Available tools (choose from this list):
 ${toolListing}

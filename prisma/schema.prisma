@@ -82,6 +82,8 @@ model Project {
   description   String?  @db.Text
   blenderVersion String? @db.VarChar(50)
   thumbnailUrl  String?  @db.Text
+  allowHyper3dAssets   Boolean  @default(false)
+  allowSketchfabAssets Boolean  @default(false)
   createdAt     DateTime @default(now())
   lastModified  DateTime @updatedAt
   isDeleted     Boolean  @default(false)
@@ -164,4 +166,3 @@ model UsageLog {
 
   @@map("usage_logs")
 }
-

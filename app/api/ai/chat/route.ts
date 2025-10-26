@@ -225,6 +225,19 @@ const TARGET_KEYWORDS = [
 
 const METALLIC_KEYWORDS = ["metal", "metallic", "chrome", "polish"]
 
+const HYPER3D_TOOL_NAMES = new Set([
+  "get_hyper3d_status",
+  "create_rodin_job",
+  "poll_rodin_job_status",
+  "import_generated_asset",
+])
+
+const SKETCHFAB_TOOL_NAMES = new Set([
+  "get_sketchfab_status",
+  "search_sketchfab_models",
+  "download_sketchfab_model",
+])
+
 function formatPython(lines: string[]): string {
   return lines.join("\n")
 }
@@ -265,7 +278,12 @@ function detectTarget(lowerPrompt: string): string {
   return "object"
 }
 
-function buildCommandStubs(prompt: string): CommandStub[] {
+interface StubOptions {
+  allowHyper3d: boolean
+  allowSketchfab: boolean
+}
+
+function buildCommandStubs(prompt: string, options: StubOptions): CommandStub[] {
   const lowerPrompt = prompt.toLowerCase()
   const promptSnippet = prompt.slice(0, 200)
   const stubs: CommandStub[] = []
@@ -707,7 +725,7 @@ function buildCommandStubs(prompt: string): CommandStub[] {
     /hyper3d/.test(lowerPrompt) ||
     /rodin/.test(lowerPrompt) ||
     /garden gnome/.test(lowerPrompt)
-  if (wantsHyper3d) {
+  if (wantsHyper3d && options.allowHyper3d) {
     addStub(
       createCommand(
         "get_hyper3d_status",
@@ -1010,16 +1028,41 @@ async function ensureConversation({
   return conversation.id
 }
 
-async function executeCommandPlan(commands: CommandStub[]): Promise<ExecutedCommand[]> {
+async function executeCommandPlan(
+  commands: CommandStub[],
+  options: StubOptions
+): Promise<ExecutedCommand[]> {
   if (commands.length === 0) {
     return []
   }
 
   const client = createMcpClient()
   const executed: ExecutedCommand[] = []
+  const allowHyper3d = options.allowHyper3d
+  const allowSketchfab = options.allowSketchfab
 
   try {
     for (const command of commands) {
+      if (!allowHyper3d && HYPER3D_TOOL_NAMES.has(command.tool)) {
+        executed.push({
+          ...command,
+          status: "failed",
+          result: undefined,
+          error: "Hyper3D tools are disabled for this project",
+        })
+        continue
+      }
+
+      if (!allowSketchfab && SKETCHFAB_TOOL_NAMES.has(command.tool)) {
+        executed.push({
+          ...command,
+          status: "failed",
+          result: undefined,
+          error: "Sketchfab tools are disabled for this project",
+        })
+        continue
+      }
+
       try {
         const response = await client.execute({
           type: command.tool,
@@ -1080,7 +1123,11 @@ export async function POST(req: Request) {
         userId: session.user.id,
         isDeleted: false,
       },
-      select: { id: true },
+      select: {
+        id: true,
+        allowHyper3dAssets: true,
+        allowSketchfabAssets: true,
+      },
     })
 
     if (!project) {
@@ -1174,8 +1221,8 @@ export async function POST(req: Request) {
           }
 
           const runFallback = async (): Promise<ExecutedCommand[]> => {
-            const commandSuggestions = buildCommandStubs(message)
-            const executed = await executeCommandPlan(commandSuggestions)
+            const commandSuggestions = buildCommandStubs(message, assetConfig)
+            const executed = await executeCommandPlan(commandSuggestions, assetConfig)
             return executed.map((command) => ({
               ...command,
               notes: command.notes
@@ -1193,10 +1240,12 @@ export async function POST(req: Request) {
           try {
             const planResult = await planner.generatePlan(message, {
               sceneSummary: sceneSnapshotResult.summary ?? undefined,
+              allowHyper3dAssets: assetConfig.allowHyper3d,
+              allowSketchfabAssets: assetConfig.allowSketchfab,
             })
 
             if (planResult.plan) {
-              const executionResult = await planExecutor.executePlan(planResult.plan, message)
+              const executionResult = await planExecutor.executePlan(planResult.plan, message, assetConfig)
               planExecutionResult = executionResult
               executedCommands = buildExecutedCommandsFromPlan(planResult.plan, executionResult)
               planningMetadata = {
@@ -1409,3 +1458,7 @@ if (executedCommands.length === 0) {
     )
   }
 }
+    const assetConfig = {
+      allowHyper3d: Boolean(project.allowHyper3dAssets),
+      allowSketchfab: Boolean(project.allowSketchfabAssets),
+    }

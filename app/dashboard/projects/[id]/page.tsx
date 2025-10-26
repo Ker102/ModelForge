@@ -132,6 +132,10 @@ export default async function ProjectPage({ params }: { params: { id: string } }
           initialConversation={initialConversation}
           initialUsage={usage}
           conversationHistory={conversationHistory}
+          initialAssetConfig={{
+            allowHyper3d: Boolean(project.allowHyper3dAssets),
+            allowSketchfab: Boolean(project.allowSketchfabAssets),
+          }}
         />
 
         <Card>
