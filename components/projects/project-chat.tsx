@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,6 +10,7 @@ import { cn } from "@/lib/utils"
 import type { UsageSummary } from "@/lib/usage"
 import type { PlanningMetadata, PlanStep } from "@/lib/orchestration/types"
 import { parsePlanningMetadata } from "@/lib/orchestration/plan-utils"
+import { ImagePlus, X } from "lucide-react"
 
 interface CommandStub {
   id: string
@@ -29,6 +31,7 @@ interface ChatMessage {
   createdAt?: string
   mcpCommands?: CommandStub[]
   plan?: PlanningMetadata
+  attachments?: ChatAttachment[]
 }
 
 type ConversationHistoryItem = {
@@ -36,6 +39,24 @@ type ConversationHistoryItem = {
   lastMessageAt: string
   preview?: string
   messages: ChatMessage[]
+}
+
+interface ChatAttachment {
+  id?: string
+  name: string
+  type: string
+  size?: number
+  url?: string
+  previewUrl?: string
+}
+
+interface PendingAttachment {
+  id: string
+  name: string
+  size: number
+  type: string
+  dataUrl: string
+  base64: string
 }
 
 interface ProjectChatProps {
@@ -75,8 +96,12 @@ export function ProjectChat({
   const [isSending, setIsSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [assetConfig, setAssetConfig] = useState(initialAssetConfig)
+  const [attachments, setAttachments] = useState<PendingAttachment[]>([])
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024
+  const MAX_ATTACHMENTS = 4
 
-  const canSend = input.trim().length > 0 && !isSending
+  const canSend = (input.trim().length > 0 || attachments.length > 0) && !isSending
 
   const formattedUsage = useMemo(() => {
     if (!usage) return null
@@ -156,15 +181,83 @@ export function ProjectChat({
     return history.some((item) => item.id === conversationId)
   }, [conversationId, history])
 
-  function handleLoadConversation(conversation: ConversationHistoryItem) {
-    setConversationId(conversation.id)
-    setMessages(conversation.messages.map((msg) => ({ ...msg })))
-    setError(null)
-    setInput("")
-    setIsSending(false)
+function handleLoadConversation(conversation: ConversationHistoryItem) {
+  setConversationId(conversation.id)
+  setMessages(conversation.messages.map((msg) => ({ ...msg })))
+  setError(null)
+  setInput("")
+  setIsSending(false)
+  setAttachments([])
+}
+
+const handleAttachmentButton = () => {
+  fileInputRef.current?.click()
+}
+
+const readFileAsDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(file)
+  })
+
+const handleFileInputChange = async (event: ChangeEvent<HTMLInputElement>) => {
+  const files = event.target.files
+  if (!files || files.length === 0) {
+    return
   }
 
-  async function handleSend(e: React.FormEvent) {
+  const remainingSlots = MAX_ATTACHMENTS - attachments.length
+  if (remainingSlots <= 0) {
+    setError(`You can attach up to ${MAX_ATTACHMENTS} images per message.`)
+    event.target.value = ""
+    return
+  }
+
+  const selectedFiles = Array.from(files).slice(0, remainingSlots)
+  const newAttachments: PendingAttachment[] = []
+
+  for (const file of selectedFiles) {
+    if (!file.type.startsWith("image/")) {
+      setError("Only image files are supported right now.")
+      continue
+    }
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+      setError("Images must be 5MB or smaller.")
+      continue
+    }
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file)
+      const base64 = dataUrl.split(",")[1] ?? ""
+      newAttachments.push({
+        id: crypto.randomUUID(),
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        dataUrl,
+        base64,
+      })
+    } catch (fileError) {
+      console.error(fileError)
+      setError("Failed to read one of the files. Please try again.")
+    }
+  }
+
+  if (newAttachments.length > 0) {
+    setAttachments((prev) => [...prev, ...newAttachments])
+    setError(null)
+  }
+
+  event.target.value = ""
+}
+
+const handleRemoveAttachment = (id: string) => {
+  setAttachments((prev) => prev.filter((attachment) => attachment.id !== id))
+}
+
+async function handleSend(e: React.FormEvent) {
     e.preventDefault()
     if (!canSend) return
 
@@ -172,6 +265,13 @@ export function ProjectChat({
     const now = new Date().toISOString()
     const tempUserId = `temp-user-${Date.now()}`
     const tempAssistantId = `temp-assistant-${Date.now()}`
+    const draftAttachments: ChatAttachment[] = attachments.map((attachment) => ({
+      id: attachment.id,
+      name: attachment.name,
+      type: attachment.type,
+      size: attachment.size,
+      previewUrl: attachment.dataUrl,
+    }))
 
     setIsSending(true)
     setError(null)
@@ -183,6 +283,7 @@ export function ProjectChat({
         role: "user",
         content: trimmed,
         createdAt: now,
+        attachments: draftAttachments,
       },
       {
         id: tempAssistantId,
@@ -192,19 +293,32 @@ export function ProjectChat({
         mcpCommands: [],
       },
     ])
+    setAttachments([])
 
     try {
+      const payload: Record<string, unknown> = {
+        projectId,
+        conversationId: conversationId ?? undefined,
+        startNew: !conversationId,
+        message: trimmed,
+      }
+
+      if (attachments.length > 0) {
+        payload.attachments = attachments.map((attachment) => ({
+          id: attachment.id,
+          name: attachment.name,
+          type: attachment.type,
+          size: attachment.size,
+          data: attachment.base64,
+        }))
+      }
+
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          projectId,
-          conversationId: conversationId ?? undefined,
-          startNew: !conversationId,
-          message: trimmed,
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (!response.ok || !response.body) {
@@ -420,6 +534,7 @@ export function ProjectChat({
     setMessages([])
     setError(null)
     setInput("")
+    setAttachments([])
   }
 
   async function updateAssetConfig(partial: Partial<typeof assetConfig>) {
@@ -592,6 +707,37 @@ export function ProjectChat({
                 >
                   {message.content}
                 </div>
+                {message.attachments?.length ? (
+                  <div
+                    className={`flex flex-wrap gap-2 ${
+                      message.role === "assistant" ? "justify-start" : "justify-end"
+                    }`}
+                  >
+                    {message.attachments.map((attachment) => {
+                      const previewSrc = attachment.previewUrl ?? attachment.url
+                      if (!previewSrc) return null
+                      const key = attachment.id ?? `${attachment.name}-${previewSrc}`
+                      return (
+                        <a
+                          key={key}
+                          href={attachment.url ?? previewSrc}
+                          target={attachment.url ? "_blank" : undefined}
+                          rel={attachment.url ? "noreferrer" : undefined}
+                          className="block h-20 w-20 overflow-hidden rounded-md border border-border/60 bg-background"
+                        >
+                          <Image
+                            src={previewSrc}
+                            alt={attachment.name ?? "Attachment"}
+                            width={80}
+                            height={80}
+                            unoptimized
+                            className="h-full w-full object-cover"
+                          />
+                        </a>
+                      )
+                    })}
+                  </div>
+                ) : null}
                 {message.role === "assistant" && message.plan && (
                   <div className="max-w-[80%] rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground space-y-2">
                     <div className="flex items-center justify-between gap-2">
@@ -757,6 +903,41 @@ export function ProjectChat({
           </div>
         )}
         <form onSubmit={handleSend} className="space-y-3">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleFileInputChange}
+          />
+          {attachments.length > 0 && (
+            <div className="flex flex-wrap gap-3">
+              {attachments.map((attachment) => (
+                <div
+                  key={attachment.id}
+                  className="relative h-20 w-20 overflow-hidden rounded-md border border-border/70 bg-background shadow-sm"
+                >
+                  <Image
+                    src={attachment.dataUrl}
+                    alt={attachment.name}
+                    width={80}
+                    height={80}
+                    unoptimized
+                    className="h-full w-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveAttachment(attachment.id)}
+                    className="absolute right-1 top-1 rounded-full bg-background/90 p-1 text-xs text-muted-foreground hover:bg-background"
+                    aria-label={`Remove ${attachment.name}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -768,15 +949,27 @@ export function ProjectChat({
               "resize-none"
             )}
           />
-          <div className="flex items-center justify-between gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={handleStartNew}
-              disabled={isSending || messages.length === 0}
-            >
-              Start New Conversation
-            </Button>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAttachmentButton}
+                disabled={isSending || attachments.length >= MAX_ATTACHMENTS}
+              >
+                <ImagePlus className="mr-2 h-4 w-4" />
+                Attach image
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleStartNew}
+                disabled={isSending || messages.length === 0}
+              >
+                Start New Conversation
+              </Button>
+            </div>
             <Button type="submit" disabled={!canSend}>
               {isSending ? "Thinking..." : "Send to ModelForge"}
             </Button>
