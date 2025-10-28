@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto"
 
-import { generateGeminiResponse } from "@/lib/gemini"
+import { generateLlmResponse, type LlmProviderSpec } from "@/lib/llm"
 import { createMcpClient } from "@/lib/mcp"
 import type { McpCommand } from "@/lib/mcp"
 import { ExecutionLogEntry, ExecutionPlan, PlanAnalysis, PlanStep } from "./types"
@@ -61,7 +61,8 @@ export class PlanExecutor {
     plan: ExecutionPlan,
     userRequest: string,
     options: ExecutionOptions,
-    analysis?: PlanAnalysis
+    analysis: PlanAnalysis | undefined,
+    llmProvider: LlmProviderSpec
   ): Promise<ExecutionResult> {
     const client = createMcpClient()
     const logs: ExecutionLogEntry[] = []
@@ -138,7 +139,7 @@ export class PlanExecutor {
         }
 
         const structuralCheck = await this.performStructuredChecks(client, step)
-        const validation = await this.validateStep(step, result, userRequest)
+        const validation = await this.validateStep(step, result, userRequest, llmProvider)
         const mergedValidation = structuralCheck.success
           ? validation
           : {
@@ -157,7 +158,8 @@ export class PlanExecutor {
           step,
           result,
           mergedValidation.reason,
-          userRequest
+          userRequest,
+          llmProvider
         )
         if (recovery.success) {
           completedSteps.push({ step, result: recovery.result })
@@ -206,7 +208,12 @@ export class PlanExecutor {
     }
   }
 
-  private async validateStep(step: PlanStep, result: unknown, userRequest: string) {
+  private async validateStep(
+    step: PlanStep,
+    result: unknown,
+    userRequest: string,
+    provider: LlmProviderSpec
+  ) {
     const prompt = `User goal: ${userRequest}
 
 Step executed:
@@ -219,7 +226,7 @@ ${JSON.stringify(result, null, 2)}
 
 ${VALIDATION_OUTPUT_FORMAT}`
 
-    const response = await generateGeminiResponse({
+    const response = await generateLlmResponse(provider, {
       messages: [{ role: "user", content: prompt }],
       temperature: 0.0,
       topP: 0.1,
@@ -244,7 +251,8 @@ ${VALIDATION_OUTPUT_FORMAT}`
     step: PlanStep,
     result: unknown,
     reason: string,
-    userRequest: string
+    userRequest: string,
+    provider: LlmProviderSpec
   ): Promise<{ success: boolean; action?: string; params?: Record<string, unknown>; result?: unknown }> {
     const prompt = `A Blender MCP command failed.
 
@@ -256,7 +264,7 @@ Tool result: ${JSON.stringify(result, null, 2)}
 Suggest exactly one recovery action if feasible.
 ${RECOVERY_OUTPUT_FORMAT}`
 
-    const response = await generateGeminiResponse({
+    const response = await generateLlmResponse(provider, {
       messages: [{ role: "user", content: prompt }],
       temperature: 0.4,
       topP: 0.8,

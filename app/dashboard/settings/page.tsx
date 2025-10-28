@@ -1,12 +1,20 @@
+import Link from "next/link"
+
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { PRICING_TIERS } from "@/lib/stripe"
-import Link from "next/link"
+import { LocalLlmSettingsCard } from "@/components/dashboard/local-llm-settings-card"
+import { PlanGrid } from "@/components/pricing/plan-grid"
+import type { PlanKey } from "@/lib/plans"
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams?: Record<string, string | string[] | undefined>
+}) {
   const session = await auth()
   
   if (!session?.user) {
@@ -21,6 +29,10 @@ export default async function SettingsPage() {
       subscriptionTier: true,
       subscriptionStatus: true,
       createdAt: true,
+      localLlmProvider: true,
+      localLlmUrl: true,
+      localLlmModel: true,
+      localLlmApiKey: true,
     },
   })
 
@@ -30,6 +42,23 @@ export default async function SettingsPage() {
 
   const currentTier = user.subscriptionTier as keyof typeof PRICING_TIERS
   const tierInfo = PRICING_TIERS[currentTier.toUpperCase() as keyof typeof PRICING_TIERS]
+  const localConfig = {
+    provider: (user.localLlmProvider as "ollama" | "lmstudio" | null) ?? "",
+    baseUrl: user.localLlmUrl ?? "",
+    model: user.localLlmModel ?? "",
+    apiKeyConfigured: Boolean(user.localLlmApiKey),
+  }
+
+  const highlightPlanParam = typeof searchParams?.plan === "string" ? searchParams.plan.toLowerCase() : null
+  const highlightPlan: PlanKey | null = highlightPlanParam === "starter" || highlightPlanParam === "pro"
+    ? (highlightPlanParam as PlanKey)
+    : null
+
+  const focusPlans = typeof searchParams?.section === "string" && searchParams.section === "plans"
+
+  const fromParam = typeof searchParams?.from === "string" ? decodeURIComponent(searchParams.from) : null
+  const backUrl = fromParam && fromParam.startsWith("/") ? fromParam : "/dashboard"
+  const backLabel = fromParam ? "Back" : "Back to dashboard"
 
   return (
     <div className="container py-8">
@@ -83,8 +112,8 @@ export default async function SettingsPage() {
                 </div>
               </div>
               {user.subscriptionTier !== "pro" && (
-                <Link href="/#pricing">
-                  <Button>Upgrade Plan</Button>
+                <Link href="#plans">
+                  <Button>Explore plans</Button>
                 </Link>
               )}
             </div>
@@ -105,8 +134,35 @@ export default async function SettingsPage() {
             )}
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Choose your plan</CardTitle>
+              <CardDescription>Upgrade instantly without leaving your account.</CardDescription>
+            </div>
+            <Button asChild variant="ghost" size="sm">
+              <Link href={backUrl}>{backLabel}</Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <PlanGrid
+              variant="settings"
+              isAuthenticated
+              currentTier={user.subscriptionTier}
+              highlightPlan={highlightPlan}
+              autoFocus={focusPlans}
+              containerId="plans"
+              returnPath="/dashboard/settings?section=plans"
+            />
+          </CardContent>
+        </Card>
+
+        <LocalLlmSettingsCard
+          subscriptionTier={user.subscriptionTier}
+          initialConfig={localConfig}
+        />
       </div>
     </div>
   )
 }
-

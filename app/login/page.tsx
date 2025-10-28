@@ -4,7 +4,11 @@ import { auth } from "@/lib/auth"
 import { LoginForm } from "@/components/auth/login-form"
 import { Hammer } from "lucide-react"
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: { error?: string; callbackUrl?: string }
+}) {
   const session = await auth()
   
   if (session) {
@@ -26,7 +30,10 @@ export default async function LoginPage() {
             Enter your email to sign in to your account
           </p>
         </div>
-        <LoginForm />
+        <LoginForm
+          initialErrorCode={searchParams?.error}
+          callbackUrl={searchParams?.callbackUrl}
+        />
         <p className="px-8 text-center text-sm text-muted-foreground">
           <Link
             href="/signup"
@@ -39,4 +46,3 @@ export default async function LoginPage() {
     </div>
   )
 }
-

@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Hammer, LogOut, Settings, FolderOpen } from "lucide-react"
@@ -16,8 +16,12 @@ interface DashboardNavProps {
 
 export function DashboardNav({ user }: DashboardNavProps) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const subscriptionTier = (user?.subscriptionTier || "free").toLowerCase()
   const email = user?.email ?? "Unknown user"
+  const searchString = searchParams.toString()
+  const currentLocation = searchString ? `${pathname}?${searchString}` : pathname
+  const upgradeHref = `/dashboard/settings?section=plans&from=${encodeURIComponent(currentLocation)}#plans`
 
   return (
     <nav className="border-b bg-background">
@@ -51,9 +55,16 @@ export function DashboardNav({ user }: DashboardNavProps) {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <Badge variant="secondary" className="capitalize">
-            {subscriptionTier}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="capitalize">
+              {subscriptionTier}
+            </Badge>
+            {subscriptionTier === "free" && (
+              <Button asChild size="sm" variant="outline">
+                <Link href={upgradeHref}>Upgrade</Link>
+              </Button>
+            )}
+          </div>
           <span className="text-sm text-muted-foreground">{email}</span>
           <Button
             variant="ghost"

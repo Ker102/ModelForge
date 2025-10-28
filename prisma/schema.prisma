@@ -17,13 +17,17 @@ model User {
   id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                String    @unique @db.VarChar(255)
   name                 String?   @db.VarChar(255)
-  password             String    @db.VarChar(255)
+  password             String?   @db.VarChar(255)
   emailVerified        DateTime?
   image                String?
   subscriptionTier     String    @default("free") @db.VarChar(50)
   subscriptionStatus   String?   @db.VarChar(50)
   stripeCustomerId     String?   @unique @db.VarChar(255)
   stripeSubscriptionId String?   @db.VarChar(255)
+  localLlmProvider     String?   @db.VarChar(50)
+  localLlmUrl          String?   @db.VarChar(255)
+  localLlmModel        String?   @db.VarChar(100)
+  localLlmApiKey       String?   @db.VarChar(255)
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 

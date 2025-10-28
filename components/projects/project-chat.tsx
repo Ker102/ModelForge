@@ -72,6 +72,12 @@ interface ProjectChatProps {
     allowSketchfab: boolean
     allowPolyHaven: boolean
   }
+  subscriptionTier: string
+  localProvider: {
+    provider: string | null
+    baseUrl: string | null
+    model: string | null
+  }
 }
 
 export function ProjectChat({
@@ -80,6 +86,8 @@ export function ProjectChat({
   initialUsage,
   conversationHistory,
   initialAssetConfig,
+  subscriptionTier,
+  localProvider,
 }: ProjectChatProps) {
   const router = useRouter()
   const [conversationId, setConversationId] = useState<string | null>(
@@ -95,11 +103,38 @@ export function ProjectChat({
   const [input, setInput] = useState("")
   const [isSending, setIsSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const localProviderConfigured = Boolean(
+    localProvider.provider && localProvider.baseUrl && localProvider.model
+  )
+
   const [assetConfig, setAssetConfig] = useState(initialAssetConfig)
   const [attachments, setAttachments] = useState<PendingAttachment[]>([])
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [localReady, setLocalReady] = useState<boolean>(localProviderConfigured)
   const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024
   const MAX_ATTACHMENTS = 4
+
+  const providerLabel = useMemo(() => {
+    if (!localProvider.provider) return "Not configured"
+    switch (localProvider.provider) {
+      case "ollama":
+        return "Ollama"
+      case "lmstudio":
+        return "LM Studio"
+      default:
+        return localProvider.provider
+    }
+  }, [localProvider.provider])
+
+  const providerEndpoint = useMemo(() => {
+    if (!localProvider.baseUrl) return null
+    try {
+      const parsed = new URL(localProvider.baseUrl)
+      return parsed.host
+    } catch {
+      return localProvider.baseUrl
+    }
+  }, [localProvider.baseUrl])
 
   const canSend = (input.trim().length > 0 || attachments.length > 0) && !isSending
 
@@ -118,6 +153,10 @@ export function ProjectChat({
   useEffect(() => {
     setHistory(conversationHistory ?? [])
   }, [conversationHistory])
+
+  useEffect(() => {
+    setLocalReady(localProviderConfigured)
+  }, [localProviderConfigured])
 
   useEffect(() => {
     if (initialConversation?.id && initialConversation.id !== conversationId) {
@@ -257,51 +296,77 @@ const handleRemoveAttachment = (id: string) => {
   setAttachments((prev) => prev.filter((attachment) => attachment.id !== id))
 }
 
+const handleProviderChange = (event: ChangeEvent<HTMLSelectElement>) => {
+  const value = event.target.value
+  if (value === "configure") {
+    router.push("/dashboard/settings#local-llm")
+    return
+  }
+  if (!value) {
+    return
+  }
+  if (value === localProvider.provider) {
+    return
+  }
+  router.push(`/dashboard/settings?localProvider=${value}#local-llm`)
+}
+
 async function handleSend(e: React.FormEvent) {
-    e.preventDefault()
-    if (!canSend) return
+  e.preventDefault()
+  if (!canSend) return
 
-    const trimmed = input.trim()
-    const now = new Date().toISOString()
-    const tempUserId = `temp-user-${Date.now()}`
-    const tempAssistantId = `temp-assistant-${Date.now()}`
-    const draftAttachments: ChatAttachment[] = attachments.map((attachment) => ({
-      id: attachment.id,
-      name: attachment.name,
-      type: attachment.type,
-      size: attachment.size,
-      previewUrl: attachment.dataUrl,
-    }))
+  const trimmed = input.trim()
+  const now = new Date().toISOString()
+  const tempUserId = `temp-user-${Date.now()}`
+  const tempAssistantId = `temp-assistant-${Date.now()}`
+  const draftAttachments: ChatAttachment[] = attachments.map((attachment) => ({
+    id: attachment.id,
+    name: attachment.name,
+    type: attachment.type,
+    size: attachment.size,
+    previewUrl: attachment.dataUrl,
+  }))
 
-    setIsSending(true)
-    setError(null)
-    setInput("")
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: tempUserId,
-        role: "user",
-        content: trimmed,
-        createdAt: now,
-        attachments: draftAttachments,
-      },
-      {
-        id: tempAssistantId,
-        role: "assistant",
-        content: "",
-        createdAt: now,
-        mcpCommands: [],
-      },
-    ])
-    setAttachments([])
+  setIsSending(true)
+  setError(null)
+  setInput("")
+  setMessages((prev) => [
+    ...prev,
+    {
+      id: tempUserId,
+      role: "user",
+      content: trimmed,
+      createdAt: now,
+      attachments: draftAttachments,
+    },
+    {
+      id: tempAssistantId,
+      role: "assistant",
+      content: "",
+      createdAt: now,
+      mcpCommands: [],
+    },
+  ])
+  setAttachments([])
 
-    try {
-      const payload: Record<string, unknown> = {
-        projectId,
-        conversationId: conversationId ?? undefined,
-        startNew: !conversationId,
-        message: trimmed,
-      }
+  try {
+    if (subscriptionTier === "free" && !localReady) {
+      setError(
+        "The free tier requires a local LLM. Configure one in Settings → Local LLM Configuration before prompting."
+      )
+      return
+    }
+
+    const payload: Record<string, unknown> = {
+      projectId,
+      conversationId: conversationId ?? undefined,
+      startNew: !conversationId,
+      message: trimmed,
+    }
+
+    if (subscriptionTier === "free") {
+      payload.useLocalModel = true
+    }
 
       if (attachments.length > 0) {
         payload.attachments = attachments.map((attachment) => ({
@@ -331,6 +396,13 @@ async function handleSend(e: React.FormEvent) {
         const errorMessage =
           typeof data?.error === "string" ? data.error : "Failed to send message"
         setError(errorMessage)
+        if (
+          subscriptionTier === "free" &&
+          typeof data?.error === "string" &&
+          data.error.toLowerCase().includes("local llm configuration is required")
+        ) {
+          setLocalReady(false)
+        }
         const usagePayload = data?.usage as UsageSummary | undefined
         if (usagePayload) {
           setUsage(usagePayload)
@@ -911,6 +983,54 @@ async function handleSend(e: React.FormEvent) {
             className="hidden"
             onChange={handleFileInputChange}
           />
+          <div
+            className={cn(
+              "flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2",
+              localProviderConfigured
+                ? "border-border/70 bg-muted/30"
+                : "border-destructive/40 bg-destructive/10"
+            )}
+          >
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Local agent
+              </p>
+              {localProviderConfigured ? (
+                <>
+                  <p className="text-sm font-medium">
+                    {providerLabel}
+                    {localProvider.model ? ` • ${localProvider.model}` : ""}
+                  </p>
+                  {providerEndpoint && (
+                    <p className="text-xs text-muted-foreground">Endpoint: {providerEndpoint}</p>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-destructive">
+                  No local LLM is configured. Configure one to start prompting.
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                value={localProviderConfigured ? localProvider.provider ?? "" : "configure"}
+                onChange={handleProviderChange}
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="ollama">Ollama</option>
+                <option value="lmstudio">LM Studio</option>
+                <option value="configure">Configure providers…</option>
+              </select>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => router.push("/dashboard/settings#local-llm")}
+              >
+                Manage
+              </Button>
+            </div>
+          </div>
           {attachments.length > 0 && (
             <div className="flex flex-wrap gap-3">
               {attachments.map((attachment) => (

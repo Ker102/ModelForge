@@ -78,6 +78,12 @@ export default async function ProjectPage({ params }: { params: { id: string } }
       ? (session.user.subscriptionTier as SubscriptionTier)
       : "free"
 
+  const localProvider = {
+    provider: session.user.localLlmProvider ?? null,
+    baseUrl: session.user.localLlmUrl ?? null,
+    model: session.user.localLlmModel ?? null,
+  }
+
   const usage = await getUsageSummary(session.user.id, tier)
 
   const [activeConversation, ...previousConversations] = project.conversations
@@ -137,6 +143,8 @@ export default async function ProjectPage({ params }: { params: { id: string } }
             allowSketchfab: Boolean(project.allowSketchfabAssets),
             allowPolyHaven: project.allowPolyHavenAssets !== false,
           }}
+          subscriptionTier={tier}
+          localProvider={localProvider}
         />
 
         <Card>

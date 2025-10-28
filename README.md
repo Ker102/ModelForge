@@ -130,6 +130,24 @@ Environment variables:
 
 In Blender, launch the MCP server with `uvx blender-mcp` and keep only **one** MCP client running (Cursor, Claude, or ModelForge) to avoid port conflicts.
 
+## 🤖 Local LLM Mode
+
+Free-tier accounts run entirely on a locally hosted LLM. Configure yours from **Dashboard → Settings → Local LLM Configuration**.
+
+Supported providers:
+
+- **Ollama** – Lightweight local runtime. After installing, run `ollama serve` and pull a model (e.g. `ollama pull llama3.1`). Default base URL: `http://localhost:11434`.
+- **LM Studio** – Desktop UI with an OpenAI-compatible server. Enable the server in the app, copy the base URL (usually `http://localhost:1234`), and paste it into ModelForge. Provide the API key only if you enabled authentication inside LM Studio.
+
+Workflow:
+
+1. Open **Settings → Local LLM Configuration**.
+2. Pick your provider, base URL, and model name exactly as exposed by Ollama/LM Studio (e.g. `llama3.1` or `Meta-Llama-3-8B-Instruct`).
+3. Click **Test connection** to verify the server responds.
+4. Save the configuration. Free-tier users must keep a local provider active; Pro subscribers can switch between hosted Gemini and their local model per request.
+
+ModelForge only proxies your request metadata; local responses never leave your machine. Clearing the form removes any stored API key.
+
 ## 📊 Database Schema
 
 The application uses PostgreSQL with the following main tables:
@@ -151,6 +169,15 @@ The app uses NextAuth.js v5 with credentials provider:
 - **Sign up**: `/signup` - Create new account
 - **Login**: `/login` - Authenticate existing user
 - **Protected routes**: Dashboard and settings require authentication
+
+### Google OAuth
+
+1. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials), create an OAuth client ID (type **Web application**).
+2. Add these URIs:
+   - **Authorized JavaScript origins**: `http://localhost:3000` (plus your production origin when ready)
+   - **Authorized redirect URIs**: `http://localhost:3000/api/auth/callback/google` (plus the production callback)
+3. Copy the `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` into your `.env`.
+4. Restart `npm run dev` (and the desktop shell) so NextAuth picks up the new credentials.
 
 Passwords are hashed using bcryptjs with 10 salt rounds.
 

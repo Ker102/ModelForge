@@ -48,6 +48,22 @@ BLENDER_MCP_HOST="127.0.0.1"
 BLENDER_MCP_PORT="9876"
 ```
 
+### Local LLM Providers (Optional)
+
+Free-tier accounts must configure a local provider before using the chat assistant. We support:
+
+- **Ollama** – install from [ollama.com](https://ollama.com), run `ollama serve`, then `ollama pull llama3.1`.
+- **LM Studio** – download from [lmstudio.ai](https://lmstudio.ai) and enable the OpenAI-compatible server (default URL `http://localhost:1234`).
+
+Once the provider is running, open **Dashboard → Settings → Local LLM Configuration** and enter:
+
+1. Provider (`Ollama` or `LM Studio`).
+2. Base URL (e.g. `http://localhost:11434`).
+3. Model name (exact string exposed by the provider).
+4. Optional API key (only if LM Studio server auth is enabled).
+
+Use the **Test connection** button to confirm we can reach your runtime, then click **Save configuration**.
+
 ### 2. Database Setup
 
 ```bash

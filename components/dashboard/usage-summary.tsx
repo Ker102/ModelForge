@@ -1,7 +1,10 @@
 import { SubscriptionTier } from "@/lib/subscription"
 import { UsageSummary } from "@/lib/usage"
+import Link from "next/link"
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 
 interface UsageSummaryCardProps {
   tier: SubscriptionTier
@@ -31,9 +34,16 @@ export function UsageSummaryCard({ tier, usage }: UsageSummaryCardProps) {
           <CardTitle className="text-xl font-semibold">Usage overview</CardTitle>
           <CardDescription>Your current AI request usage and limits</CardDescription>
         </div>
-        <Badge variant="secondary" className="capitalize">
-          {tier} plan
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="capitalize">
+            {tier} plan
+          </Badge>
+          {tier === "free" && (
+            <Button asChild size="sm" variant="outline">
+              <Link href="/dashboard/settings">Upgrade</Link>
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="grid gap-6 md:grid-cols-2">
         <div className="space-y-1">

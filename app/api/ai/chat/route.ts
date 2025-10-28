@@ -7,12 +7,13 @@ import {
   getUsageSummary,
   logUsage,
 } from "@/lib/usage"
-import { streamGeminiResponse } from "@/lib/gemini"
+import { streamLlmResponse, type LlmProviderSpec } from "@/lib/llm"
 import { createMcpClient } from "@/lib/mcp"
 import { BlenderPlanner } from "@/lib/orchestration/planner"
 import { PlanExecutor, type ExecutionResult } from "@/lib/orchestration/executor"
 import type { PlanGenerationResult, PlanStep, PlanningMetadata } from "@/lib/orchestration/types"
 import { recordExecutionLog } from "@/lib/orchestration/monitor"
+import { buildSystemPrompt } from "@/lib/orchestration/prompts"
 import { z } from "zod"
 
 const MAX_HISTORY_MESSAGES = 12
@@ -41,6 +42,37 @@ function createStubId() {
   } catch {
     return `stub-${Date.now()}`
   }
+}
+
+function resolveLocalProviderSpec(
+  provider: string | null | undefined,
+  baseUrl: string | null | undefined,
+  model: string | null | undefined,
+  apiKey: string | null | undefined
+): LlmProviderSpec | null {
+  if (!provider || !baseUrl || !model) {
+    return null
+  }
+
+  const normalizedProvider = provider.toLowerCase()
+  if (normalizedProvider === "ollama") {
+    return {
+      type: "ollama",
+      baseUrl,
+      model,
+    }
+  }
+
+  if (normalizedProvider === "lmstudio") {
+    return {
+      type: "lmstudio",
+      baseUrl,
+      model,
+      apiKey,
+    }
+  }
+
+  return null
 }
 
 const planner = new BlenderPlanner()
@@ -1200,6 +1232,7 @@ const chatRequestSchema = z.object({
   conversationId: z.string().uuid().optional(),
   startNew: z.boolean().optional(),
   message: z.string().min(1).max(2000),
+  useLocalModel: z.boolean().optional(),
 })
 
 async function ensureConversation({
@@ -1360,7 +1393,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json()
-    const { projectId, conversationId, startNew, message } =
+    const { projectId, conversationId, startNew, message, useLocalModel } =
       chatRequestSchema.parse(body)
 
     const project = await prisma.project.findFirst({
@@ -1389,6 +1422,37 @@ export async function POST(req: Request) {
       allowSketchfab: Boolean(project.allowSketchfabAssets),
       allowPolyHaven: project.allowPolyHavenAssets !== false,
     }
+
+    const subscriptionTier = session.user.subscriptionTier ?? "free"
+    const localProviderSpec = resolveLocalProviderSpec(
+      session.user.localLlmProvider,
+      session.user.localLlmUrl,
+      session.user.localLlmModel,
+      session.user.localLlmApiKey
+    )
+
+    const wantsLocal =
+      subscriptionTier === "free" ? true : useLocalModel === true
+
+    let llmProvider: LlmProviderSpec
+
+    if (wantsLocal) {
+      if (!localProviderSpec) {
+        const messageText =
+          subscriptionTier === "free"
+            ? "Local LLM configuration is required for free-tier usage. Configure Ollama or LM Studio in Settings."
+            : "Local LLM configuration is incomplete. Please provide base URL and model in Settings or disable local usage."
+        return NextResponse.json(
+          { error: messageText },
+          { status: 400 }
+        )
+      }
+      llmProvider = localProviderSpec
+    } else {
+      llmProvider = { type: "gemini" }
+    }
+
+    const chatSystemPrompt = buildSystemPrompt()
 
     const quotaCheck = await canConsumeAiRequest(
       session.user.id,
@@ -1454,7 +1518,7 @@ export async function POST(req: Request) {
         let tokenUsage: { promptTokens?: number | null; responseTokens?: number | null; totalTokens?: number | null } | undefined
 
         try {
-          for await (const chunk of streamGeminiResponse({
+          for await (const chunk of streamLlmResponse(llmProvider, {
             history: trimmedHistory,
             messages: [
               {
@@ -1463,6 +1527,7 @@ export async function POST(req: Request) {
               },
             ],
             maxOutputTokens: 512,
+            systemPrompt: chatSystemPrompt,
           })) {
             if (chunk.textDelta) {
               assistantText += chunk.textDelta
@@ -1492,19 +1557,24 @@ export async function POST(req: Request) {
           let planResult: PlanGenerationResult | null = null
 
           try {
-            planResult = await planner.generatePlan(message, {
-              sceneSummary: sceneSnapshotResult.summary ?? undefined,
-              allowHyper3dAssets: assetConfig.allowHyper3d,
-              allowSketchfabAssets: assetConfig.allowSketchfab,
-              allowPolyHavenAssets: assetConfig.allowPolyHaven,
-            })
+            planResult = await planner.generatePlan(
+              message,
+              {
+                sceneSummary: sceneSnapshotResult.summary ?? undefined,
+                allowHyper3dAssets: assetConfig.allowHyper3d,
+                allowSketchfabAssets: assetConfig.allowSketchfab,
+                allowPolyHavenAssets: assetConfig.allowPolyHaven,
+              },
+              llmProvider
+            )
 
             if (planResult && planResult.plan) {
               const executionResult = await planExecutor.executePlan(
                 planResult.plan,
                 message,
                 assetConfig,
-                planResult.analysis
+                planResult.analysis,
+                llmProvider
               )
               planExecutionResult = executionResult
               executedCommands = buildExecutedCommandsFromPlan(planResult.plan, executionResult)

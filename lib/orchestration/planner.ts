@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { generateGeminiResponse } from "@/lib/gemini"
+import { generateLlmResponse, type LlmProviderSpec } from "@/lib/llm"
 import { filterRelevantTools, formatToolListForPrompt } from "./tool-filter"
 import { ExecutionPlan, PlanAnalysis, PlanGenerationResult, PlanStep } from "./types"
 
@@ -61,9 +61,10 @@ export class BlenderPlanner {
 
   async generatePlan(
     userRequest: string,
-    options: PlanningOptions = {}
+    options: PlanningOptions = {},
+    provider: LlmProviderSpec
   ): Promise<PlanGenerationResult> {
-    const analysis = await this.generateAnalysis(userRequest)
+    const analysis = await this.generateAnalysis(userRequest, provider)
 
     const filteredTools = filterRelevantTools(userRequest, undefined, {
       allowHyper3d: options.allowHyper3dAssets !== false,
@@ -145,7 +146,7 @@ Return strict JSON with this shape:
     const errors: string[] = []
 
     while (retries <= this.maxRetries) {
-      const response = await generateGeminiResponse({
+      const response = await generateLlmResponse(provider, {
         messages: [
           {
             role: "user",
@@ -194,7 +195,10 @@ Return strict JSON with this shape:
     return { plan: null, rawResponse: lastRaw, errors, retries, analysis }
   }
 
-  private async generateAnalysis(userRequest: string): Promise<PlanAnalysis | undefined> {
+  private async generateAnalysis(
+    userRequest: string,
+    provider: LlmProviderSpec
+  ): Promise<PlanAnalysis | undefined> {
     const analysisPrompt = `Analyze the following Blender modeling request and respond with JSON describing the required components and quality targets.
 
 Request: "${userRequest}"
@@ -212,7 +216,7 @@ Return JSON with this shape:
 Components should reflect sub-assemblies (e.g., car body, four wheels, windows, lights). Materials should be realistic. Set require_lighting true unless the user explicitly forbids lighting.`
 
     try {
-      const response = await generateGeminiResponse({
+      const response = await generateLlmResponse(provider, {
         messages: [{ role: "user", content: analysisPrompt }],
         temperature: 0.75,
         topP: 0.9,

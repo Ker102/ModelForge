@@ -59,6 +59,14 @@ export default function DocsPage() {
                     </div>
                   </li>
                   <li>
+                    <p className="font-semibold">Choose a local LLM runtime (required for free tier)</p>
+                    <div className="rounded-md bg-muted/40 p-3 text-sm text-muted-foreground space-y-1">
+                      <p><strong className="text-foreground">Ollama:</strong> install from <a href="https://ollama.com" target="_blank" rel="noreferrer">ollama.com</a>, run <code>ollama serve</code>, then pull a model such as <code>ollama pull llama3.1</code>.</p>
+                      <p><strong className="text-foreground">LM Studio:</strong> download from <a href="https://lmstudio.ai" target="_blank" rel="noreferrer">lmstudio.ai</a>, enable the OpenAI-compatible server (default <code>http://localhost:1234</code>), and copy the base URL.</p>
+                      <p>Open <strong>Dashboard → Settings → Local LLM Configuration</strong>, select your provider, enter the base URL/model name, and press <strong>Test connection</strong> before saving.</p>
+                    </div>
+                  </li>
+                  <li>
                     <p className="font-semibold">Download the Blender MCP addon</p>
                     <div className="rounded-md bg-muted/40 p-3 text-sm text-muted-foreground space-y-2">
                       <a
