@@ -138,6 +138,18 @@ npm run dev
 
 Visit [http://localhost:3000](http://localhost:3000) to see your app!
 
+### Optional: Firecrawl Web Research
+
+The assistant can pull design inspiration from the web through Firecrawl. This is disabled by default.
+
+1. Sign up for Firecrawl and grab an API key.
+2. Add it to your local environment:
+   ```
+   FIRECRAWL_API_KEY="fc_live_or_test_key"
+   ```
+3. Restart `npm run dev`.
+4. In the project chat panel, enable **Allow web research (Firecrawl)** to let the planner fetch summaries when you explicitly ask for references or trends.
+
 ## Project Structure
 
 ```

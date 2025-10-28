@@ -148,6 +148,15 @@ Workflow:
 
 ModelForge only proxies your request metadata; local responses never leave your machine. Clearing the form removes any stored API key.
 
+## 🌐 Optional Web Research (Firecrawl)
+
+Projects can opt into Firecrawl-powered web research for quick inspiration and reference gathering. Enable the toggle inside a project’s assistant card to let the planner pull bite-sized summaries with cited links.
+
+1. Set `FIRECRAWL_API_KEY` in your `.env.local` (key stays server-side; never commit it).
+2. Restart `npm run dev` so the API picks up the key.
+3. In BlenderAI, open a project → enable **Allow web research (Firecrawl)**.
+4. The assistant will only query Firecrawl when the prompt explicitly asks for references, trends, or inspiration.
+
 ## 📊 Database Schema
 
 The application uses PostgreSQL with the following main tables:

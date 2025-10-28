@@ -13,8 +13,9 @@ import type { PlanKey } from "@/lib/plans"
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams?: Record<string, string | string[] | undefined>
+  searchParams?: Promise<Record<string, string | string[] | undefined>>
 }) {
+  const resolvedSearchParams = searchParams ? await searchParams : {}
   const session = await auth()
   
   if (!session?.user) {
@@ -42,21 +43,26 @@ export default async function SettingsPage({
 
   const currentTier = user.subscriptionTier as keyof typeof PRICING_TIERS
   const tierInfo = PRICING_TIERS[currentTier.toUpperCase() as keyof typeof PRICING_TIERS]
-  const localConfig = {
+  const localConfig: {
+    provider: "ollama" | "lmstudio" | ""
+    baseUrl: string
+    model: string
+    apiKeyConfigured: boolean
+  } = {
     provider: (user.localLlmProvider as "ollama" | "lmstudio" | null) ?? "",
     baseUrl: user.localLlmUrl ?? "",
     model: user.localLlmModel ?? "",
     apiKeyConfigured: Boolean(user.localLlmApiKey),
   }
 
-  const highlightPlanParam = typeof searchParams?.plan === "string" ? searchParams.plan.toLowerCase() : null
+  const highlightPlanParam = typeof resolvedSearchParams.plan === "string" ? resolvedSearchParams.plan.toLowerCase() : null
   const highlightPlan: PlanKey | null = highlightPlanParam === "starter" || highlightPlanParam === "pro"
     ? (highlightPlanParam as PlanKey)
     : null
 
-  const focusPlans = typeof searchParams?.section === "string" && searchParams.section === "plans"
+  const focusPlans = typeof resolvedSearchParams.section === "string" && resolvedSearchParams.section === "plans"
 
-  const fromParam = typeof searchParams?.from === "string" ? decodeURIComponent(searchParams.from) : null
+  const fromParam = typeof resolvedSearchParams.from === "string" ? decodeURIComponent(resolvedSearchParams.from) : null
   const backUrl = fromParam && fromParam.startsWith("/") ? fromParam : "/dashboard"
   const backLabel = fromParam ? "Back" : "Back to dashboard"
 

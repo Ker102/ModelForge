@@ -15,10 +15,31 @@ type CommandStub = {
   id: string
   tool: string
   description: string
-  status: string
-  confidence?: number
+  status: "pending" | "ready" | "executed" | "failed"
+  confidence: number
   arguments?: Record<string, unknown>
   notes?: string
+  result?: unknown
+  error?: string
+}
+
+type ProjectChatAttachment = {
+  id?: string
+  name: string
+  type: string
+  size?: number
+  url?: string
+  previewUrl?: string
+}
+
+type ProjectChatMessage = {
+  id: string
+  role: "user" | "assistant"
+  content: string
+  createdAt: string
+  mcpCommands?: CommandStub[]
+  plan?: PlanningMetadata
+  attachments?: ProjectChatAttachment[]
 }
 
 const extractPlanFromMessage = (message: Message): PlanningMetadata | undefined => {
@@ -28,7 +49,7 @@ const extractPlanFromMessage = (message: Message): PlanningMetadata | undefined 
   return parsePlanningMetadata(rawPlan)
 }
 
-const mapMessageToChat = (message: Message) => ({
+const mapMessageToChat = (message: Message): ProjectChatMessage => ({
   id: message.id,
   role: message.role === "assistant" ? "assistant" : "user",
   content: message.content,
@@ -39,8 +60,9 @@ const mapMessageToChat = (message: Message) => ({
   plan: extractPlanFromMessage(message),
 })
 
-export default async function ProjectPage({ params }: { params: { id: string } }) {
+export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
+  const { id } = await params
   
   if (!session?.user) {
     return null
@@ -48,7 +70,7 @@ export default async function ProjectPage({ params }: { params: { id: string } }
 
   const project = await prisma.project.findFirst({
     where: {
-      id: params.id,
+      id,
       userId: session.user.id,
       isDeleted: false,
     },
@@ -142,6 +164,7 @@ export default async function ProjectPage({ params }: { params: { id: string } }
             allowHyper3d: Boolean(project.allowHyper3dAssets),
             allowSketchfab: Boolean(project.allowSketchfabAssets),
             allowPolyHaven: project.allowPolyHavenAssets !== false,
+            allowWebResearch: Boolean(project.allowWebResearch),
           }}
           subscriptionTier={tier}
           localProvider={localProvider}

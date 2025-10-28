@@ -71,6 +71,7 @@ interface ProjectChatProps {
     allowHyper3d: boolean
     allowSketchfab: boolean
     allowPolyHaven: boolean
+    allowWebResearch: boolean
   }
   subscriptionTier: string
   localProvider: {
@@ -107,7 +108,11 @@ export function ProjectChat({
     localProvider.provider && localProvider.baseUrl && localProvider.model
   )
 
-  const [assetConfig, setAssetConfig] = useState(initialAssetConfig)
+  const isPaidTier = subscriptionTier !== "free"
+  const [assetConfig, setAssetConfig] = useState(() => ({
+    ...initialAssetConfig,
+    allowWebResearch: isPaidTier ? initialAssetConfig.allowWebResearch : false,
+  }))
   const [attachments, setAttachments] = useState<PendingAttachment[]>([])
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [localReady, setLocalReady] = useState<boolean>(localProviderConfigured)
@@ -498,8 +503,8 @@ async function handleSend(e: React.FormEvent) {
                 setConversationId(completedConversationId)
               }
 
-              if (userRecordRaw) {
-                const userRecord = userRecordRaw as ChatMessage
+              if (userRecordRaw && typeof userRecordRaw === "object") {
+                const userRecord = userRecordRaw as Partial<ChatMessage>
                 setMessages((prev) =>
                   prev.map((msg) =>
                     msg.id === tempUserId
@@ -514,8 +519,8 @@ async function handleSend(e: React.FormEvent) {
               }
 
               let assistantRecordId: string | undefined
-              if (assistantRecordRaw) {
-                const assistantRecord = assistantRecordRaw as ChatMessage & {
+              if (assistantRecordRaw && typeof assistantRecordRaw === "object") {
+                const assistantRecord = assistantRecordRaw as Partial<ChatMessage> & {
                   mcpCommands?: CommandStub[]
                 }
                 assistantContent =
@@ -611,6 +616,11 @@ async function handleSend(e: React.FormEvent) {
 
   async function updateAssetConfig(partial: Partial<typeof assetConfig>) {
     setError(null)
+    if (!isPaidTier && partial.allowWebResearch === true) {
+      setError("Upgrade your plan to enable web research.")
+      return
+    }
+
     const previousConfig = assetConfig
     const nextConfig = { ...assetConfig, ...partial }
     setAssetConfig(nextConfig)
@@ -622,6 +632,7 @@ async function handleSend(e: React.FormEvent) {
           allowHyper3dAssets: nextConfig.allowHyper3d,
           allowSketchfabAssets: nextConfig.allowSketchfab,
           allowPolyHavenAssets: nextConfig.allowPolyHaven,
+          allowWebResearch: nextConfig.allowWebResearch,
         }),
       })
       if (!response.ok) {
@@ -631,11 +642,13 @@ async function handleSend(e: React.FormEvent) {
         allowHyper3dAssets?: boolean
         allowSketchfabAssets?: boolean
         allowPolyHavenAssets?: boolean
+        allowWebResearch?: boolean
       }
       setAssetConfig({
         allowHyper3d: Boolean(data.allowHyper3dAssets),
         allowSketchfab: Boolean(data.allowSketchfabAssets),
         allowPolyHaven: data.allowPolyHavenAssets !== false,
+        allowWebResearch: Boolean(data.allowWebResearch),
       })
     } catch (err) {
       console.error(err)
@@ -732,6 +745,29 @@ async function handleSend(e: React.FormEvent) {
                 <span className="block text-xs text-muted-foreground">
                   Requires Sketchfab API token in Blender. When disabled, the planner skips Sketchfab search/download.
                 </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4"
+                checked={isPaidTier && assetConfig.allowWebResearch}
+                disabled={!isPaidTier}
+                onChange={(event) =>
+                  updateAssetConfig({ allowWebResearch: event.target.checked })
+                }
+              />
+              <span>
+                <span className="font-medium text-foreground">Allow web research (Firecrawl)</span>
+                {isPaidTier ? (
+                  <span className="block text-xs text-muted-foreground">
+                    When enabled, the assistant may pull quick summaries from the web for inspiration and references using Firecrawl.
+                  </span>
+                ) : (
+                  <span className="block text-xs text-muted-foreground text-destructive">
+                    Upgrade to Starter or Pro to unlock web research with Firecrawl.
+                  </span>
+                )}
               </span>
             </label>
           </div>
@@ -877,7 +913,7 @@ async function handleSend(e: React.FormEvent) {
                         ) : null}
                       </div>
                     )}
-                    {message.plan.sceneSnapshot && (
+                    {message.plan && message.plan.sceneSnapshot && (
                       <details className="rounded bg-background/70 px-2 py-1 text-[11px] text-muted-foreground">
                         <summary className="cursor-pointer text-primary">Scene snapshot used</summary>
                         <pre className="mt-1 whitespace-pre-wrap break-words text-[11px]">
@@ -885,36 +921,67 @@ async function handleSend(e: React.FormEvent) {
                         </pre>
                       </details>
                     )}
-                    <div className="space-y-2">
-                      {message.plan.planSteps.map((step, stepIndex) => {
-                        const commandForStep = resolveCommandForStep(step, stepIndex, message.mcpCommands)
-                        const inferredStatus: CommandStub["status"] = commandForStep?.status
-                          ?? (message.plan.executionSuccess ? "executed" : "failed")
-                        return (
-                          <div
-                            key={`${step.stepNumber}-${step.action}-${stepIndex}`}
-                            className="rounded-md border border-border/60 bg-background px-2 py-1"
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-medium text-foreground">
-                                Step {step.stepNumber}: {step.action}
-                              </span>
-                              {renderStatusBadge(inferredStatus)}
-                            </div>
-                            {step.rationale && (
-                              <p className="text-[11px] text-muted-foreground">
-                                {step.rationale}
-                              </p>
-                            )}
-                            {commandForStep?.error && (
-                              <div className="mt-1 rounded border border-destructive/30 bg-destructive/10 px-2 py-1 text-[11px] text-destructive">
-                                {commandForStep.error}
+                    {message.plan && message.plan.researchSources?.length ? (
+                      <div className="rounded bg-background/70 px-2 py-1 text-[11px] text-muted-foreground space-y-2">
+                        <p className="font-semibold text-foreground">Web research references</p>
+                        <ul className="space-y-2">
+                          {message.plan.researchSources.map((source) => (
+                            <li key={source.url} className="space-y-1">
+                              <a
+                                href={source.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-primary hover:underline"
+                              >
+                                {source.title}
+                              </a>
+                              {source.snippet && (
+                                <p className="text-muted-foreground">{source.snippet}</p>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : message.plan && message.plan.researchSummary ? (
+                      <div className="rounded bg-background/70 px-2 py-1 text-[11px] text-muted-foreground">
+                        <p className="font-semibold text-foreground">Web research</p>
+                        <pre className="whitespace-pre-wrap text-[11px]">
+                          {message.plan.researchSummary}
+                        </pre>
+                      </div>
+                    ) : null}
+                    {message.plan && (
+                      <div className="space-y-2">
+                        {message.plan.planSteps.map((step, stepIndex) => {
+                          const commandForStep = resolveCommandForStep(step, stepIndex, message.mcpCommands)
+                          const inferredStatus: CommandStub["status"] = commandForStep?.status
+                            ?? (message.plan?.executionSuccess ? "executed" : "failed")
+                          return (
+                            <div
+                              key={`${step.stepNumber}-${step.action}-${stepIndex}`}
+                              className="rounded-md border border-border/60 bg-background px-2 py-1"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-medium text-foreground">
+                                  Step {step.stepNumber}: {step.action}
+                                </span>
+                                {renderStatusBadge(inferredStatus)}
                               </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
+                              {step.rationale && (
+                                <p className="text-[11px] text-muted-foreground">
+                                  {step.rationale}
+                                </p>
+                              )}
+                              {commandForStep?.error && (
+                                <div className="mt-1 rounded border border-destructive/30 bg-destructive/10 px-2 py-1 text-[11px] text-destructive">
+                                  {commandForStep.error}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                     {message.plan.errors?.length ? (
                       <div className="rounded border border-destructive/40 bg-destructive/10 px-2 py-1 text-[11px] text-destructive">
                         {message.plan.errors.join("; ")}

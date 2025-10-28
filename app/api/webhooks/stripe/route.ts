@@ -6,7 +6,8 @@ import Stripe from "stripe"
 
 export async function POST(req: Request) {
   const body = await req.text()
-  const signature = headers().get("stripe-signature")
+  const headerList = await headers()
+  const signature = headerList.get("stripe-signature")
 
   if (!signature) {
     return NextResponse.json(
@@ -111,4 +112,3 @@ function getSubscriptionTier(subscription: Stripe.Subscription): string {
 
   return "free"
 }
-

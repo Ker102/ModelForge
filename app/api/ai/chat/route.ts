@@ -2,18 +2,28 @@ import { randomUUID } from "crypto"
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/db"
+import type { Prisma } from "@prisma/client"
 import {
   canConsumeAiRequest,
   getUsageSummary,
   logUsage,
 } from "@/lib/usage"
 import { streamLlmResponse, type LlmProviderSpec } from "@/lib/llm"
+import type { GeminiMessage } from "@/lib/gemini"
 import { createMcpClient } from "@/lib/mcp"
 import { BlenderPlanner } from "@/lib/orchestration/planner"
 import { PlanExecutor, type ExecutionResult } from "@/lib/orchestration/executor"
-import type { PlanGenerationResult, PlanStep, PlanningMetadata } from "@/lib/orchestration/types"
+import type {
+  ExecutionPlan,
+  ExecutionLogEntry,
+  PlanGenerationResult,
+  PlanStep,
+  PlanningMetadata,
+  ResearchSource,
+} from "@/lib/orchestration/types"
 import { recordExecutionLog } from "@/lib/orchestration/monitor"
 import { buildSystemPrompt } from "@/lib/orchestration/prompts"
+import { searchFirecrawl, type FirecrawlSearchResult } from "@/lib/firecrawl"
 import { z } from "zod"
 
 const MAX_HISTORY_MESSAGES = 12
@@ -42,6 +52,34 @@ function createStubId() {
   } catch {
     return `stub-${Date.now()}`
   }
+}
+
+const WEB_RESEARCH_PATTERN = /(reference|research|inspiration|latest|trend|real[-\s]?world|accurate details|current|examples|ideas|design ideas|styles? from)/i
+
+function shouldUseWebResearch(message: string) {
+  return WEB_RESEARCH_PATTERN.test(message)
+}
+
+function buildResearchContext(result: FirecrawlSearchResult): {
+  promptContext: string
+  sources: ResearchSource[]
+} {
+  const trimmed = result.results.slice(0, 3)
+
+  const sources: ResearchSource[] = trimmed.map((item) => ({
+    title: item.title,
+    url: item.url,
+    snippet: item.snippet,
+  }))
+
+  const promptContext = sources
+    .map((source, index) => {
+      const snippet = source.snippet ? source.snippet.slice(0, 220) : "No snippet provided"
+      return `${index + 1}. ${source.title} — ${snippet} (Source: ${source.url})`
+    })
+    .join("\n")
+
+  return { promptContext, sources }
 }
 
 function resolveLocalProviderSpec(
@@ -320,6 +358,7 @@ interface StubOptions {
   allowHyper3d: boolean
   allowSketchfab: boolean
   allowPolyHaven: boolean
+  allowWebResearch: boolean
 }
 
 function buildCommandStubs(prompt: string, options: StubOptions): CommandStub[] {
@@ -1407,6 +1446,7 @@ export async function POST(req: Request) {
         allowHyper3dAssets: true,
         allowSketchfabAssets: true,
         allowPolyHavenAssets: true,
+        allowWebResearch: true,
       },
     })
 
@@ -1417,13 +1457,16 @@ export async function POST(req: Request) {
       )
     }
 
+    const subscriptionTier = session.user.subscriptionTier ?? "free"
+    const normalizedTier = subscriptionTier.toLowerCase()
     const assetConfig = {
       allowHyper3d: Boolean(project.allowHyper3dAssets),
       allowSketchfab: Boolean(project.allowSketchfabAssets),
       allowPolyHaven: project.allowPolyHavenAssets !== false,
+      allowWebResearch:
+        (normalizedTier === "starter" || normalizedTier === "pro") &&
+        Boolean(project.allowWebResearch),
     }
-
-    const subscriptionTier = session.user.subscriptionTier ?? "free"
     const localProviderSpec = resolveLocalProviderSpec(
       session.user.localLlmProvider,
       session.user.localLlmUrl,
@@ -1453,6 +1496,14 @@ export async function POST(req: Request) {
     }
 
     const chatSystemPrompt = buildSystemPrompt()
+
+    let researchContext: { promptContext: string; sources: ResearchSource[] } | null = null
+    if (assetConfig.allowWebResearch && shouldUseWebResearch(message)) {
+      const researchResult = await searchFirecrawl(message)
+      if (researchResult) {
+        researchContext = buildResearchContext(researchResult)
+      }
+    }
 
     const quotaCheck = await canConsumeAiRequest(
       session.user.id,
@@ -1496,12 +1547,12 @@ export async function POST(req: Request) {
       },
     })
 
-    const trimmedHistory = historyMessages
+    const trimmedHistory: GeminiMessage[] = historyMessages
       .reverse()
       .map((msg) => ({
         role: msg.role === "assistant" ? "assistant" : "user",
         content: msg.content,
-      }))
+      })) as GeminiMessage[]
 
     const encoder = new TextEncoder()
     const stream = new ReadableStream({
@@ -1553,7 +1604,7 @@ export async function POST(req: Request) {
 
           let executedCommands: ExecutedCommand[] = []
           let planningMetadata: PlanningMetadata | null = null
-          let planExecutionResult: ExecutionResult | null = null
+          let executionLogs: ExecutionLogEntry[] | undefined = undefined
           let planResult: PlanGenerationResult | null = null
 
           try {
@@ -1564,6 +1615,7 @@ export async function POST(req: Request) {
                 allowHyper3dAssets: assetConfig.allowHyper3d,
                 allowSketchfabAssets: assetConfig.allowSketchfab,
                 allowPolyHavenAssets: assetConfig.allowPolyHaven,
+                researchContext: researchContext?.promptContext,
               },
               llmProvider
             )
@@ -1576,18 +1628,20 @@ export async function POST(req: Request) {
                 planResult.analysis,
                 llmProvider
               )
-              planExecutionResult = executionResult
+              executionLogs = executionResult.logs
               executedCommands = buildExecutedCommandsFromPlan(planResult.plan, executionResult)
               planningMetadata = {
                 planSummary: planResult.plan.planSummary,
                 planSteps: planResult.plan.steps,
                 rawPlan: planResult.rawResponse,
-                retries: planResult.retries,
+                retries: planResult.retries ?? 0,
                 executionSuccess: executionResult.success,
                 errors: planResult.errors,
                 executionLog: executionResult.logs,
                 sceneSnapshot: sceneSnapshotResult.summary,
                 analysis: planResult.analysis,
+                researchSummary: researchContext?.promptContext,
+                researchSources: researchContext?.sources,
               }
 
               if (!executionResult.success) {
@@ -1597,18 +1651,21 @@ export async function POST(req: Request) {
                 planningMetadata.fallbackUsed = true
               }
             } else if (planResult) {
-              planningMetadata = {
-                planSummary: "Plan generation failed",
-                planSteps: [],
-                rawPlan: planResult.rawResponse,
-                retries: planResult.retries,
-                executionSuccess: false,
-                errors: planResult.errors,
-                fallbackUsed: true,
-                executionLog: planExecutionResult?.logs,
-                sceneSnapshot: sceneSnapshotResult.summary,
-                analysis: planResult.analysis,
-              }
+            const previousLogs = executionLogs
+            planningMetadata = {
+              planSummary: "Plan generation failed",
+              planSteps: [],
+              rawPlan: planResult.rawResponse,
+              retries: planResult.retries ?? 0,
+              executionSuccess: false,
+              errors: planResult.errors,
+              fallbackUsed: true,
+              executionLog: previousLogs,
+              sceneSnapshot: sceneSnapshotResult.summary,
+              analysis: planResult.analysis,
+              researchSummary: researchContext?.promptContext,
+              researchSources: researchContext?.sources,
+            }
               executedCommands = await runFallback()
             } else {
               throw new Error("Planner returned no result")
@@ -1625,9 +1682,11 @@ export async function POST(req: Request) {
               executionSuccess: false,
               errors: [messageText],
               fallbackUsed: true,
-              executionLog: planExecutionResult?.logs,
+              executionLog: executionLogs,
               sceneSnapshot: sceneSnapshotResult.summary,
               analysis: planResult?.analysis,
+              researchSummary: researchContext?.promptContext,
+              researchSources: researchContext?.sources,
             }
             executedCommands = await runFallback()
           }
@@ -1638,7 +1697,7 @@ export async function POST(req: Request) {
               planningMetadata.executionSuccess = false
               planningMetadata.fallbackUsed = true
               if (!planningMetadata.executionLog) {
-                planningMetadata.executionLog = planExecutionResult?.logs
+                planningMetadata.executionLog = executionLogs
               }
               if (!planningMetadata.sceneSnapshot) {
                 planningMetadata.sceneSnapshot = sceneSnapshotResult.summary
@@ -1657,9 +1716,11 @@ export async function POST(req: Request) {
               retries: 0,
               executionSuccess: executedCommands.every((command) => command.status === "executed"),
               fallbackUsed: true,
-              executionLog: planExecutionResult?.logs,
+              executionLog: executionLogs,
               sceneSnapshot: sceneSnapshotResult.summary,
               analysis: planResult?.analysis,
+              researchSummary: researchContext?.promptContext,
+              researchSources: researchContext?.sources,
             }
           }
 
@@ -1688,6 +1749,7 @@ export async function POST(req: Request) {
             tokenUsage,
             executionLog: planningMetadata.executionLog,
             sceneSummary: planningMetadata.sceneSnapshot ?? sceneSnapshotResult.summary,
+            researchSummary: planningMetadata.researchSummary,
           })
 
 
@@ -1711,7 +1773,7 @@ export async function POST(req: Request) {
                 conversationId: resolvedConversationId,
                 role: "assistant",
                 content: assistantText,
-                mcpCommands: executedCommands,
+                mcpCommands: executedCommands as unknown as Prisma.InputJsonValue,
                 mcpResults: {
                   tokens: tokenUsage,
                   plan: planningMetadata ?? undefined,
@@ -1722,7 +1784,7 @@ export async function POST(req: Request) {
                     result: command.result,
                     error: command.error,
                   })),
-                },
+                } as unknown as Prisma.InputJsonValue,
               },
               select: {
                 id: true,

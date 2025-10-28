@@ -7,10 +7,11 @@ import { Hammer } from "lucide-react"
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { error?: string; callbackUrl?: string }
+  searchParams: Promise<{ error?: string; callbackUrl?: string }>
 }) {
   const session = await auth()
-  
+  const resolvedSearchParams = await searchParams
+
   if (session) {
     redirect("/dashboard")
   }
@@ -31,8 +32,8 @@ export default async function LoginPage({
           </p>
         </div>
         <LoginForm
-          initialErrorCode={searchParams?.error}
-          callbackUrl={searchParams?.callbackUrl}
+          initialErrorCode={resolvedSearchParams?.error}
+          callbackUrl={resolvedSearchParams?.callbackUrl}
         />
         <p className="px-8 text-center text-sm text-muted-foreground">
           <Link

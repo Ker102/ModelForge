@@ -54,6 +54,7 @@ interface PlanningOptions {
   allowHyper3dAssets?: boolean
   allowSketchfabAssets?: boolean
   allowPolyHavenAssets?: boolean
+  researchContext?: string
 }
 
 export class BlenderPlanner {
@@ -105,7 +106,13 @@ export class BlenderPlanner {
         }\n${analysis.notes?.length ? `- Notes: ${analysis.notes.join("; ")}\n` : ""}`
       : ""
 
-    const planningPrompt = `${sceneContext}${restrictionContext}${analysisContext}
+    const researchContext = options.researchContext
+      ? `External inspiration and references:\n${options.researchContext}\n\n`
+      : ""
+
+    const planningPrompt = `${sceneContext}${restrictionContext}${analysisContext}${
+      researchContext || ""
+    }
 User request: "${userRequest}"
 
 Available tools (choose from this list):

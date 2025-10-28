@@ -189,13 +189,13 @@ export class PlanExecutor {
         if (!audit.success) {
           failedSteps.push({
             step: plan.steps[plan.steps.length - 1] ?? plan.steps[0],
-            error: audit.reason,
+            error: audit.reason ?? "Scene audit failed",
           })
           logs.push({
             timestamp: new Date().toISOString(),
             tool: "post_audit",
             parameters: {},
-            error: audit.reason,
+            error: audit.reason ?? "Scene audit failed",
           })
           return { success: false, completedSteps, failedSteps, finalSceneState: finalState, logs }
         }
@@ -274,7 +274,10 @@ ${RECOVERY_OUTPUT_FORMAT}`
 
     const parsed = this.parseJson(response.text)
     const action = typeof parsed?.recovery_action === "string" ? parsed.recovery_action : null
-    const params = parsed?.recovery_params && typeof parsed.recovery_params === "object" ? parsed.recovery_params : {}
+    const params =
+      parsed?.recovery_params && typeof parsed.recovery_params === "object" && !Array.isArray(parsed.recovery_params)
+        ? (parsed.recovery_params as Record<string, unknown>)
+        : {}
 
     if (!action) {
       return { success: false }

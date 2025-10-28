@@ -89,6 +89,7 @@ model Project {
   allowHyper3dAssets   Boolean  @default(false)
   allowSketchfabAssets Boolean  @default(false)
   allowPolyHavenAssets Boolean  @default(true)
+  allowWebResearch     Boolean  @default(false)
   createdAt     DateTime @default(now())
   lastModified  DateTime @updatedAt
   isDeleted     Boolean  @default(false)

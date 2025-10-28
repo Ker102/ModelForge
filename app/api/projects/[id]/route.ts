@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { NextResponse, type NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { logUsage } from "@/lib/usage"
@@ -11,11 +11,12 @@ const updateProjectSchema = z.object({
 })
 
 export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth()
+    const { id } = await params
     
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -23,7 +24,7 @@ export async function GET(
 
     const project = await prisma.project.findFirst({
       where: {
-        id: params.id,
+        id,
         userId: session.user.id,
         isDeleted: false,
       },
@@ -52,11 +53,12 @@ export async function GET(
 }
 
 export async function PUT(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth()
+    const { id } = await params
     
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -67,7 +69,7 @@ export async function PUT(
 
     const project = await prisma.project.findFirst({
       where: {
-        id: params.id,
+        id,
         userId: session.user.id,
         isDeleted: false,
       },
@@ -78,13 +80,13 @@ export async function PUT(
     }
 
     const updatedProject = await prisma.project.update({
-      where: { id: params.id },
+      where: { id },
       data,
     })
 
     await logUsage({
       userId: session.user.id,
-      projectId: params.id,
+      projectId: id,
       requestType: "project_action",
     })
 
@@ -106,11 +108,12 @@ export async function PUT(
 }
 
 export async function DELETE(
-  req: Request,
-  { params }: { params: { id: string } }
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth()
+    const { id } = await params
     
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -118,7 +121,7 @@ export async function DELETE(
 
     const project = await prisma.project.findFirst({
       where: {
-        id: params.id,
+        id,
         userId: session.user.id,
       },
     })
@@ -129,13 +132,13 @@ export async function DELETE(
 
     // Soft delete
     await prisma.project.update({
-      where: { id: params.id },
+      where: { id },
       data: { isDeleted: true },
     })
 
     await logUsage({
       userId: session.user.id,
-      projectId: params.id,
+      projectId: id,
       requestType: "project_action",
     })
 

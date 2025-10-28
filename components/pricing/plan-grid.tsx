@@ -155,6 +155,7 @@ export function PlanGrid({
           const isCurrent = normalizedTier === plan.key
           const isLoading = pendingPlan === plan.key && isPending
           const highlight = plan.key === highlightPlan || plan.popular
+          const isPaidPlan = plan.key !== "free"
 
           let buttonLabel = plan.cta ?? "Select"
           if (plan.key === "free") {
@@ -163,9 +164,9 @@ export function PlanGrid({
             } else {
               buttonLabel = plan.cta ?? "Start Free"
             }
-          } else if (variant === "settings") {
+          } else if (variant === "settings" && isPaidPlan) {
             buttonLabel = isCurrent ? "Current plan" : `Upgrade to ${plan.name}`
-          } else if (isAuthenticated && plan.key !== "free") {
+          } else if (isAuthenticated && isPaidPlan) {
             buttonLabel = isCurrent ? "Current plan" : `Upgrade to ${plan.name}`
           }
 

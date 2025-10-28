@@ -30,6 +30,12 @@ export interface PlanGenerationResult {
   analysis?: PlanAnalysis
 }
 
+export interface ResearchSource {
+  title: string
+  url: string
+  snippet?: string
+}
+
 export interface ToolMetadata {
   name: string
   description: string
@@ -65,4 +71,6 @@ export interface PlanningMetadata {
   executionLog?: ExecutionLogEntry[]
   sceneSnapshot?: string | null
   analysis?: PlanAnalysis
+  researchSummary?: string
+  researchSources?: ResearchSource[]
 }
