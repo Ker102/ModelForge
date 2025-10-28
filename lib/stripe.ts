@@ -10,10 +10,10 @@ export const PRICING_TIERS = {
     name: 'Free',
     price: 0,
     features: [
-      '5 AI requests per day',
-      '1 active project',
-      'Basic MCP commands',
-      'Community support'
+      '5 orchestrated requests per day',
+      '1 active project slot',
+      'Local LLM (Ollama / LM Studio)',
+      'Manual MCP command toggles'
     ],
     limits: {
       maxProjects: 1,
@@ -32,8 +32,9 @@ export const PRICING_TIERS = {
     features: [
       '500 AI requests per month',
       '10 active projects',
-      'All MCP commands',
-      'Viewport analysis',
+      'Hyper3D & Sketchfab integration',
+      'Firecrawl web research access',
+      'Viewport context summaries',
       'Email support',
       'Export project history'
     ],
@@ -54,11 +55,11 @@ export const PRICING_TIERS = {
     features: [
       'Unlimited AI requests',
       'Unlimited projects',
-      'Priority model access',
-      'Advanced viewport analysis',
-      'Asset library integration',
-      'Priority support',
-      'API access',
+      'Priority orchestration queueing',
+      'Advanced viewport & audit reports',
+      'Automated asset QA + Firecrawl',
+      'Priority support with SLA',
+      'API access & webhooks',
       'Team collaboration (coming soon)'
     ],
     limits: {
@@ -70,4 +71,3 @@ export const PRICING_TIERS = {
 } as const
 
 export type SubscriptionTier = keyof typeof PRICING_TIERS
-

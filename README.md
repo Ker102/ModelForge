@@ -335,7 +335,7 @@ npm run db:studio       # Open Prisma Studio
 - Community support
 
 ### Starter ($12/month or $99/year)
-- 500 AI requests per month
+- 500 orchestrated requests per month
 - 10 active projects
 - All MCP commands
 - Viewport analysis
@@ -343,7 +343,7 @@ npm run db:studio       # Open Prisma Studio
 - Export project history
 
 ### Pro ($29/month or $249/year)
-- Unlimited AI requests
+- Unlimited orchestrated requests
 - Unlimited projects
 - Priority model access
 - Advanced viewport analysis

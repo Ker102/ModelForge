@@ -447,7 +447,9 @@ const PRICING_TIERS = {
       '500 AI requests per month',
       '10 active projects',
       'All MCP commands',
-      'Viewport analysis',
+      'Hyper3D & Sketchfab integration',
+      'Firecrawl web research access',
+      'Viewport context summaries',
       'Email support',
       'Export project history'
     ],
@@ -463,13 +465,13 @@ const PRICING_TIERS = {
     priceMonthly: 29,
     priceYearly: 249,
     features: [
-      'Unlimited AI requests',
+      'Unlimited orchestrated requests',
       'Unlimited projects',
-      'Priority model access',
-      'Advanced viewport analysis',
-      'Asset library integration (PolyHaven, Sketchfab)',
-      'Priority support',
-      'API access',
+      'Priority orchestration queueing',
+      'Advanced viewport & audit reports',
+      'Automated asset QA + Firecrawl',
+      'Priority support with SLA',
+      'API access & webhooks',
       'Team collaboration (coming soon)'
     ],
     limits: {
@@ -491,5 +493,4 @@ Offer one-time lifetime deal for early adopters
 
 
 Future: team/enterprise licensing
-
 
