@@ -1,0 +1,78 @@
+# Configuration for the Pull Request Labeler
+# https://github.com/actions/labeler
+
+# Documentation changes
+documentation:
+  - changed-files:
+    - any-glob-to-any-file: ['**/*.md', 'docs/**/*']
+
+# Configuration files
+configuration:
+  - changed-files:
+    - any-glob-to-any-file: 
+      - '*.json'
+      - '*.yml'
+      - '*.yaml'
+      - '*.config.*'
+      - '.github/**/*'
+
+# Dependencies
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'yarn.lock'
+      - 'pnpm-lock.yaml'
+
+# Frontend/UI changes
+frontend:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'components/**/*'
+      - 'app/**/*.tsx'
+      - 'app/**/*.jsx'
+      - '**/*.css'
+      - 'tailwind.config.*'
+
+# Backend/API changes
+backend:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'app/api/**/*'
+      - 'lib/**/*.ts'
+      - 'middleware.ts'
+
+# Database changes
+database:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'prisma/**/*'
+
+# Desktop app changes
+desktop:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'desktop/**/*'
+
+# Testing
+testing:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.test.*'
+      - '**/*.spec.*'
+      - 'tests/**/*'
+      - '__tests__/**/*'
+
+# Scripts
+scripts:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'scripts/**/*'
+
+# Security
+security:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/security/**/*'
+      - 'SECURITY.md'
