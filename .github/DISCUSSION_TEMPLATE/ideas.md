@@ -1,8 +1,3 @@
----
-title: "Ideas and Suggestions"
-labels: [idea]
----
-
 ## Idea Summary
 <!-- Brief description of your idea -->
 

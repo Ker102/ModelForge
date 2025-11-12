@@ -1,8 +1,3 @@
----
-title: "General Discussion"
-labels: [discussion]
----
-
 ## Discussion Topic
 <!-- What would you like to discuss? -->
 

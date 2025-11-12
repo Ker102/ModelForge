@@ -1,8 +1,3 @@
----
-title: "Show and Tell"
-labels: [show-and-tell]
----
-
 ## What I Built
 <!-- Describe your project or creation -->
 
