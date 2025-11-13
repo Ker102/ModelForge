@@ -1,0 +1,13 @@
+## Discussion Topic
+<!-- What would you like to discuss? -->
+
+## Context
+<!-- Provide any relevant background or context -->
+
+## Questions or Points for Discussion
+1. 
+2. 
+3. 
+
+## Additional Information
+<!-- Any links, examples, or references that might be helpful -->

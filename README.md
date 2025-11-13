@@ -1,49 +1,129 @@
-# ModelForge - AI-Powered Blender Assistant
+<div align="center">
+
+# 🔨 ModelForge
+
+**AI-Powered Blender Assistant**
 
 Transform your 3D workflow with AI-powered Blender automation. Create, modify, and enhance your Blender projects through natural conversation.
 
-## 🚀 Project Overview
+[![GitHub release](https://img.shields.io/github/v/release/Ker102/ModelForge?include_prereleases&style=flat-square)](https://github.com/Ker102/ModelForge/releases)
+[![License](https://img.shields.io/github/license/Ker102/ModelForge?style=flat-square)](LICENSE)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-336791?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
 
-ModelForge is a comprehensive platform that brings AI capabilities to Blender through:
-- **AI-Orchestrated Scene Builder** (Current focus): Gemini-driven planning + execution layer that decomposes complex requests, applies materials, and validates results in Blender.
-- **Web Dashboard**: Authentication, project history, asset integration toggles, orchestration insights.
-- **Desktop Application**: Electron wrapper over the web dashboard for native MCP connectivity.
-- **Blender MCP Server** (External): Socket bridge that executes generated Python inside Blender.
+[![GitHub issues](https://img.shields.io/github/issues/Ker102/ModelForge?style=flat-square)](https://github.com/Ker102/ModelForge/issues)
+[![GitHub pull requests](https://img.shields.io/github/issues-pr/Ker102/ModelForge?style=flat-square)](https://github.com/Ker102/ModelForge/pulls)
+[![GitHub stars](https://img.shields.io/github/stars/Ker102/ModelForge?style=flat-square)](https://github.com/Ker102/ModelForge/stargazers)
+[![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 
-## ✅ Current Capabilities
-- Gemini 2.x orchestration with a ReAct-style planner, per-step validation, and fallback heuristics for common Blender tasks.
-- Post-plan review cards inside the chat UI showing component checklists, asset usage, and material assignments.
-- Automatic scene audits that ensure lighting, camera, and base materials exist (with corrective scripts when missing).
-- Per-project toggles for Hyper3D Rodin and Sketchfab assets so AI calls respect a user’s configured API keys.
-- Shared conversation history, project management, and usage tracking across the web and desktop experiences.
+[Features](#-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Contributing](#-contributing) • [Support](#-support)
 
-## 📋 Phase 1 - Marketing Website (Current)
+</div>
 
-This repository contains the Next.js 14 marketing website and user platform.
+---
 
-### Technology Stack
+## 🚀 Features
 
-- **Framework**: Next.js 14 (App Router)
-- **Database**: PostgreSQL with Prisma ORM
-- **Authentication**: NextAuth.js v5
-- **Payments**: Stripe
-- **UI**: Tailwind CSS + shadcn/ui
-- **Deployment**: DigitalOcean App Platform
+ModelForge is a comprehensive platform that brings AI capabilities to Blender through four integrated components:
 
-## 🛠️ Local Development Setup
+### 🎨 AI-Orchestrated Scene Builder
+- **Gemini 2.x Orchestration**: ReAct-style planner with per-step validation and fallback heuristics
+- **Smart Material Application**: Automatic material assignment and validation
+- **Scene Auditing**: Ensures lighting, camera, and base materials exist with auto-correction
+- **Component Tracking**: Post-plan review cards with checklists, asset usage, and material assignments
+
+### 🌐 Web Dashboard
+- **User Authentication**: Secure NextAuth.js v5 authentication with Google OAuth support
+- **Project Management**: Organize and track multiple Blender projects
+- **Asset Integration Toggles**: Per-project controls for Hyper3D Rodin and Sketchfab
+- **Conversation History**: Persistent chat history across web and desktop
+
+### 🖥️ Desktop Application
+- **Native MCP Connectivity**: Electron wrapper for seamless Blender integration
+- **Unified Experience**: Same features as web dashboard with native performance
+- **Configuration Bridge**: Simplified MCP server setup
+
+### 🔌 Blender MCP Server Integration
+- **Socket Bridge**: Executes generated Python directly in Blender
+- **Real-time Communication**: Live feedback from Blender operations
+- **External Integration**: Works with the open-source [blender-mcp](https://github.com/ahujasid/blender-mcp) project
+
+## 🛠️ Technology Stack
+
+<table>
+<tr>
+<td><b>Frontend</b></td>
+<td>
+
+![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js)
+![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?style=flat-square&logo=typescript)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=flat-square&logo=tailwind-css)
+
+</td>
+</tr>
+<tr>
+<td><b>Backend</b></td>
+<td>
+
+![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=flat-square&logo=node.js)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-336791?style=flat-square&logo=postgresql)
+![Prisma](https://img.shields.io/badge/Prisma-5.20-2D3748?style=flat-square&logo=prisma)
+
+</td>
+</tr>
+<tr>
+<td><b>Authentication</b></td>
+<td>
+
+![NextAuth.js](https://img.shields.io/badge/NextAuth.js-v5-000000?style=flat-square)
+
+</td>
+</tr>
+<tr>
+<td><b>UI Components</b></td>
+<td>
+
+![shadcn/ui](https://img.shields.io/badge/shadcn/ui-latest-000000?style=flat-square)
+![Radix UI](https://img.shields.io/badge/Radix_UI-latest-111111?style=flat-square)
+
+</td>
+</tr>
+<tr>
+<td><b>Desktop</b></td>
+<td>
+
+![Electron](https://img.shields.io/badge/Electron-latest-47848F?style=flat-square&logo=electron)
+
+</td>
+</tr>
+<tr>
+<td><b>AI Integration</b></td>
+<td>
+
+![Google Gemini](https://img.shields.io/badge/Gemini_2.x-API-4285F4?style=flat-square&logo=google)
+
+</td>
+</tr>
+</table>
+
+## 📋 Quick Start
 
 ### Prerequisites
 
 - Node.js 18+ 
 - PostgreSQL 14+
-- npm or yarn
+- Blender 3.0+ (for MCP integration)
+- Python 3.10+ (for Blender MCP server)
+- [`uv`](https://docs.astral.sh/uv) package manager
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
-   git clone <your-repo-url>
-   cd BlenderAI
+   git clone https://github.com/Ker102/ModelForge.git
+   cd ModelForge
    ```
 
 2. **Install dependencies**
@@ -56,7 +136,7 @@ This repository contains the Next.js 14 marketing website and user platform.
    cp .env.example .env
    ```
    
-   Edit `.env` and fill in your values:
+   Edit `.env` and configure:
    ```env
    # Database
    DATABASE_URL="postgresql://user:password@localhost:5432/modelforge"
@@ -64,17 +144,6 @@ This repository contains the Next.js 14 marketing website and user platform.
    # NextAuth
    NEXTAUTH_URL="http://localhost:3000"
    NEXTAUTH_SECRET="<run: openssl rand -base64 32>"
-
-   # Stripe (get from https://dashboard.stripe.com)
-   STRIPE_SECRET_KEY="sk_test_..."
-   STRIPE_WEBHOOK_SECRET="whsec_..."
-   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_test_..."
-
-   # Stripe Price IDs (create products in Stripe Dashboard)
-   STRIPE_STARTER_MONTHLY_PRICE_ID="price_..."
-   STRIPE_STARTER_YEARLY_PRICE_ID="price_..."
-   STRIPE_PRO_MONTHLY_PRICE_ID="price_..."
-   STRIPE_PRO_YEARLY_PRICE_ID="price_..."
 
    # LLM Provider
    GEMINI_API_KEY="your-gemini-api-key"
@@ -86,219 +155,185 @@ This repository contains the Next.js 14 marketing website and user platform.
 
 4. **Set up PostgreSQL database**
    ```bash
-   # Create database
    createdb modelforge
-
-   # Or using psql
-   psql -U postgres
-   CREATE DATABASE modelforge;
+   psql -U postgres -d modelforge -c "CREATE EXTENSION IF NOT EXISTS vector;"
    ```
 
-5. **Enable pgvector extension**
-   ```bash
-   psql -U postgres -d modelforge
-   CREATE EXTENSION IF NOT EXISTS vector;
-   \q
-   ```
-
-6. **Run database migrations**
+5. **Run database migrations**
    ```bash
    npm run db:generate
    npm run db:push
    ```
 
-7. **Start development server**
+6. **Start development server**
    ```bash
    npm run dev
    ```
 
-   Open [http://localhost:3000](http://localhost:3000) in your browser.
+7. **Open [http://localhost:3000](http://localhost:3000)** in your browser
 
-8. **Seed a local Pro test user** (optional but handy for QA)
-   ```bash
-   npm run test:user
-   ```
-   This creates `test@modelforge.dev` / `TestPass123!` with an active subscription.
+### Optional: Create Test User
 
-## 🔧 Asset Integrations & MCP Settings
+```bash
+npm run test:user
+```
 
-Configure external asset providers on a per-project basis from the dashboard. Poly Haven is **enabled by default** (no API keys required) so users can browse HDRIs, textures, and models immediately. Hyper3D Rodin and Sketchfab remain **disabled by default** to prevent accidental API calls—enable them only after valid credentials are entered inside the Blender add-on sidebar.
+This creates `test@modelforge.dev` / `TestPass123!` with an active subscription.
+
+## 🔧 Configuration
+
+### Asset Integrations
+
+Configure external asset providers on a per-project basis:
+
+- **Poly Haven**: Enabled by default (no API keys required)
+- **Hyper3D Rodin**: Disabled by default (requires API credentials)
+- **Sketchfab**: Disabled by default (requires API credentials)
 
 Environment variables:
-- `BLENDER_MCP_HOST` / `BLENDER_MCP_PORT` – MCP socket target (defaults to `127.0.0.1:9876`).
-- `MODELFORGE_DESKTOP_START_URL` – entry point for the Electron shell.
+- `BLENDER_MCP_HOST` / `BLENDER_MCP_PORT` – MCP socket target (defaults to `127.0.0.1:9876`)
+- `MODELFORGE_DESKTOP_START_URL` – Entry point for Electron shell
 
-In Blender, launch the MCP server with `uvx blender-mcp` and keep only **one** MCP client running (Cursor, Claude, or ModelForge) to avoid port conflicts.
+### Local LLM Mode
 
-## 🤖 Local LLM Mode
+Free-tier accounts can use locally hosted LLMs:
 
-Free-tier accounts run entirely on a locally hosted LLM. Configure yours from **Dashboard → Settings → Local LLM Configuration**.
+**Supported Providers:**
+- **Ollama**: Lightweight local runtime
+- **LM Studio**: Desktop UI with OpenAI-compatible server
 
-Supported providers:
+**Setup:**
+1. Open **Settings → Local LLM Configuration**
+2. Select your provider and enter base URL
+3. Test connection and save
 
-- **Ollama** – Lightweight local runtime. After installing, run `ollama serve` and pull a model (e.g. `ollama pull llama3.1`). Default base URL: `http://localhost:11434`.
-- **LM Studio** – Desktop UI with an OpenAI-compatible server. Enable the server in the app, copy the base URL (usually `http://localhost:1234`), and paste it into ModelForge. Provide the API key only if you enabled authentication inside LM Studio.
+### Google OAuth Setup
 
-Workflow:
+1. Create OAuth client ID in [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. Add authorized redirect URIs:
+   - Development: `http://localhost:3000/api/auth/callback/google`
+   - Production: `https://your-domain.com/api/auth/callback/google`
+3. Add credentials to `.env`:
+   ```env
+   GOOGLE_CLIENT_ID="your-client-id"
+   GOOGLE_CLIENT_SECRET="your-client-secret"
+   ```
 
-1. Open **Settings → Local LLM Configuration**.
-2. Pick your provider, base URL, and model name exactly as exposed by Ollama/LM Studio (e.g. `llama3.1` or `Meta-Llama-3-8B-Instruct`).
-3. Click **Test connection** to verify the server responds.
-4. Save the configuration. Free-tier users must keep a local provider active; Pro subscribers can switch between hosted Gemini and their local model per request.
+### Optional: Web Research (Firecrawl)
 
-ModelForge only proxies your request metadata; local responses never leave your machine. Clearing the form removes any stored API key.
+Enable Firecrawl for web research capabilities:
 
-## 🌐 Optional Web Research (Firecrawl)
+1. Set `FIRECRAWL_API_KEY` in `.env.local`
+2. Restart development server
+3. Enable per-project in dashboard
 
-Projects can opt into Firecrawl-powered web research for quick inspiration and reference gathering. Enable the toggle inside a project’s assistant card to let the planner pull bite-sized summaries with cited links.
+## 🤖 Blender MCP Integration
 
-1. Set `FIRECRAWL_API_KEY` in your `.env.local` (key stays server-side; never commit it).
-2. Restart `npm run dev` so the API picks up the key.
-3. In BlenderAI, open a project → enable **Allow web research (Firecrawl)**.
-4. The assistant will only query Firecrawl when the prompt explicitly asks for references, trends, or inspiration.
+ModelForge connects to Blender through the [blender-mcp](https://github.com/ahujasid/blender-mcp) project.
+
+### Setup
+
+1. **Install `uv` package manager**:
+   ```bash
+   # Linux/macOS
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   
+   # macOS (Homebrew)
+   brew install uv
+   
+   # Windows (PowerShell)
+   powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+   ```
+
+2. **Install Blender addon**:
+   - Download from `/downloads/blender-mcp-addon.py`
+   - Install via Blender → Preferences → Add-ons → Install
+
+3. **Start MCP server**:
+   ```bash
+   uvx blender-mcp
+   ```
+
+4. **Connect ModelForge**: The web and desktop clients automatically connect using configured host/port
+
+> ⚠️ Only run **one** MCP instance at a time (Cursor, Claude, or ModelForge) to avoid port conflicts.
 
 ## 📊 Database Schema
 
-The application uses PostgreSQL with the following main tables:
+Main tables:
 
-- **users**: User accounts with authentication and subscription info
-- **projects**: User projects linked to Blender work
-- **conversations**: AI conversation history per project
-- **messages**: Individual messages in conversations
-- **project_snapshots**: Scene state for context memory
-- **subscription_plans**: Available pricing tiers
-- **usage_logs**: Track API usage for billing
+- **users**: User accounts and authentication
+- **projects**: Blender projects
+- **conversations**: AI conversation history
+- **messages**: Individual chat messages
+- **project_snapshots**: Scene state snapshots
+- **subscription_plans**: Pricing tiers
+- **usage_logs**: API usage tracking
 
-View the complete schema in `prisma/schema.prisma`.
+View complete schema in `prisma/schema.prisma`.
 
 ## 🔐 Authentication
 
-The app uses NextAuth.js v5 with credentials provider:
+NextAuth.js v5 with multiple providers:
 
-- **Sign up**: `/signup` - Create new account
-- **Login**: `/login` - Authenticate existing user
-- **Protected routes**: Dashboard and settings require authentication
-
-### Google OAuth
-
-1. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials), create an OAuth client ID (type **Web application**).
-2. Add these URIs:
-   - **Authorized JavaScript origins**: `http://localhost:3000` (plus your production origin when ready)
-   - **Authorized redirect URIs**: `http://localhost:3000/api/auth/callback/google` (plus the production callback)
-3. Copy the `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` into your `.env`.
-4. Restart `npm run dev` (and the desktop shell) so NextAuth picks up the new credentials.
+- **Credentials**: Email/password authentication
+- **Google OAuth**: Social login
+- **Protected Routes**: Dashboard and settings require authentication
 
 Passwords are hashed using bcryptjs with 10 salt rounds.
 
-## 💳 Stripe Integration
+## 🧠 Orchestration Layer
 
-### Setting Up Stripe
+The orchestration system in `lib/orchestration/` includes:
 
-1. **Create a Stripe account**: https://dashboard.stripe.com/register
+- **Planner** (`planner.ts`): Component-level plan generation with material guidelines
+- **Executor** (`executor.ts`): MCP command execution with validation
+- **Heuristics**: Guardrail scripts for common scenarios
+- **Telemetry** (`monitor.ts`): Logging to `logs/orchestration.ndjson`
+- **UI Integration**: Plan summaries and execution results in chat
 
-2. **Get your API keys**:
-   - Go to Developers → API keys
-   - Copy Secret key to `STRIPE_SECRET_KEY`
-   - Copy Publishable key to `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+## 🖥️ Desktop Application
 
-3. **Create Products and Prices**:
-   ```
-   Products:
-   - ModelForge Starter (Monthly: $12, Yearly: $99)
-   - ModelForge Pro (Monthly: $29, Yearly: $249)
-   ```
-   Copy the price IDs to your `.env` file.
-
-4. **Set up webhooks**:
-   - Go to Developers → Webhooks
-   - Add endpoint: `https://your-domain.com/api/webhooks/stripe`
-   - Select events:
-     - `customer.subscription.created`
-     - `customer.subscription.updated`
-     - `customer.subscription.deleted`
-     - `checkout.session.completed`
-   - Copy webhook signing secret to `STRIPE_WEBHOOK_SECRET`
-
-### Testing Webhooks Locally
-
-Use Stripe CLI to forward webhooks to localhost:
+Electron wrapper in the `desktop/` folder:
 
 ```bash
-stripe listen --forward-to localhost:3000/api/webhooks/stripe
+# Terminal 1: Web app
+npm run dev
+
+# Terminal 2: Desktop app
+cd desktop
+npm install  # first run only
+npm run dev
 ```
 
-## 🎨 UI Components
-
-The app uses shadcn/ui components with Tailwind CSS. Add new components:
-
-```bash
-npx shadcn-ui@latest add <component-name>
-```
-
-All UI components are in `/components/ui/`.
+The desktop app loads `MODELFORGE_DESKTOP_START_URL` (defaults to `http://localhost:3000/dashboard`).
 
 ## 📁 Project Structure
 
 ```
-/
-├── app/                      # Next.js 14 app directory
-│   ├── (auth)/              # Auth route group
-│   │   ├── login/
-│   │   └── signup/
-│   ├── dashboard/           # Protected dashboard
-│   │   ├── projects/[id]/
-│   │   └── settings/
-│   ├── api/                 # API routes
-│   │   ├── auth/
-│   │   ├── projects/
-│   │   ├── user/
-│   │   └── webhooks/
-│   ├── docs/
-│   ├── download/
-│   └── page.tsx             # Homepage
-├── components/              # React components
-│   ├── ui/                  # shadcn/ui components
-│   ├── landing/             # Landing page sections
-│   ├── dashboard/           # Dashboard components
-│   └── auth/                # Auth forms
-├── lib/                     # Utility libraries
-│   ├── auth.ts             # NextAuth config
-│   ├── db.ts               # Prisma client
-│   ├── stripe.ts           # Stripe client
-│   └── utils.ts            # Helper functions
-├── prisma/
-│   └── schema.prisma       # Database schema
-└── public/                  # Static assets
+ModelForge/
+├── app/                    # Next.js app directory
+│   ├── (auth)/            # Auth routes (login, signup)
+│   ├── api/               # API routes
+│   ├── dashboard/         # Protected dashboard
+│   └── page.tsx           # Homepage
+├── components/            # React components
+│   ├── ui/               # shadcn/ui components
+│   ├── landing/          # Landing page sections
+│   ├── dashboard/        # Dashboard components
+│   └── auth/             # Auth forms
+├── lib/                   # Utility libraries
+│   ├── orchestration/    # AI orchestration logic
+│   ├── mcp/              # MCP client
+│   ├── auth.ts           # NextAuth config
+│   ├── db.ts             # Prisma client
+│   └── utils.ts          # Helper functions
+├── prisma/               # Database schema
+├── desktop/              # Electron application
+├── public/               # Static assets
+├── scripts/              # Build and utility scripts
+└── .github/              # GitHub templates and workflows
 ```
-
-## 🚀 Deployment to DigitalOcean
-
-### 1. Set up Managed PostgreSQL Database
-
-1. Create a new managed PostgreSQL database in DigitalOcean
-2. Enable pgvector extension:
-   ```sql
-   CREATE EXTENSION IF NOT EXISTS vector;
-   ```
-3. Copy the connection string to your environment variables
-
-### 2. Deploy App Platform
-
-1. Connect your GitHub repository
-2. Configure build settings:
-   - **Build Command**: `npm run build`
-   - **Run Command**: `npm start`
-3. Add environment variables (same as `.env`)
-4. Deploy!
-
-### 3. Post-Deployment
-
-1. Run migrations:
-   ```bash
-   npm run db:migrate
-   ```
-
-2. Test Stripe webhooks with your production URL
 
 ## 📝 Available Scripts
 
@@ -314,17 +349,26 @@ npm run db:generate     # Generate Prisma client
 npm run db:push         # Push schema to database
 npm run db:migrate      # Run migrations
 npm run db:studio       # Open Prisma Studio
+
+# Testing & Analysis
+npm run test:user       # Create test user
+npm run analyze:orchestration  # Analyze orchestration logs
 ```
 
-## 🔒 Security Best Practices
+## 🔒 Security
 
-- ✅ No secrets committed to Git
-- ✅ Environment variables for all sensitive data
-- ✅ Stripe webhook signature verification
-- ✅ Password hashing with bcryptjs
-- ✅ Protected API routes with authentication
-- ✅ CSRF protection via NextAuth
+ModelForge implements enterprise-grade security:
+
+- ✅ No secrets in Git
+- ✅ Environment variable isolation
+- ✅ Password hashing (bcryptjs)
+- ✅ Protected API routes
+- ✅ CSRF protection (NextAuth)
 - ✅ SQL injection prevention (Prisma)
+- ✅ Dependency scanning (Dependabot)
+- ✅ Code scanning (CodeQL)
+
+See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
 
 ## 💰 Subscription Tiers
 
@@ -335,32 +379,29 @@ npm run db:studio       # Open Prisma Studio
 - Community support
 
 ### Starter ($12/month or $99/year)
-- 500 orchestrated requests per month
+- 500 orchestrated requests/month
 - 10 active projects
 - All MCP commands
 - Viewport analysis
 - Email support
-- Export project history
 
 ### Pro ($29/month or $249/year)
-- Unlimited orchestrated requests
+- Unlimited requests
 - Unlimited projects
 - Priority model access
-- Advanced viewport analysis
 - Asset library integration
 - Priority support
 - API access
-- Team collaboration (coming soon)
 
 ## 🐛 Troubleshooting
 
-### Database Connection Issues
+### Database Connection
 
 ```bash
-# Test PostgreSQL connection
+# Test PostgreSQL
 psql -U postgres -d modelforge -c "SELECT version();"
 
-# Check if pgvector is installed
+# Verify pgvector
 psql -U postgres -d modelforge -c "SELECT * FROM pg_extension WHERE extname = 'vector';"
 ```
 
@@ -370,141 +411,77 @@ psql -U postgres -d modelforge -c "SELECT * FROM pg_extension WHERE extname = 'v
 # Reset database (WARNING: deletes all data)
 npm run db:push -- --force-reset
 
-# Regenerate Prisma client
+# Regenerate client
 npm run db:generate
 ```
 
-### Stripe Webhook Issues
-
-- Ensure webhook endpoint is publicly accessible
-- Verify webhook secret matches Stripe dashboard
-- Check webhook event types are selected
-- Use Stripe CLI for local testing
-
-## 🧠 Orchestration Layer
-
-ModelForge’s orchestration stack lives in `lib/orchestration/` and includes:
-
-- **Planner (`planner.ts`)** – Generates a component-level plan with material guidelines, object counts, and asset restrictions (Hyper3D/Sketchfab). Plans are rejected unless they meet minimum complexity and material requirements, and malformed responses trigger structured retries.
-- **Executor (`executor.ts`)** – Executes each MCP command, validates object creation, and audits the final scene. Missing lighting/camera/materials are auto-added as fallbacks, and audit failures feed a recovery prompt before completion.
-- **Heuristics (`buildCommandStubs` in API)** – Provide guardrail scripts (e.g., car scaffold, door fixer) when Gemini needs extra help or a recovery path.
-- **Telemetry (`monitor.ts`)** – Every request writes NDJSON lines to `logs/orchestration.ndjson`. Summaries can be generated with `npm run analyze:orchestration`.
-- **UI surfacing** – Plan summaries, component checklists, and execution logs render beside the chat so users can review what happened and retry specific steps.
-
-The chat UI shows plan summaries, component checklists, and execution results so users understand what occurred.
-
-## 🧩 Blender MCP Integration
-
-ModelForge connects to Blender through the open-source [blender-mcp](https://github.com/ahujasid/blender-mcp) project. A copy of the upstream README is available at `blendermcpreadme.md` for offline reference.
-
-Key steps:
-
-1. **Install prerequisites**:
-   - Blender ≥ 3.0 (download from [blender.org](https://www.blender.org/download/))
-   - Python ≥ 3.10 (via package manager, Homebrew, or [python.org](https://www.python.org/downloads/))
-   - Git ([git-scm.com](https://git-scm.com/downloads))
-   - [`uv`](https://docs.astral.sh/uv/getting-started/installation/) (see instructions below)
-2. **Install the Blender addon**: Either download it directly from this project at [`/downloads/blender-mcp-addon.py`](/downloads/blender-mcp-addon.py) or clone the upstream repo and use the bundled `addon.py`. Install it via Blender → Preferences → Add-ons → Install.
-3. **Configure the MCP server**:
-   - Environment variables (already covered in `.env.example`):
-     - `BLENDER_MCP_HOST` (defaults to `127.0.0.1`)
-     - `BLENDER_MCP_PORT` (defaults to `9876`)
-   - Start the MCP server with `uvx blender-mcp` (per upstream docs).
-4. **Connect ModelForge**: The web and desktop clients will read the host/port from environment variables and route MCP commands through the shared client in `lib/mcp`.
-
-> ⚠️ Only run **one** MCP instance at a time (Cursor, Claude, or ModelForge) to avoid port conflicts.
-
-Consult `blendermcpreadme.md` for detailed screenshots, IDE integrations, and troubleshooting tips.
-
-### Install `uv`
-
-The Blender MCP server is distributed via the [`uv`](https://docs.astral.sh/uv) package manager. Install it once per machine:
-
-- **Linux**:
-  ```bash
-  curl -LsSf https://astral.sh/uv/install.sh | sh
-  ```
-  Then add `~/.cargo/bin` (or the path printed by the installer) to your `PATH`.
-- **macOS** (Homebrew):
-  ```bash
-  brew install uv
-  ```
-  or use the same curl script as Linux.
-- **Windows** (PowerShell):
-  ```powershell
-  powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
-  ```
-  Afterwards, ensure `%USERPROFILE%\.local\bin` is in your `PATH`.
-
-Git is only required if you prefer cloning the upstream repository instead of using the direct download.
-
-You only need to install `uv` once. After that, run the MCP server with:
-
-```bash
-uvx blender-mcp
-```
-
-### Local test account
-
-Need a Pro-tier account for QA? Seed one with:
-
-```bash
-npm run test:user
-```
-
-This creates (or updates) `test@modelforge.dev` with password `TestPass123!`. Override credentials via `TEST_USER_EMAIL`, `TEST_USER_PASSWORD`, and `TEST_USER_NAME` environment variables when running the script.
-
-## 🖥️ Desktop App (Electron)
-
-A lightweight Electron shell lives in the `desktop/` folder. It wraps the Next.js web UI and exposes native integrations (MCP configuration bridge, future filesystem access, etc.).
-
-### Run in development
-
-```bash
-# Terminal 1
-npm run dev
-
-# Terminal 2
-cd desktop
-npm install   # first run only (requires internet access)
-npm run dev
-```
-
-The desktop window loads `MODELFORGE_DESKTOP_START_URL` (defaults to `http://localhost:3000/dashboard`). MCP host/port values are read from the same `.env` file used by the web app, keeping configuration in one place.
-
-## 🔄 Next Steps
+## 🔄 Roadmap
 
 - [x] Gemini-backed conversational planning
 - [x] Detailed plan auditing (components, materials, lighting)
 - [x] Electron desktop shell
-- [x] MCP orchestration logging + analyzer script
-- [ ] Persist conversation memory with vector embeddings
-- [ ] Viewport screenshot analysis & critiques
-- [ ] Production packaging for the desktop app
+- [x] MCP orchestration logging
+- [ ] Conversation memory with vector embeddings
+- [ ] Viewport screenshot analysis
+- [ ] Production desktop app packaging
+- [ ] Team collaboration features
 
-## 📚 Additional Resources
+## 📚 Documentation
 
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Prisma Documentation](https://www.prisma.io/docs)
-- [NextAuth.js Documentation](https://next-auth.js.org)
-- [Stripe Documentation](https://stripe.com/docs)
-- [Blender MCP Server](https://github.com/ahujasid/blender-mcp)
-
-## 📄 License
-
-[Your License Here]
+- [Contributing Guide](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security Policy](SECURITY.md)
+- [Setup Guide](SETUP.md)
+- [Blender MCP README](blendermcpreadme.md)
+- [Orchestration Details](gemini-blender-orchestration.md)
 
 ## 🤝 Contributing
 
-We welcome pull requests! Read [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow, coding standards, and testing steps. Use the GitHub issue templates when reporting bugs or proposing enhancements.
+We welcome contributions! Please read our [Contributing Guide](CONTRIBUTING.md) to get started.
+
+### Quick Contribution Steps
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feat/amazing-feature`)
+3. Make your changes
+4. Run tests and linting
+5. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+6. Push to your fork (`git push origin feat/amazing-feature`)
+7. Open a Pull Request
+
+See the [issue templates](.github/ISSUE_TEMPLATE) for reporting bugs or requesting features.
 
 ## 📧 Support
 
-For questions or issues:
-- Check the [documentation](/docs)
-- Open a GitHub issue
-- Contact support@modelforge.ai (if applicable)
+- 📖 [Documentation](README.md)
+- 💬 [GitHub Discussions](https://github.com/Ker102/ModelForge/discussions)
+- 🐛 [Report a Bug](https://github.com/Ker102/ModelForge/issues/new?template=bug_report.md)
+- 💡 [Request a Feature](https://github.com/Ker102/ModelForge/issues/new?template=feature_request.md)
+
+## 📄 License
+
+This project is licensed under the terms specified in the [LICENSE](LICENSE) file.
+
+## 🙏 Acknowledgments
+
+- [Next.js](https://nextjs.org/) - The React Framework
+- [Blender MCP](https://github.com/ahujasid/blender-mcp) - Blender integration
+- [shadcn/ui](https://ui.shadcn.com/) - Beautiful UI components
+- [Prisma](https://www.prisma.io/) - Next-generation ORM
+- [Google Gemini](https://ai.google.dev/) - AI orchestration
+
+## ⭐ Star History
+
+If you find ModelForge useful, please consider starring the repository!
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Ker102/ModelForge&type=Date)](https://star-history.com/#Ker102/ModelForge&Date)
 
 ---
 
-Built with ❤️ using Next.js, PostgreSQL, and Stripe
+<div align="center">
+
+Built with ❤️ by the ModelForge community
+
+[Website](#) • [Documentation](README.md) • [Discord](#) • [Twitter](#)
+
+</div>
