@@ -6,6 +6,8 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
     groups:
       nextjs:
         patterns:
@@ -17,3 +19,6 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    labels:
+      - "dependencies"
+      - "github-actions"
