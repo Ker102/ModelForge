@@ -15,7 +15,7 @@
     "analyze:orchestration": "node scripts/analyze-orchestration.mjs"
   },
   "dependencies": {
-    "@auth/prisma-adapter": "^2.6.0",
+    "@auth/prisma-adapter": "^2.11.1",
     "@prisma/client": "^5.20.0",
     "@radix-ui/react-slot": "^1.2.4",
     "bcryptjs": "^2.4.3",
