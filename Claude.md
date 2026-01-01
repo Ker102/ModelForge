@@ -119,6 +119,8 @@ cd desktop && npm run dev  # Start Electron app (requires web app running)
 | Prisma schema | ✅ Complete | Users, Projects, Conversations, Messages |
 | AI Orchestration layer | ✅ Complete | Planner, Executor, Prompts |
 | Desktop Electron shell | ✅ Complete | Basic wrapper working |
+| **Serverless DB Migration** | 🔄 In Progress | Neon config ready, schema updated |
+| **AI Engineering Upgrade** | 🔄 In Progress | LangChain core implemented, refactoring pending |
 
 ### Roadmap (from README)
 - [x] Gemini-backed conversational planning
@@ -142,7 +144,30 @@ cd desktop && npm run dev  # Start Electron app (requires web app running)
 
 ### 2026-01-01
 - Created `Claude.md` for project tracking and agent rules
+- Created `Claude.md` for project tracking and agent rules
 - Analyzed full project structure and documented tech stack
+- **Architecture Upgrade Phase 1 (Database)**:
+  - Selected Neon (serverless PostgreSQL) with pgvector
+  - Updated `prisma/schema.prisma` with `directUrl` and `DocumentEmbedding` model
+  - Configured `lib/db.ts` for serverless connection pooling
+  - Updated `.env.example` with Neon and Together.ai keys
+- **Architecture Upgrade Phase 2 (AI Engineering)**:
+  - Integrated **LangChain.js** framework
+  - Configured **Gemini 3 Pro Preview** as primary LLM
+  - Configured **Together.ai M2-BERT** (768-dim) for embeddings
+  - Created `lib/ai/` module:
+    - `index.ts`: Core client initialization
+    - `embeddings.ts`: M2-BERT integration
+    - `vectorstore.ts`: Neon pgvector store
+    - `rag.ts`: RAG pipeline with context-aware generation
+    - `prompts.ts`: LangChain `PromptTemplate` system
+    - `chains.ts`: Zod-validated planning/validation chains
+    - `agents.ts`: ReAct-style Blender agent implementation
+
+### Pending
+- Refactor `lib/orchestration/planner.ts` to use new AI module
+- Refactor `lib/orchestration/executor.ts` to use new AI module
+- Run migration and verification tests
 
 ---
 

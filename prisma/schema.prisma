@@ -9,6 +9,7 @@ generator client {
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")  // For Neon migrations (bypasses connection pooler)
   extensions = [pgvector(map: "vector")]
 }
 
@@ -171,4 +172,16 @@ model UsageLog {
   project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   @@map("usage_logs")
+}
+
+// Document embeddings for RAG (Vector Store)
+model DocumentEmbedding {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  content   String   @db.Text
+  embedding Unsupported("vector(768)")?  // M2-BERT-Retrieval-32k produces 768-dim vectors
+  metadata  Json?    @db.JsonB
+  source    String?  @db.VarChar(255)    // e.g., "blender-docs", "user-context"
+  createdAt DateTime @default(now())
+
+  @@map("document_embeddings")
 }
