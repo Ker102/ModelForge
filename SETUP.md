@@ -64,21 +64,30 @@ Once the provider is running, open **Dashboard → Settings → Local LLM Config
 
 Use the **Test connection** button to confirm we can reach your runtime, then click **Save configuration**.
 
-### 2. Database Setup
+### 2. Database Setup (Neon Serverless)
 
-```bash
-# Create the database
-createdb modelforge
+ModelForge uses [Neon](https://neon.tech) for serverless PostgreSQL and vector embeddings.
 
-# Or using psql
-psql -U postgres
-CREATE DATABASE modelforge;
+1. **Create a Project**:
+   - Sign up at [Neon Console](https://console.neon.tech).
+   - Create a new project (e.g., "modelforge").
 
-# Enable pgvector extension
-psql -U postgres -d modelforge
-CREATE EXTENSION IF NOT EXISTS vector;
-\q
-```
+2. **Get Connection Strings**:
+   - In the Neon Dashboard, look for "Connection Details".
+   - Copy the **pooled** connection string for `DATABASE_URL`.
+   - Copy the **direct** connection string for `DIRECT_URL`.
+
+3. **Enable pgvector**:
+   - Go to the **SQL Editor** in Neon.
+   - Run: `CREATE EXTENSION IF NOT EXISTS vector;`
+
+4. **Update .env**:
+   Ensure your `.env` file has both URL variants:
+
+   ```env
+   DATABASE_URL="postgres://user:pass@ep-xyz-pool.region.aws.neon.tech/modelforge?sslmode=require"
+   DIRECT_URL="postgres://user:pass@ep-xyz-direct.region.aws.neon.tech/modelforge?sslmode=require"
+   ```
 
 ### 3. Initialize the Project
 

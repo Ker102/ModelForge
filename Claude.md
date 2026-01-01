@@ -119,8 +119,8 @@ cd desktop && npm run dev  # Start Electron app (requires web app running)
 | Prisma schema | ✅ Complete | Users, Projects, Conversations, Messages |
 | AI Orchestration layer | ✅ Complete | Planner, Executor, Prompts |
 | Desktop Electron shell | ✅ Complete | Basic wrapper working |
-| **Serverless DB Migration** | 🔄 In Progress | Neon config ready, schema updated |
-| **AI Engineering Upgrade** | 🔄 In Progress | LangChain core implemented, refactoring pending |
+| **Serverless DB Migration** | ✅ Complete | Neon config compatible |
+| **AI Engineering Upgrade** | ✅ Complete | LangChain, Agents, RAG implemented |
 
 ### Roadmap (from README)
 - [x] Gemini-backed conversational planning
@@ -165,9 +165,10 @@ cd desktop && npm run dev  # Start Electron app (requires web app running)
     - `agents.ts`: ReAct-style Blender agent implementation
 
 ### Pending
-- Refactor `lib/orchestration/planner.ts` to use new AI module
-- Refactor `lib/orchestration/executor.ts` to use new AI module
-- Run migration and verification tests
+- Refactored `lib/orchestration/planner.ts` to use new AI module (BlenderAgent)
+- Refactored `lib/orchestration/executor.ts` to use new AI module (BlenderAgent)
+- Updated `SETUP.md` with Neon instructions
+- Run migration and verification tests (Pending)
 
 ---
 

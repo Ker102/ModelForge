@@ -135,6 +135,15 @@ export class BlenderAgent {
     }
 
     /**
+     * Load an existing plan into the agent
+     */
+    loadPlan(plan: Plan) {
+        this.state.plan = plan
+        this.state.currentStepIndex = 0
+        this.log("plan", `Loaded external plan with ${plan.steps.length} steps`, plan)
+    }
+
+    /**
      * Execute the current plan
      * Note: This is a framework method - actual MCP execution happens externally
      */
@@ -180,7 +189,7 @@ export class BlenderAgent {
                 if (attempt < this.config.maxRetries) {
                     const recovery = await generateRecovery({
                         stepDescription: step.action,
-                        error: lastError,
+                        error: lastError ?? "Unknown error",
                         sceneState: JSON.stringify(this.state.sceneState ?? {}),
                     })
 

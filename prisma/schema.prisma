@@ -9,7 +9,7 @@ generator client {
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
-  directUrl  = env("DIRECT_URL")  // For Neon migrations (bypasses connection pooler)
+  directUrl  = env("DIRECT_URL") // For Neon migrations (bypasses connection pooler)
   extensions = [pgvector(map: "vector")]
 }
 
@@ -32,9 +32,9 @@ model User {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  accounts Account[]
-  sessions Session[]
-  projects Project[]
+  accounts  Account[]
+  sessions  Session[]
+  projects  Project[]
   usageLogs UsageLog[]
 
   @@map("users")
@@ -81,24 +81,24 @@ model VerificationToken {
 
 // Projects table
 model Project {
-  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId        String   @db.Uuid
-  name          String   @db.VarChar(255)
-  description   String?  @db.Text
-  blenderVersion String? @db.VarChar(50)
-  thumbnailUrl  String?  @db.Text
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId               String   @db.Uuid
+  name                 String   @db.VarChar(255)
+  description          String?  @db.Text
+  blenderVersion       String?  @db.VarChar(50)
+  thumbnailUrl         String?  @db.Text
   allowHyper3dAssets   Boolean  @default(false)
   allowSketchfabAssets Boolean  @default(false)
   allowPolyHavenAssets Boolean  @default(true)
   allowWebResearch     Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  lastModified  DateTime @updatedAt
-  isDeleted     Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  lastModified         DateTime @updatedAt
+  isDeleted            Boolean  @default(false)
 
-  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   conversations Conversation[]
-  snapshots    ProjectSnapshot[]
-  usageLogs    UsageLog[]
+  snapshots     ProjectSnapshot[]
+  usageLogs     UsageLog[]
 
   @@map("projects")
 }
@@ -148,12 +148,12 @@ model ProjectSnapshot {
 
 // Subscription plans
 model SubscriptionPlan {
-  id               String  @id @db.VarChar(50)
-  name             String  @db.VarChar(100)
-  priceMonthly     Decimal @db.Decimal(10, 2)
-  priceYearly      Decimal @db.Decimal(10, 2)
-  features         Json    @db.JsonB
-  maxProjects      Int
+  id                 String  @id @db.VarChar(50)
+  name               String  @db.VarChar(100)
+  priceMonthly       Decimal @db.Decimal(10, 2)
+  priceYearly        Decimal @db.Decimal(10, 2)
+  features           Json    @db.JsonB
+  maxProjects        Int
   maxMonthlyRequests Int
 
   @@map("subscription_plans")
@@ -176,12 +176,12 @@ model UsageLog {
 
 // Document embeddings for RAG (Vector Store)
 model DocumentEmbedding {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  content   String   @db.Text
-  embedding Unsupported("vector(768)")?  // M2-BERT-Retrieval-32k produces 768-dim vectors
-  metadata  Json?    @db.JsonB
-  source    String?  @db.VarChar(255)    // e.g., "blender-docs", "user-context"
-  createdAt DateTime @default(now())
+  id        String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  content   String                      @db.Text
+  embedding Unsupported("vector(768)")? // M2-BERT-Retrieval-32k produces 768-dim vectors
+  metadata  Json?                       @db.JsonB
+  source    String?                     @db.VarChar(255) // e.g., "blender-docs", "user-context"
+  createdAt DateTime                    @default(now())
 
   @@map("document_embeddings")
 }
