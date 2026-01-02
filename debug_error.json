@@ -1,0 +1,18 @@
+{
+  "message": "\nInvalid `prisma.$queryRaw()` invocation:\n\n\nRaw query failed. Code: `42601`. Message: `ERROR: type modifiers must be simple constants or identifiers`",
+  "code": "P2010",
+  "meta": {
+    "code": "42601",
+    "message": "ERROR: type modifiers must be simple constants or identifiers"
+  },
+  "stack": "PrismaClientKnownRequestError: \nInvalid `prisma.$queryRaw()` invocation:\n\n\nRaw query failed. Code: `42601`. Message: `ERROR: type modifiers must be simple constants or identifiers`\n    at $n.handleRequestError (C:\\Users\\krist\\Desktop\\Cursor-Projects\\Projects\\modelforge\\ModelForge\\node_modules\\@prisma\\client\\runtime\\library.js:121:7315)\n    at $n.handleAndLogRequestError (C:\\Users\\krist\\Desktop\\Cursor-Projects\\Projects\\modelforge\\ModelForge\\node_modules\\@prisma\\client\\runtime\\library.js:121:6623)\n    at $n.request (C:\\Users\\krist\\Desktop\\Cursor-Projects\\Projects\\modelforge\\ModelForge\\node_modules\\@prisma\\client\\runtime\\library.js:121:6307)\n    at async l (C:\\Users\\krist\\Desktop\\Cursor-Projects\\Projects\\modelforge\\ModelForge\\node_modules\\@prisma\\client\\runtime\\library.js:130:9633)\n    at async addDocuments (C:\\Users\\krist\\Desktop\\Cursor-Projects\\Projects\\modelforge\\ModelForge\\lib\\ai\\vectorstore.ts:58:24)\n    at async ingest (C:\\Users\\krist\\Desktop\\Cursor-Projects\\Projects\\modelforge\\ModelForge\\scripts\\ingest-blender-docs.ts:66:21)",
+  "error": {
+    "name": "PrismaClientKnownRequestError",
+    "code": "P2010",
+    "clientVersion": "5.22.0",
+    "meta": {
+      "code": "42601",
+      "message": "ERROR: type modifiers must be simple constants or identifiers"
+    }
+  }
+}

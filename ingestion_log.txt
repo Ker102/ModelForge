@@ -1,0 +1,41 @@
+­ƒÜÇ Starting ingestion from C:\Users\krist\Desktop\Cursor-Projects\Projects\modelforge\ModelForge\data\blender-scripts...
+­ƒº╣ Clearing existing documents for source: blender-scripts...
+­ƒôä Prepared: material_utils.py (Material and Color Management)
+­ƒôä Prepared: mesh_utils.py (Create Basic Mesh Primitives)
+­ƒôä Prepared: scene_utils.py (Lighting and Camera Setup)
+­ƒôä Prepared: transform_utils.py (Object Transformations)
+­ƒôñ Ingesting 4 documents...
+prisma:error 
+Invalid `prisma.$queryRaw()` invocation:
+
+
+Raw query failed. Code: `42601`. Message: `ERROR: type modifiers must be simple constants or identifiers`
+ÔØî Ingestion failed:
+Message: 
+Invalid `prisma.$queryRaw()` invocation:
+
+
+Raw query failed. Code: `42601`. Message: `ERROR: type modifiers must be simple constants or identifiers`
+Code: P2010
+Meta: {
+  "code": "42601",
+  "message": "ERROR: type modifiers must be simple constants or identifiers"
+}
+PrismaClientKnownRequestError: 
+Invalid `prisma.$queryRaw()` invocation:
+
+
+Raw query failed. Code: `42601`. Message: `ERROR: type modifiers must be simple constants or identifiers`
+    at $n.handleRequestError (C:\Users\krist\Desktop\Cursor-Projects\Projects\modelforge\ModelForge\node_modules\@prisma\client\runtime\library.js:121:7315)
+    at $n.handleAndLogRequestError (C:\Users\krist\Desktop\Cursor-Projects\Projects\modelforge\ModelForge\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\krist\Desktop\Cursor-Projects\Projects\modelforge\ModelForge\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\krist\Desktop\Cursor-Projects\Projects\modelforge\ModelForge\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async addDocuments (C:\Users\krist\Desktop\Cursor-Projects\Projects\modelforge\ModelForge\lib\ai\vectorstore.ts:58:24)
+    at async ingest (C:\Users\krist\Desktop\Cursor-Projects\Projects\modelforge\ModelForge\scripts\ingest-blender-docs.ts:62:21) {
+  code: 'P2010',
+  clientVersion: '5.22.0',
+  meta: {
+    code: '42601',
+    message: 'ERROR: type modifiers must be simple constants or identifiers'
+  }
+}

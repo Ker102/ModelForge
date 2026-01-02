@@ -168,7 +168,16 @@ cd desktop && npm run dev  # Start Electron app (requires web app running)
 - Refactored `lib/orchestration/planner.ts` to use new AI module (BlenderAgent)
 - Refactored `lib/orchestration/executor.ts` to use new AI module (BlenderAgent)
 - Updated `SETUP.md` with Neon instructions
-- Run migration and verification tests (Pending)
+- **Architecture Upgrade Phase 4 (RAG Population)**:
+  - Created library of Blender Python scripts in `data/blender-scripts/`
+  - Implemented `scripts/ingest-blender-docs.ts` for automated ingestion
+  - Successfully populated Neon pgvector with initial documentation
+  - Verified semantic retrieval with `scripts/test-rag.ts`
+- **Script Library Enhancement (Phase 5)**:
+  - Enhanced existing scripts: `mesh`, `material`, `scene`, `transform`
+  - Created new scripts: `selection`, `clean`, `modifier`, `curve`, `text`
+  - Re-ingested all scripts and verified with expanded queries
+- Run migration and verification tests (Complete)
 
 ---
 
