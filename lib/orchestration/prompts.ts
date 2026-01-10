@@ -183,5 +183,11 @@ if not bpy.context.scene.camera:
 Observation: Car scene now contains body, wheels, glass, headlights, lighting, and camera.`
 
 export function buildSystemPrompt() {
-  return [REACT_GUIDELINES, TOOL_DESCRIPTIONS, FEW_SHOT_EXAMPLES].join("\n\n")
+    return [REACT_GUIDELINES, TOOL_DESCRIPTIONS, FEW_SHOT_EXAMPLES].join("\n\n")
 }
+
+// Re-export the comprehensive Blender Agent System Prompt
+export {
+    BLENDER_AGENT_SYSTEM_PROMPT,
+    buildBlenderSystemPrompt
+} from './prompts/index'
