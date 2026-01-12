@@ -1,7 +1,16 @@
-
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
 import { GenerationPanel } from "@/components/generation/GenerationPanel";
+import { ErrorBoundary } from "@/components/generation/ErrorBoundary";
 
-export default function GeneratePage() {
+export default async function GeneratePage() {
+    // Server-side auth protection
+    const session = await auth();
+
+    if (!session?.user) {
+        redirect("/login");
+    }
+
     return (
         <div className="container mx-auto py-10">
             <div className="mb-8 text-center">
@@ -10,7 +19,9 @@ export default function GeneratePage() {
                     Create game-ready assets using SOTA AI models Hunyuan3D and TRELLIS.
                 </p>
             </div>
-            <GenerationPanel />
+            <ErrorBoundary fallbackTitle="3D Generation Error">
+                <GenerationPanel />
+            </ErrorBoundary>
         </div>
     );
 }

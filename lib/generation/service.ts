@@ -4,7 +4,7 @@ import { replicate, MODELS, GenerationRequest, GenerationResponse } from "./clie
 export async function generate3D(request: GenerationRequest): Promise<GenerationResponse> {
     try {
         let modelId = "";
-        let input: any = {};
+        let input: Record<string, unknown> = {};
 
         // Map request to specific model inputs
         if (request.model_type === 'hunyuan') {
@@ -12,23 +12,28 @@ export async function generate3D(request: GenerationRequest): Promise<Generation
             // Hunyuan specific inputs
             input = {
                 prompt: request.prompt,
-                image: request.image_url,
-                // add other parameters as needed
             };
+            // Only include image if provided
+            if (request.image_url) {
+                input.image = request.image_url;
+            }
         } else if (request.model_type === 'trellis') {
             modelId = MODELS.TRELLIS;
-            // Trellis specific inputs
+
+            // Trellis is primarily image-to-3D and requires an image
+            if (!request.image_url) {
+                // If no image but has prompt, we could implement text-to-image first
+                // For now, return a clear validation error
+                return {
+                    id: "validation-" + Date.now(),
+                    status: 'failed',
+                    error: "TRELLIS model requires an image_url. Please provide an image or use Hunyuan3D for text-to-3D generation."
+                };
+            }
+
             input = {
                 image: request.image_url,
-                // Trellis is primarily image-to-3d, might need text-to-image step if only prompt provided
-                // For now assuming image_url is present or we fetch a temporary image driven by prompt
             };
-
-            if (!request.image_url && request.prompt) {
-                // TODO: Implement Text-to-Image step here if Trellis doesn't support text directly
-                // For now, throw if no image
-                // actually Trellis often takes image. 
-            }
         }
 
         if (!modelId) {
@@ -36,22 +41,21 @@ export async function generate3D(request: GenerationRequest): Promise<Generation
         }
 
         // Run the model
-        // Note: Replicate.run waits for completion, .predictions.create is async
         console.log(`🚀 Starting generation with ${modelId}...`);
-        const output = await replicate.run(modelId as any, { input });
+        const output = await replicate.run(modelId as `${string}/${string}`, { input });
 
         return {
-            id: "generated-" + Date.now(), // Replicate run ID would be better if using predictions.create
+            id: "generated-" + Date.now(),
             status: 'succeeded',
-            output: output
+            output: output as string | string[]
         };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("3D Generation Error:", error);
         return {
             id: "error-" + Date.now(),
             status: 'failed',
-            error: error.message || "Unknown error during generation"
+            error: error instanceof Error ? error.message : "Unknown error during generation"
         };
     }
 }
