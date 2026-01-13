@@ -4,18 +4,42 @@
 
 **AI-Powered Blender Assistant**
 
-Transform your 3D workflow with AI-powered Blender automation. Create, modify, and enhance your Blender projects through natural conversation.
+<p align="center">
+  Transform your 3D workflow with AI-powered Blender automation.<br>
+  Create, modify, and enhance your Blender projects through natural conversation.
+</p>
 
-[![GitHub release](https://img.shields.io/github/v/release/Ker102/ModelForge?include_prereleases&style=flat-square)](https://github.com/Ker102/ModelForge/releases)
-[![License](https://img.shields.io/github/license/Ker102/ModelForge?style=flat-square)](LICENSE)
-[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-336791?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
+<!-- Project Status Badges -->
+<a href="https://github.com/Ker102/ModelForge/releases">
+  <img src="https://img.shields.io/github/v/release/Ker102/ModelForge?style=for-the-badge&color=2563EB" alt="GitHub Release">
+</a>
+<a href="LICENSE">
+  <img src="https://img.shields.io/github/license/Ker102/ModelForge?style=for-the-badge&color=4ade80" alt="License">
+</a>
+<a href="https://nextjs.org/">
+  <img src="https://img.shields.io/badge/Next.js_16-HDR-black?style=for-the-badge&logo=next.js" alt="Next.js">
+</a>
+<a href="https://www.typescriptlang.org/">
+  <img src="https://img.shields.io/badge/TypeScript-5.6-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
+</a>
+<a href="https://www.postgresql.org/">
+  <img src="https://img.shields.io/badge/PostgreSQL-14+-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
+</a>
 
-[![GitHub issues](https://img.shields.io/github/issues/Ker102/ModelForge?style=flat-square)](https://github.com/Ker102/ModelForge/issues)
-[![GitHub pull requests](https://img.shields.io/github/issues-pr/Ker102/ModelForge?style=flat-square)](https://github.com/Ker102/ModelForge/pulls)
-[![GitHub stars](https://img.shields.io/github/stars/Ker102/ModelForge?style=flat-square)](https://github.com/Ker102/ModelForge/stargazers)
-[![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
+<br>
+
+<!-- Social/Community Badges -->
+<a href="https://github.com/Ker102/ModelForge/issues">
+  <img src="https://img.shields.io/github/issues/Ker102/ModelForge?style=for-the-badge&color=EF4444" alt="Issues">
+</a>
+<a href="https://github.com/Ker102/ModelForge/pulls">
+  <img src="https://img.shields.io/github/issues-pr/Ker102/ModelForge?style=for-the-badge&color=F59E0B" alt="Pull Requests">
+</a>
+<a href="https://github.com/Ker102/ModelForge/stargazers">
+  <img src="https://img.shields.io/github/stars/Ker102/ModelForge?style=for-the-badge&color=FBBF24" alt="Stars">
+</a>
+
+<br><br>
 
 [Features](#-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Contributing](#-contributing) • [Support](#-support)
 
@@ -25,10 +49,10 @@ Transform your 3D workflow with AI-powered Blender automation. Create, modify, a
 
 ## 🚀 Features
 
-ModelForge is a comprehensive platform that brings AI capabilities to Blender through integrated components:
+ModelForge is a comprehensive platform that brings next-gen AI capabilities to Blender through integrated components:
 
 ### 🎨 AI-Orchestrated Scene Builder
-- **Gemini 2.0 Orchestration**: ReAct-style planner with per-step validation
+- **Gemini 3 Pro Orchestration**: Advanced ReAct-style planner with per-step validation
 - **Smart Material Application**: Automatic material assignment and validation
 - **Scene Auditing**: Ensures lighting, camera, and base materials exist with auto-correction
 
@@ -54,10 +78,10 @@ ModelForge is a comprehensive platform that brings AI capabilities to Blender th
 <td><b>Frontend</b></td>
 <td>
 
-![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)
-![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?style=flat-square&logo=typescript)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=flat-square&logo=tailwind-css)
+<img src="https://img.shields.io/badge/Next.js_16-HDR-black?style=for-the-badge&logo=next.js" alt="Next.js">
+<img src="https://img.shields.io/badge/React_19-HDR-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React">
+<img src="https://img.shields.io/badge/TypeScript-5.6-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
+<img src="https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind CSS">
 
 </td>
 </tr>
@@ -65,10 +89,10 @@ ModelForge is a comprehensive platform that brings AI capabilities to Blender th
 <td><b>Backend</b></td>
 <td>
 
-![Node.js](https://img.shields.io/badge/Node.js-24+-339933?style=flat-square&logo=node.js)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-336791?style=flat-square&logo=postgresql)
-![Prisma](https://img.shields.io/badge/Prisma-5.20-2D3748?style=flat-square&logo=prisma)
-![Neon](https://img.shields.io/badge/Neon-Serverless-00E599?style=flat-square&logo=postgresql)
+<img src="https://img.shields.io/badge/Node.js-24+-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js">
+<img src="https://img.shields.io/badge/PostgreSQL-14+-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
+<img src="https://img.shields.io/badge/Prisma-5.20-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma">
+<img src="https://img.shields.io/badge/Neon-Serverless-00E599?style=for-the-badge&logo=postgresql&logoColor=white" alt="Neon">
 
 </td>
 </tr>
@@ -76,10 +100,10 @@ ModelForge is a comprehensive platform that brings AI capabilities to Blender th
 <td><b>AI & RAG</b></td>
 <td>
 
-![Google Gemini](https://img.shields.io/badge/Gemini_2.x-Flash/Pro-4285F4?style=flat-square&logo=google)
-![LangChain](https://img.shields.io/badge/LangChain-JS-1C3C3C?style=flat-square&logo=langchain)
-![Together.ai](https://img.shields.io/badge/Together.ai-Embeddings-000000?style=flat-square)
-![pgvector](https://img.shields.io/badge/pgvector-Vector_DB-336791?style=flat-square)
+<img src="https://img.shields.io/badge/Gemini_3_Pro-Preview-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini 3 Pro">
+<img src="https://img.shields.io/badge/LangChain-JS-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white" alt="LangChain">
+<img src="https://img.shields.io/badge/Together.ai-Embeddings-000000?style=for-the-badge" alt="Together.ai">
+<img src="https://img.shields.io/badge/pgvector-Vector_DB-336791?style=for-the-badge" alt="pgvector">
 
 </td>
 </tr>
@@ -87,7 +111,7 @@ ModelForge is a comprehensive platform that brings AI capabilities to Blender th
 <td><b>Desktop</b></td>
 <td>
 
-![Electron](https://img.shields.io/badge/Electron-latest-47848F?style=flat-square&logo=electron)
+<img src="https://img.shields.io/badge/Electron-Latest-47848F?style=for-the-badge&logo=electron&logoColor=white" alt="Electron">
 
 </td>
 </tr>

@@ -18,7 +18,7 @@
 | **Auth** | NextAuth.js v5 (Credentials + Google OAuth) |
 | **UI** | shadcn/ui, Radix UI, Lucide Icons |
 | **Desktop** | Electron |
-| **AI** | Google Gemini 2.0 Flash / Pro |
+| **AI** | Google Gemini 3 Pro (Preview) |
 | **RAG** | Neon pgvector + Together.ai M2-BERT (768d) |
 | **Payments** | Stripe |
 
