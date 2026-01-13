@@ -11,28 +11,12 @@
 
 <!-- Tech Stack Header -->
 <p align="center">
-  <!-- Frontend -->
-  <img src="https://cdn.simpleicons.org/nextdotjs/000000" height="24" alt="Next.js" />&nbsp;<b>Next.js 16</b>
-  &nbsp;&nbsp;
-  <img src="https://cdn.simpleicons.org/typescript/3178C6" height="24" alt="TypeScript" />&nbsp;<b>TypeScript</b>
-  &nbsp;&nbsp;
-  <img src="https://cdn.simpleicons.org/tailwindcss/06B6D4" height="24" alt="Tailwind" />&nbsp;<b>Tailwind</b>
-  <br><br>
-  <!-- Backend & DB -->
-  <img src="https://cdn.simpleicons.org/nodedotjs/339933" height="24" alt="Node.js" />&nbsp;<b>Node.js</b>
-  &nbsp;&nbsp;
-  <img src="https://cdn.simpleicons.org/prisma/2D3748" height="24" alt="Prisma" />&nbsp;<b>Prisma</b>
-  &nbsp;&nbsp;
-  <img src="https://cdn.simpleicons.org/postgresql/4169E1" height="24" alt="PostgreSQL" />&nbsp;<b>PostgreSQL</b>
-  &nbsp;&nbsp;
-  <img src="https://cdn.simpleicons.org/postgresql/00E599" height="24" alt="Neon" />&nbsp;<b>Neon</b>
-  <br><br>
-  <!-- AI & RAG -->
-  <img src="https://cdn.simpleicons.org/google/4285F4" height="24" alt="Gemini" />&nbsp;<b>Gemini 3 Pro</b>
-  &nbsp;&nbsp;
-  <img src="https://cdn.simpleicons.org/langchain/1C3C3C" height="24" alt="LangChain" />&nbsp;<b>LangChain</b>
-  &nbsp;&nbsp;
-  <img src="https://cdn.simpleicons.org/postgresql/336791" height="24" alt="pgvector" />&nbsp;<b>pgvector</b>
+  <a href="https://skillicons.dev">
+    <img src="https://skillicons.dev/icons?i=nextjs,react,ts,tailwind,nodejs,prisma,postgres,electron,python,blender" />
+  </a>
+</p>
+<p align="center">
+  <b>Next.js 16 • TypeScript • Tailwind • Node.js • Prisma • Postgres • Electron • Blender</b>
 </p>
 
 <br>
@@ -74,10 +58,9 @@ ModelForge is a comprehensive platform that brings next-gen AI capabilities to B
 <td><b>Frontend</b></td>
 <td>
 <br>
-<img src="https://cdn.simpleicons.org/nextdotjs/000000" height="14"/>&nbsp; <b>Next.js 16</b><br>
-<img src="https://cdn.simpleicons.org/react/61DAFB" height="14"/>&nbsp; <b>React 19</b><br>
-<img src="https://cdn.simpleicons.org/typescript/3178C6" height="14"/>&nbsp; <b>TypeScript 5.6</b><br>
-<img src="https://cdn.simpleicons.org/tailwindcss/06B6D4" height="14"/>&nbsp; <b>Tailwind CSS 3.4</b>
+<img src="https://skillicons.dev/icons?i=nextjs,react,ts,tailwind" />
+<br><br>
+<b>Next.js 16 • React 19 • TypeScript 5.6 • Tailwind CSS</b>
 <br><br>
 </td>
 </tr>
@@ -85,29 +68,19 @@ ModelForge is a comprehensive platform that brings next-gen AI capabilities to B
 <td><b>Backend</b></td>
 <td>
 <br>
-<img src="https://cdn.simpleicons.org/nodedotjs/339933" height="14"/>&nbsp; <b>Node.js 24+</b><br>
-<img src="https://cdn.simpleicons.org/postgresql/4169E1" height="14"/>&nbsp; <b>PostgreSQL 14+</b><br>
-<img src="https://cdn.simpleicons.org/prisma/2D3748" height="14"/>&nbsp; <b>Prisma 5.20</b><br>
-<img src="https://cdn.simpleicons.org/postgresql/00E599" height="14"/>&nbsp; <b>Neon Serverless</b>
+<img src="https://skillicons.dev/icons?i=nodejs,prisma,postgres" />
+<br><br>
+<b>Node.js 24+ • Prisma 5.20 • PostgreSQL 14+ (Neon)</b>
 <br><br>
 </td>
 </tr>
 <tr>
-<td><b>AI & RAG</b></td>
+<td><b>AI & Desktop</b></td>
 <td>
 <br>
-<img src="https://cdn.simpleicons.org/google/4285F4" height="14"/>&nbsp; <b>Gemini 3 Pro</b><br>
-<img src="https://cdn.simpleicons.org/langchain/1C3C3C" height="14"/>&nbsp; <b>LangChain.js</b><br>
-<img src="https://cdn.simpleicons.org/googlecloud/4285F4" height="14"/>&nbsp; <b>Together.ai</b><br>
-<img src="https://cdn.simpleicons.org/postgresql/336791" height="14"/>&nbsp; <b>pgvector</b>
+<img src="https://skillicons.dev/icons?i=gcp,python,electron,blender" />
 <br><br>
-</td>
-</tr>
-<tr>
-<td><b>Desktop</b></td>
-<td>
-<br>
-<img src="https://cdn.simpleicons.org/electron/47848F" height="14"/>&nbsp; <b>Electron</b>
+<b>Gemini 3 Pro • LangChain • Electron • Blender API</b>
 <br><br>
 </td>
 </tr>
