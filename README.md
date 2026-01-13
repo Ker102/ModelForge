@@ -9,18 +9,16 @@
   Create, modify, and enhance your Blender projects through natural conversation.
 </p>
 
-<!-- Technology Badges -->
-<a href="https://nextjs.org/">
-  <img src="https://img.shields.io/badge/Next.js_16-HDR-black?style=for-the-badge&logo=next.js" alt="Next.js">
-</a>
-<a href="https://www.typescriptlang.org/">
-  <img src="https://img.shields.io/badge/TypeScript-5.6-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
-</a>
-<a href="https://www.postgresql.org/">
-  <img src="https://img.shields.io/badge/PostgreSQL-14+-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
-</a>
+<!-- Technology Tags -->
+<p align="center">
+  <img src="https://cdn.simpleicons.org/nextdotjs/000000" height="15" alt="Next.js" />&nbsp;<b>Next.js 16</b>
+  &nbsp;&nbsp;&nbsp;
+  <img src="https://cdn.simpleicons.org/typescript/3178C6" height="15" alt="TypeScript" />&nbsp;<b>TypeScript 5.6</b>
+  &nbsp;&nbsp;&nbsp;
+  <img src="https://cdn.simpleicons.org/postgresql/4169E1" height="15" alt="PostgreSQL" />&nbsp;<b>PostgreSQL 14+</b>
+</p>
 
-<br><br>
+<br>
 
 [Features](#-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Contributing](#-contributing) • [Support](#-support)
 
@@ -58,42 +56,42 @@ ModelForge is a comprehensive platform that brings next-gen AI capabilities to B
 <tr>
 <td><b>Frontend</b></td>
 <td>
-
-<img src="https://img.shields.io/badge/Next.js_16-HDR-black?style=for-the-badge&logo=next.js" alt="Next.js">
-<img src="https://img.shields.io/badge/React_19-HDR-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React">
-<img src="https://img.shields.io/badge/TypeScript-5.6-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
-<img src="https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind CSS">
-
+<br>
+<img src="https://cdn.simpleicons.org/nextdotjs/000000" height="14"/>&nbsp; <b>Next.js 16</b><br>
+<img src="https://cdn.simpleicons.org/react/61DAFB" height="14"/>&nbsp; <b>React 19</b><br>
+<img src="https://cdn.simpleicons.org/typescript/3178C6" height="14"/>&nbsp; <b>TypeScript 5.6</b><br>
+<img src="https://cdn.simpleicons.org/tailwindcss/06B6D4" height="14"/>&nbsp; <b>Tailwind CSS 3.4</b>
+<br><br>
 </td>
 </tr>
 <tr>
 <td><b>Backend</b></td>
 <td>
-
-<img src="https://img.shields.io/badge/Node.js-24+-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js">
-<img src="https://img.shields.io/badge/PostgreSQL-14+-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
-<img src="https://img.shields.io/badge/Prisma-5.20-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma">
-<img src="https://img.shields.io/badge/Neon-Serverless-00E599?style=for-the-badge&logo=postgresql&logoColor=white" alt="Neon">
-
+<br>
+<img src="https://cdn.simpleicons.org/nodedotjs/339933" height="14"/>&nbsp; <b>Node.js 24+</b><br>
+<img src="https://cdn.simpleicons.org/postgresql/4169E1" height="14"/>&nbsp; <b>PostgreSQL 14+</b><br>
+<img src="https://cdn.simpleicons.org/prisma/2D3748" height="14"/>&nbsp; <b>Prisma 5.20</b><br>
+<img src="https://cdn.simpleicons.org/postgresql/00E599" height="14"/>&nbsp; <b>Neon Serverless</b>
+<br><br>
 </td>
 </tr>
 <tr>
 <td><b>AI & RAG</b></td>
 <td>
-
-<img src="https://img.shields.io/badge/Gemini_3_Pro-Preview-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini 3 Pro">
-<img src="https://img.shields.io/badge/LangChain-JS-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white" alt="LangChain">
-<img src="https://img.shields.io/badge/Together.ai-Embeddings-000000?style=for-the-badge" alt="Together.ai">
-<img src="https://img.shields.io/badge/pgvector-Vector_DB-336791?style=for-the-badge" alt="pgvector">
-
+<br>
+<img src="https://cdn.simpleicons.org/google/4285F4" height="14"/>&nbsp; <b>Gemini 3 Pro</b><br>
+<img src="https://cdn.simpleicons.org/langchain/1C3C3C" height="14"/>&nbsp; <b>LangChain.js</b><br>
+<img src="https://cdn.simpleicons.org/googlecloud/4285F4" height="14"/>&nbsp; <b>Together.ai</b><br>
+<img src="https://cdn.simpleicons.org/postgresql/336791" height="14"/>&nbsp; <b>pgvector</b>
+<br><br>
 </td>
 </tr>
 <tr>
 <td><b>Desktop</b></td>
 <td>
-
-<img src="https://img.shields.io/badge/Electron-Latest-47848F?style=for-the-badge&logo=electron&logoColor=white" alt="Electron">
-
+<br>
+<img src="https://cdn.simpleicons.org/electron/47848F" height="14"/>&nbsp; <b>Electron</b>
+<br><br>
 </td>
 </tr>
 </table>
