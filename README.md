@@ -9,13 +9,7 @@
   Create, modify, and enhance your Blender projects through natural conversation.
 </p>
 
-<!-- Project Status Badges -->
-<a href="https://github.com/Ker102/ModelForge/releases">
-  <img src="https://img.shields.io/github/v/release/Ker102/ModelForge?style=for-the-badge&color=2563EB" alt="GitHub Release">
-</a>
-<a href="LICENSE">
-  <img src="https://img.shields.io/github/license/Ker102/ModelForge?style=for-the-badge&color=4ade80" alt="License">
-</a>
+<!-- Technology Badges -->
 <a href="https://nextjs.org/">
   <img src="https://img.shields.io/badge/Next.js_16-HDR-black?style=for-the-badge&logo=next.js" alt="Next.js">
 </a>
@@ -24,19 +18,6 @@
 </a>
 <a href="https://www.postgresql.org/">
   <img src="https://img.shields.io/badge/PostgreSQL-14+-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
-</a>
-
-<br>
-
-<!-- Social/Community Badges -->
-<a href="https://github.com/Ker102/ModelForge/issues">
-  <img src="https://img.shields.io/github/issues/Ker102/ModelForge?style=for-the-badge&color=EF4444" alt="Issues">
-</a>
-<a href="https://github.com/Ker102/ModelForge/pulls">
-  <img src="https://img.shields.io/github/issues-pr/Ker102/ModelForge?style=for-the-badge&color=F59E0B" alt="Pull Requests">
-</a>
-<a href="https://github.com/Ker102/ModelForge/stargazers">
-  <img src="https://img.shields.io/github/stars/Ker102/ModelForge?style=for-the-badge&color=FBBF24" alt="Stars">
 </a>
 
 <br><br>
