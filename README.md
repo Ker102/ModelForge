@@ -9,13 +9,30 @@
   Create, modify, and enhance your Blender projects through natural conversation.
 </p>
 
-<!-- Technology Tags -->
+<!-- Tech Stack Header -->
 <p align="center">
-  <img src="https://cdn.simpleicons.org/nextdotjs/000000" height="15" alt="Next.js" />&nbsp;<b>Next.js 16</b>
-  &nbsp;&nbsp;&nbsp;
-  <img src="https://cdn.simpleicons.org/typescript/3178C6" height="15" alt="TypeScript" />&nbsp;<b>TypeScript 5.6</b>
-  &nbsp;&nbsp;&nbsp;
-  <img src="https://cdn.simpleicons.org/postgresql/4169E1" height="15" alt="PostgreSQL" />&nbsp;<b>PostgreSQL 14+</b>
+  <!-- Frontend -->
+  <img src="https://cdn.simpleicons.org/nextdotjs/000000" height="24" alt="Next.js" />&nbsp;<b>Next.js 16</b>
+  &nbsp;&nbsp;
+  <img src="https://cdn.simpleicons.org/typescript/3178C6" height="24" alt="TypeScript" />&nbsp;<b>TypeScript</b>
+  &nbsp;&nbsp;
+  <img src="https://cdn.simpleicons.org/tailwindcss/06B6D4" height="24" alt="Tailwind" />&nbsp;<b>Tailwind</b>
+  <br><br>
+  <!-- Backend & DB -->
+  <img src="https://cdn.simpleicons.org/nodedotjs/339933" height="24" alt="Node.js" />&nbsp;<b>Node.js</b>
+  &nbsp;&nbsp;
+  <img src="https://cdn.simpleicons.org/prisma/2D3748" height="24" alt="Prisma" />&nbsp;<b>Prisma</b>
+  &nbsp;&nbsp;
+  <img src="https://cdn.simpleicons.org/postgresql/4169E1" height="24" alt="PostgreSQL" />&nbsp;<b>PostgreSQL</b>
+  &nbsp;&nbsp;
+  <img src="https://cdn.simpleicons.org/postgresql/00E599" height="24" alt="Neon" />&nbsp;<b>Neon</b>
+  <br><br>
+  <!-- AI & RAG -->
+  <img src="https://cdn.simpleicons.org/google/4285F4" height="24" alt="Gemini" />&nbsp;<b>Gemini 3 Pro</b>
+  &nbsp;&nbsp;
+  <img src="https://cdn.simpleicons.org/langchain/1C3C3C" height="24" alt="LangChain" />&nbsp;<b>LangChain</b>
+  &nbsp;&nbsp;
+  <img src="https://cdn.simpleicons.org/postgresql/336791" height="24" alt="pgvector" />&nbsp;<b>pgvector</b>
 </p>
 
 <br>
