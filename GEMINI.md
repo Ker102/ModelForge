@@ -1,6 +1,6 @@
-# Claude.md - ModelForge Project Rules & Progress Tracker
+# GEMINI.md - ModelForge Project Rules & Progress Tracker
 
-> **Last Updated:** 2026-01-01  
+> **Last Updated:** 2026-01-13
 > **Status:** Active Development
 
 ---
@@ -12,21 +12,22 @@
 ### Tech Stack
 | Layer | Technologies |
 |-------|-------------|
-| **Frontend** | Next.js 15, React 19, TypeScript 5.6, Tailwind CSS 3.4 |
-| **Backend** | Node.js 18+, PostgreSQL 14+ with pgvector |
+| **Frontend** | Next.js 16, React 19, TypeScript 5.6, Tailwind CSS 3.4 |
+| **Backend** | Node.js 24+, PostgreSQL 14+ with pgvector |
 | **ORM** | Prisma 5.20 |
 | **Auth** | NextAuth.js v5 (Credentials + Google OAuth) |
 | **UI** | shadcn/ui, Radix UI, Lucide Icons |
 | **Desktop** | Electron |
-| **AI** | Google Gemini 2.x API |
+| **AI** | Google Gemini 2.0 Flash / Pro |
+| **RAG** | Neon pgvector + Together.ai M2-BERT (768d) |
 | **Payments** | Stripe |
 
 ### Core Features
 - 🤖 **AI Orchestration**: ReAct-style planner with per-step validation
 - 🔌 **Blender MCP Integration**: Socket bridge for executing Python in Blender
+- 📚 **Hybrid RAG Pipeline**: Context-aware generation using 113+ professional Blender scripts
 - 🌐 **Web Dashboard**: Project management, auth, conversation history
 - 🖥️ **Desktop App**: Electron wrapper with native MCP connectivity
-- 📊 **Subscription System**: Free, Starter ($12/mo), Pro ($29/mo) tiers
 
 ---
 
@@ -35,24 +36,18 @@
 ```
 ModelForge/
 ├── app/                    # Next.js app directory
-│   ├── api/               # API routes
-│   ├── dashboard/         # Protected dashboard pages
-│   ├── login/, signup/    # Auth pages
-│   └── page.tsx           # Landing page
 ├── components/            # React components
-│   ├── ui/               # shadcn/ui base components
-│   ├── landing/          # Landing page sections
-│   ├── dashboard/        # Dashboard components
-│   └── auth/             # Auth forms
+├── data/
+│   └── blender-scripts/   # Library of 113+ Python scripts
+│       ├── tasks/        # Task-specific generators
+│       └── *.py          # Utility modules
 ├── lib/                   # Utility libraries
-│   ├── orchestration/    # AI orchestration (planner, executor, prompts)
-│   ├── mcp/              # MCP client for Blender
-│   ├── auth.ts           # NextAuth configuration
-│   ├── db.ts             # Prisma client
-│   └── gemini.ts         # Gemini API integration
+│   ├── ai/               # RAG, Embeddings, VectorStore
+│   ├── orchestration/    # Planner, Executor
+│   └── mcp/              # Blender MCP Client
 ├── prisma/               # Database schema
 ├── desktop/              # Electron application
-└── scripts/              # Utility scripts
+└── scripts/              # Ingestion and utility scripts
 ```
 
 ---
@@ -62,21 +57,76 @@ ModelForge/
 ```bash
 # Development
 npm run dev              # Start Next.js dev server (port 3000)
-npm run lint             # Run ESLint
+npm run ingest:blender   # Ingest Blender scripts into RAG pipeline
 
 # Database
-npm run db:generate      # Generate Prisma client
 npm run db:push          # Push schema to database
-npm run db:migrate       # Run migrations
 npm run db:studio        # Open Prisma Studio
 
 # Testing
-npm run test:user        # Create test user (test@modelforge.dev / TestPass123!)
-
-# Desktop
-cd desktop && npm run dev  # Start Electron app (requires web app running)
+npm run test:user        # Create test user
 ```
 
+---
+
+## 📜 Agent Rules
+
+### ⚡ Before EVERY Commit
+1. **Update this file** (`GEMINI.md`) with:
+   - Any new features or changes made
+   - Updated progress tracking
+2. **Run linting**: `npm run lint`
+3. **Stage and commit** with descriptive messages:
+   - `feat:` new features
+   - `fix:` bug fixes
+   - `docs:` documentation changes
+
+### 🎯 Coding Standards
+- **TypeScript**: Strict typing, avoid `any`
+- **RAG First**: Always check existing scripts before generating new code
+- **Components**: Functional components with Hooks
+- **Styling**: Tailwind CSS utility classes
+
+---
+
+## 📊 Progress Tracking
+
+### Current Sprint
+| Task | Status | Notes |
+|------|--------|-------|
+| Initial project setup | ✅ Complete | Next.js 16 + all integrations |
+| Authentication system | ✅ Complete | NextAuth v5 with Google OAuth |
+| AI Orchestration layer | ✅ Complete | Planner, Executor, Prompts |
+| **Serverless DB Migration** | ✅ Complete | Neon pgvector compatibility |
+| **AI Engineering Upgrade** | ✅ Complete | LangChain, Agents, RAG implemented |
+| **Script Library Expansion** | ✅ Complete | **113 scripts** (46 utility + 67 tasks) |
+| **RAG Pipeline Ingestion** | ✅ Complete | Recursive ingestion of all scripts |
+
+### Roadmap
+- [x] Gemini-backed conversational planning
+- [x] Detailed plan auditing (components, materials, lighting)
+- [x] Electron desktop shell
+- [x] RAG Pipeline (100+ scripts)
+- [ ] Conversation memory with vector embeddings
+- [ ] Viewport screenshot analysis
+- [ ] Production desktop app packaging
+
+---
+
+## 📝 Session Log
+
+### 2026-01-13 (Current)
+- Renamed project tracker to `GEMINI.md`
+- **Script Library Expansion**:
+  - Expanded library to **113 scripts** (exceeded 100 target)
+  - Added comprehensive utility modules: `sculpt_utils`, `weight_paint`, `geonodes`, `texture_paint`
+  - Added 60+ task-based generators in `tasks/` subdirectory
+- **RAG Pipeline Completion**:
+  - Updated `scripts/ingest-blender-docs.ts` to support recursive directory scanning
+  - Successfully ingested all 113 scripts into Neon pgvector database
+  - Verified embedding generation with Together.ai M2-BERT model
+- **Documentation**:
+  - Updated README.md and GEMINI.md to reflect new capabilities
 ---
 
 ## 📜 Agent Rules

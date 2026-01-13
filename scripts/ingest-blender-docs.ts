@@ -3,6 +3,10 @@
  * 
  * Reads Python scripts from data/blender-scripts/, extracts metadata,
  * generates embeddings, and stores them in the Neon pgvector store.
+ * 
+ * Processes both:
+ * - Root utility scripts (data/blender-scripts/*.py)
+ * - Task-based scripts (data/blender-scripts/tasks/**/*.py)
  */
 
 import fs from 'fs';
@@ -16,6 +20,41 @@ dotenv.config();
 const SCRIPTS_DIR = path.join(process.cwd(), 'data', 'blender-scripts');
 const SOURCE_TAG = 'blender-scripts';
 
+/**
+ * Recursively find all Python files in a directory
+ */
+function findPythonFiles(dir: string, fileList: string[] = []): string[] {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+    for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+
+        if (entry.isDirectory()) {
+            findPythonFiles(fullPath, fileList);
+        } else if (entry.isFile() && entry.name.endsWith('.py')) {
+            fileList.push(fullPath);
+        }
+    }
+
+    return fileList;
+}
+
+/**
+ * Extract relative path category from file path
+ */
+function getCategory(filePath: string): string {
+    const relativePath = path.relative(SCRIPTS_DIR, filePath);
+    const parts = relativePath.split(path.sep);
+
+    if (parts.length === 1) {
+        return 'utility';
+    }
+
+    // Remove filename and join remaining parts
+    parts.pop();
+    return parts.join('/');
+}
+
 async function ingest() {
     console.log(`🚀 Starting ingestion from ${SCRIPTS_DIR}...`);
 
@@ -24,27 +63,32 @@ async function ingest() {
         console.log(`🧹 Clearing existing documents for source: ${SOURCE_TAG}...`);
         await deleteBySource(SOURCE_TAG);
 
-        const files = fs.readdirSync(SCRIPTS_DIR).filter(f => f.endsWith('.py'));
+        // 2. Find all Python files recursively
+        const allFiles = findPythonFiles(SCRIPTS_DIR);
+        console.log(`📂 Found ${allFiles.length} Python files`);
+
         const documents = [];
 
-        for (const file of files) {
-            const filePath = path.join(SCRIPTS_DIR, file);
+        for (const filePath of allFiles) {
+            const filename = path.basename(filePath);
             const content = fs.readFileSync(filePath, 'utf-8');
+            const category = getCategory(filePath);
 
             // Extraction of metadata from the docstring
             // Expecting format: """ { "json": "metadata" } """ at the start of the file
             const docstringMatch = content.match(/^"""([\s\S]*?)"""/);
-            let metadata = { filename: file };
-            let cleanContent = content;
+            let metadata: Record<string, unknown> = {
+                filename,
+                path: path.relative(SCRIPTS_DIR, filePath),
+                category
+            };
 
             if (docstringMatch) {
                 try {
                     const extractedJson = JSON.parse(docstringMatch[1].trim());
                     metadata = { ...metadata, ...extractedJson };
-                    // Optionally remove the docstring from content to keep it clean, 
-                    // or keep it for context. We'll keep it for now.
-                } catch (e) {
-                    console.warn(`⚠️ Could not parse metadata in ${file}: ${e.message}`);
+                } catch (e: any) {
+                    console.warn(`⚠️ Could not parse metadata in ${filename}: ${e.message}`);
                 }
             }
 
@@ -53,7 +97,7 @@ async function ingest() {
                 metadata: metadata,
                 source: SOURCE_TAG
             });
-            console.log(`📄 Prepared: ${file} (${metadata.title || 'Untitled'})`);
+            console.log(`📄 Prepared: ${metadata.path} (${metadata.title || 'Untitled'}) [${category}]`);
         }
 
         if (documents.length === 0) {
@@ -61,11 +105,39 @@ async function ingest() {
             return;
         }
 
-        // 2. Add to vector store (handles embedding generation via Together.ai)
+        // 3. Add to vector store in batches (handles embedding generation via Together.ai)
         console.log(`📤 Ingesting ${documents.length} documents...`);
-        const ids = await addDocuments(documents);
 
-        console.log(`✅ Successfully ingested ${ids.length} documents.`);
+        const BATCH_SIZE = 10;
+        const allIds: string[] = [];
+
+        for (let i = 0; i < documents.length; i += BATCH_SIZE) {
+            const batch = documents.slice(i, i + BATCH_SIZE);
+            console.log(`   Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(documents.length / BATCH_SIZE)}...`);
+
+            const ids = await addDocuments(batch);
+            allIds.push(...ids);
+
+            // Small delay between batches to avoid rate limiting
+            if (i + BATCH_SIZE < documents.length) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+
+        console.log(`✅ Successfully ingested ${allIds.length} documents.`);
+        console.log(`   📊 Summary:`);
+
+        // Count by category
+        const categoryCounts: Record<string, number> = {};
+        for (const doc of documents) {
+            const cat = (doc.metadata.category as string) || 'unknown';
+            categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+        }
+
+        for (const [cat, count] of Object.entries(categoryCounts)) {
+            console.log(`      - ${cat}: ${count}`);
+        }
+
     } catch (error: any) {
         console.error('❌ Ingestion failed:');
         const errorData = {
