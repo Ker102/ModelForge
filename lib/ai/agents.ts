@@ -8,6 +8,7 @@ import { createGeminiModel } from "./index"
 import { generatePlan, validateStep, generateRecovery, type Plan, type PlanStep } from "./chains"
 import { formatContextFromSources, type RAGResult } from "./rag"
 import { similaritySearch } from "./vectorstore"
+import { analyzeViewport, compareWithExpectation, type VisionAnalysisResult } from "./vision"
 
 // ============================================================================
 // Types
@@ -21,11 +22,15 @@ export interface AgentState {
     failedSteps: Array<{ step: PlanStep; error: string }>
     sceneState?: unknown
     logs: AgentLog[]
+    /** Latest viewport screenshot (base64) */
+    viewportImage?: string
+    /** Latest vision analysis result */
+    lastVisionAnalysis?: VisionAnalysisResult
 }
 
 export interface AgentLog {
     timestamp: Date
-    type: "plan" | "execute" | "validate" | "recover" | "complete" | "error"
+    type: "plan" | "execute" | "validate" | "recover" | "complete" | "error" | "vision"
     message: string
     data?: unknown
 }
@@ -34,8 +39,14 @@ export interface AgentConfig {
     maxRetries: number
     useRAG: boolean
     ragSource?: string
+    /** Enable visual feedback loop */
+    useVision: boolean
+    /** Max visual validation iterations per step */
+    maxVisionIterations: number
     onLog?: (log: AgentLog) => void
     onStepComplete?: (step: PlanStep, result: unknown) => void
+    /** Callback to capture viewport screenshot */
+    onCaptureViewport?: () => Promise<string>
 }
 
 // ============================================================================
@@ -76,8 +87,11 @@ export class BlenderAgent {
             maxRetries: config.maxRetries ?? 2,
             useRAG: config.useRAG ?? true,
             ragSource: config.ragSource ?? "blender-docs",
+            useVision: config.useVision ?? false,
+            maxVisionIterations: config.maxVisionIterations ?? 3,
             onLog: config.onLog,
             onStepComplete: config.onStepComplete,
+            onCaptureViewport: config.onCaptureViewport,
         }
 
         this.state = {
@@ -213,6 +227,75 @@ export class BlenderAgent {
     }
 
     /**
+     * Capture viewport screenshot and analyze it with vision
+     * Requires onCaptureViewport callback to be configured
+     */
+    async captureAndAnalyzeViewport(context?: string): Promise<VisionAnalysisResult | null> {
+        if (!this.config.onCaptureViewport) {
+            this.log("vision", "Vision capture not available - no onCaptureViewport callback")
+            return null
+        }
+
+        try {
+            this.log("vision", "Capturing viewport screenshot...")
+            const imageBase64 = await this.config.onCaptureViewport()
+            this.state.viewportImage = imageBase64
+
+            this.log("vision", "Analyzing viewport with Gemini Vision...")
+            const analysis = await analyzeViewport(imageBase64, context ?? this.state.request)
+            this.state.lastVisionAnalysis = analysis
+
+            this.log("vision", `Vision analysis complete: ${analysis.assessment}`, analysis)
+            return analysis
+        } catch (error) {
+            this.log("error", `Vision capture/analysis failed: ${error}`)
+            return null
+        }
+    }
+
+    /**
+     * Validate a step's expected outcome visually
+     */
+    async validateStepVisually(expectedOutcome: string): Promise<{
+        matches: boolean
+        analysis?: VisionAnalysisResult
+        comparison?: { observed: string; differences: string[] }
+    }> {
+        if (!this.config.useVision || !this.config.onCaptureViewport) {
+            return { matches: true } // Skip visual validation if not enabled
+        }
+
+        try {
+            const imageBase64 = await this.config.onCaptureViewport()
+            this.state.viewportImage = imageBase64
+
+            // Compare with expected outcome
+            const comparison = await compareWithExpectation(imageBase64, expectedOutcome)
+
+            // Also get a full analysis for context
+            const analysis = await analyzeViewport(imageBase64, expectedOutcome)
+            this.state.lastVisionAnalysis = analysis
+
+            this.log("vision", `Visual validation: ${comparison.matches ? "PASS" : "FAIL"}`, {
+                comparison,
+                analysis,
+            })
+
+            return {
+                matches: comparison.matches,
+                analysis,
+                comparison: {
+                    observed: comparison.observed,
+                    differences: comparison.differences,
+                },
+            }
+        } catch (error) {
+            this.log("error", `Visual validation failed: ${error}`)
+            return { matches: true } // Don't block on vision errors
+        }
+    }
+
+    /**
      * Get the current agent state
      */
     getState(): AgentState {
@@ -229,6 +312,8 @@ export class BlenderAgent {
             completedSteps: [],
             failedSteps: [],
             logs: [],
+            viewportImage: undefined,
+            lastVisionAnalysis: undefined,
         }
     }
 }

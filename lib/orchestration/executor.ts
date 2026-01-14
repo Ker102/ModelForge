@@ -3,7 +3,7 @@ import { randomUUID } from "crypto"
 import { createBlenderAgent, type AgentLog } from "@/lib/ai/agents"
 import { type Plan, type PlanStep } from "@/lib/ai/chains"
 import { type LlmProviderSpec } from "@/lib/llm"
-import { createMcpClient, type McpCommand } from "@/lib/mcp"
+import { createMcpClient, getViewportScreenshot, type McpCommand } from "@/lib/mcp"
 import { ExecutionLogEntry, ExecutionPlan, PlanAnalysis } from "./types"
 
 export interface ExecutionResult {
@@ -33,10 +33,14 @@ const POLYHAVEN_TOOLS = new Set([
   "download_polyhaven_asset",
 ])
 
-interface ExecutionOptions {
+export interface ExecutionOptions {
   allowHyper3d: boolean
   allowSketchfab: boolean
   allowPolyHaven: boolean
+  /** Enable visual feedback loop for scene validation */
+  enableVisualFeedback?: boolean
+  /** Maximum visual validation iterations per step (default: 3) */
+  maxVisualIterations?: number
 }
 
 export class PlanExecutor {
@@ -50,19 +54,29 @@ export class PlanExecutor {
     const client = createMcpClient()
     const logs: ExecutionLogEntry[] = []
 
-    // 1. Initialize BlenderAgent
+    // 1. Initialize BlenderAgent with vision support if enabled
     const agent = createBlenderAgent({
       maxRetries: 2,
-      useRAG: false, // Not needed for execution phase validation (unless detailed context is required)
+      useRAG: false, // Not needed for execution phase validation
+      useVision: options.enableVisualFeedback ?? false,
+      maxVisionIterations: options.maxVisualIterations ?? 3,
+      onCaptureViewport: options.enableVisualFeedback
+        ? async () => {
+          const screenshot = await getViewportScreenshot()
+          return screenshot.image
+        }
+        : undefined,
       onLog: (log: AgentLog) => {
         // Bridge agent logs to execution logs
-        if (log.type === "error" || log.type === "execute" || log.type === "recover") {
+        if (log.type === "error" || log.type === "execute" || log.type === "recover" || log.type === "vision") {
           logs.push({
             timestamp: log.timestamp.toISOString(),
-            tool: log.type === "execute" ? (log.data as PlanStep)?.action ?? "unknown" : "system",
+            tool: log.type === "execute" ? (log.data as PlanStep)?.action ?? "unknown" :
+              log.type === "vision" ? "vision_analysis" : "system",
             parameters: log.type === "execute" ? (log.data as PlanStep)?.parameters ?? {} : {},
             error: log.type === "error" ? log.message : undefined,
             result: log.type === "complete" ? log.data : undefined,
+            visualValidation: log.type === "vision" ? log.data as ExecutionLogEntry["visualValidation"] : undefined,
           })
         }
       },

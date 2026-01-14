@@ -32,3 +32,20 @@ export interface McpClientConfig {
   port: number
   timeoutMs: number
 }
+
+/**
+ * Response from get_viewport_screenshot MCP command.
+ * Contains base64-encoded image data from Blender's viewport.
+ */
+export interface ViewportScreenshotResponse {
+  /** Base64-encoded image data */
+  image: string
+  /** Image width in pixels */
+  width: number
+  /** Image height in pixels */
+  height: number
+  /** Image format */
+  format: "png" | "jpeg"
+  /** ISO timestamp when screenshot was captured */
+  timestamp: string
+}

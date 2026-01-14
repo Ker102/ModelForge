@@ -58,6 +58,18 @@ export interface ExecutionLogEntry {
   parameters: Record<string, unknown>
   result?: unknown
   error?: string
+  /** Visual validation result (if vision feedback is enabled) */
+  visualValidation?: {
+    screenshot?: string
+    analysis?: {
+      description: string
+      assessment: string
+      issues: string[]
+      suggestions: string[]
+    }
+    matches?: boolean
+    differences?: string[]
+  }
 }
 
 export interface PlanningMetadata {
