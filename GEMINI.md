@@ -93,7 +93,7 @@ npm run test:user        # Create test user
 
 ### Current Sprint
 | Task | Status | Notes |
-|------|--------|-------|
+|------|-----------|-------|
 | Initial project setup | ✅ Complete | Next.js 16 + all integrations |
 | Authentication system | ✅ Complete | NextAuth v5 with Google OAuth |
 | AI Orchestration layer | ✅ Complete | Planner, Executor, Prompts |
@@ -102,6 +102,7 @@ npm run test:user        # Create test user
 | **Script Library Expansion** | ✅ Complete | **113 scripts** (46 utility + 67 tasks) |
 | **RAG Pipeline Ingestion** | ✅ Complete | Recursive ingestion of all scripts |
 | **Viewport Screenshot Analysis** | ✅ Complete | Gemini Vision feedback loop |
+| **Conversation Memory** | ✅ Complete | Vector embeddings for context-aware responses |
 
 ### Roadmap
 - [x] Gemini-backed conversational planning
@@ -109,12 +110,23 @@ npm run test:user        # Create test user
 - [x] Electron desktop shell
 - [x] RAG Pipeline (100+ scripts)
 - [x] **Viewport screenshot analysis**
-- [ ] Conversation memory with vector embeddings
+- [x] **Conversation memory with vector embeddings**
 - [ ] Production desktop app packaging
 
 ---
 
 ## 📝 Session Log
+
+### 2026-01-16
+- **Agent Rules File**:
+  - Created `.cursor/rules.md` for coding agent instructions
+  - Added to `.gitignore` to keep local
+- **Conversation Memory Implementation**:
+  - Added `embedding` field to Message model (768-dim pgvector)
+  - Created `lib/memory/service.ts` with ConversationMemory class
+  - Implemented: `storeMessage()`, `retrieveContext()`, `clearMemory()`
+  - Integrated into BlenderPlanner with `useMemory` option
+  - Enables context-aware planning from past conversations
 
 ### 2026-01-14
 - **Viewport Screenshot Analysis Implementation**:

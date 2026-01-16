@@ -119,13 +119,14 @@ model Conversation {
 
 // Messages table
 model Message {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  conversationId String   @db.Uuid
-  role           String   @db.VarChar(20)
-  content        String   @db.Text
-  mcpCommands    Json?    @db.JsonB
-  mcpResults     Json?    @db.JsonB
-  createdAt      DateTime @default(now())
+  id             String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId String                      @db.Uuid
+  role           String                      @db.VarChar(20)
+  content        String                      @db.Text
+  mcpCommands    Json?                       @db.JsonB
+  mcpResults     Json?                       @db.JsonB
+  embedding      Unsupported("vector(768)")? // M2-BERT embedding for semantic search
+  createdAt      DateTime                    @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 

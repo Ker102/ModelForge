@@ -1,6 +1,7 @@
 import { createBlenderAgent, type BlenderAgent } from "@/lib/ai/agents"
 import { type Plan } from "@/lib/ai/chains"
 import { type LlmProviderSpec } from "@/lib/llm"
+import { createConversationMemory, type ConversationMemory } from "@/lib/memory"
 import { filterRelevantTools } from "./tool-filter"
 import { ExecutionPlan, PlanAnalysis, PlanGenerationResult, PlanStep } from "./types"
 
@@ -10,6 +11,12 @@ interface PlanningOptions {
   allowSketchfabAssets?: boolean
   allowPolyHavenAssets?: boolean
   researchContext?: string
+  /** Project ID for conversation memory */
+  projectId?: string
+  /** Enable conversation memory for context-aware planning */
+  useMemory?: boolean
+  /** Existing conversation memory instance */
+  memory?: ConversationMemory
 }
 
 export class BlenderPlanner {
@@ -27,21 +34,36 @@ export class BlenderPlanner {
       ragSource: "blender-docs", // Default source
     })
 
-    // 2. Inject scene context if available
+    // 2. Retrieve conversation memory context if enabled
+    let memoryContext = ""
+    if (options.useMemory && (options.projectId || options.memory)) {
+      try {
+        const memory = options.memory ?? createConversationMemory(options.projectId!)
+        const relevantMessages = await memory.retrieveContext(userRequest, {
+          limit: 5,
+          minSimilarity: 0.5,
+          roles: ["user", "assistant"],
+        })
+        memoryContext = memory.formatContextForPrompt(relevantMessages)
+      } catch (error) {
+        console.warn("Memory retrieval failed:", error)
+      }
+    }
+
+    // 3. Build enhanced request with context
+    let enhancedRequest = userRequest
     if (options.sceneSummary) {
-      // We pass this via the request for now, or we could update AgentState to accept it
-      // For now, we'll append it to the request context implicitly handled by the agent's planner
+      enhancedRequest = `Current Scene: ${options.sceneSummary}\n\nRequest: ${userRequest}`
+    }
+    if (memoryContext) {
+      enhancedRequest = `${memoryContext}\n\n${enhancedRequest}`
     }
 
     try {
-      // 3. Generate Plan using LangChain Agent
-      // The agent handles tool filtering implicitly via its prompt, but we can also pass specific tools if needed.
-      // For now, the agent uses the full toolset defined in agents.ts. 
-      // TODO: Pass restricted tool list to agent if options.allow* are false.
+      // 4. Generate Plan using LangChain Agent
+      const plan = await agent.plan(enhancedRequest)
 
-      const plan = await agent.plan(userRequest)
-
-      // 4. Transform to legacy ExecutionPlan format
+      // 5. Transform to legacy ExecutionPlan format
       const executionPlan = this.transformToExecutionPlan(plan)
 
       return {
@@ -77,3 +99,4 @@ export class BlenderPlanner {
     }
   }
 }
+
