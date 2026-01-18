@@ -1,18 +1,99 @@
 {
   "name": "modelforge-desktop",
   "version": "0.1.0",
-  "description": "Electron shell for the ModelForge Blender assistant",
+  "description": "ModelForge - AI-Powered Blender Assistant",
+  "author": "ModelForge Team",
   "private": true,
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "dev": "cross-env MODELFORGE_DESKTOP_ENV=development electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "build:all": "electron-builder --win --mac --linux",
     "lint": "echo \"No desktop lint configured yet\""
   },
   "dependencies": {
-    "electron": "^31.2.0"
+    "electron-updater": "^6.1.8"
   },
   "devDependencies": {
-    "cross-env": "^7.0.3"
+    "cross-env": "^7.0.3",
+    "electron": "^31.2.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.modelforge.desktop",
+    "productName": "ModelForge",
+    "copyright": "Copyright © 2026 ModelForge",
+    "artifactName": "${productName}-${version}-${platform}-${arch}.${ext}",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "assets/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../.next/standalone",
+        "to": "server",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.graphics-design"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        },
+        {
+          "target": "deb",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.png",
+      "category": "Graphics"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "Ker102",
+      "repo": "ModelForge"
+    }
   }
 }

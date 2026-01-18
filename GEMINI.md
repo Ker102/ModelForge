@@ -117,6 +117,17 @@ npm run test:user        # Create test user
 
 ## 📝 Session Log
 
+### 2026-01-18
+- **Test Scripts**:
+  - Created `scripts/test-vision.ts` for vision module testing
+  - Created `scripts/test-memory.ts` for memory service testing
+  - Added npm test commands: `test:vision`, `test:memory`, `test:rag`
+- **Desktop Production Build**:
+  - Configured `electron-builder` for Windows/Mac/Linux distribution
+  - Enhanced `main.js` with bundled server support
+  - Users download installer → runs standalone (no setup required)
+  - Updated `desktop/README.md` with build instructions
+
 ### 2026-01-16
 - **Agent Rules File**:
   - Created `.cursor/rules.md` for coding agent instructions

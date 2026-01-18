@@ -1,50 +1,70 @@
-# ModelForge Desktop (Electron)
+# ModelForge Desktop
 
-This folder contains the Electron shell that wraps the ModelForge web experience and exposes local integrations such as the Blender MCP bridge.
+Electron shell for the ModelForge Blender assistant.
 
 ## Development
 
-1. Install dependencies:
-   ```bash
-   cd desktop
-   npm install
-   ```
-   (Run in a network-enabled environment—no dependencies are vendored in this repo.)
+```bash
+# First, start the Next.js dev server in the main project
+cd ..
+npm run dev
 
-2. Start the Next.js app from the repository root:
-   ```bash
-   npm run dev
-   ```
-
-3. In another terminal, launch the Electron shell:
-   ```bash
-   cd desktop
-   npm run dev
-   ```
-
-By default the window loads `http://localhost:3000/dashboard`. Override with `MODELFORGE_DESKTOP_START_URL`.
-
-## Environment
-
-The Electron process forwards Blender MCP configuration to the renderer via the secure preload bridge:
-
-- `BLENDER_MCP_HOST` (defaults to `127.0.0.1`)
-- `BLENDER_MCP_PORT` (defaults to `9876`)
-
-Access the values in the renderer using:
-
-```ts
-const config = await window.modelforge.getMcpConfig()
+# Then start the Electron app in development mode
+cd desktop
+npm install
+npm run dev
 ```
 
-> Never hard-code secrets in the renderer bundle. Keep credentials in local `.env` files.
+## Production Build
 
-## Packaging
+The desktop app bundles the entire application for standalone distribution.
 
-Production bundling is not configured yet. Recommended tools for the next phase:
+### Prerequisites
 
-- [`electron-builder`](https://www.electron.build/)
-- [`electron-vite`](https://electron-vite.org/) or [`vite`](https://vitejs.dev/) for a richer renderer pipeline
-- Auto-updates via GitHub releases or custom distribution
+```bash
+# Build the Next.js standalone output first
+cd ..
+npm run build:standalone
 
-Contributions welcome!
+# Install desktop dependencies
+cd desktop
+npm install
+```
+
+### Build Commands
+
+```bash
+# Build for current platform
+npm run build
+
+# Build for specific platforms
+npm run build:win      # Windows (NSIS installer + portable)
+npm run build:mac      # macOS (DMG)
+npm run build:linux    # Linux (AppImage + .deb)
+
+# Build for all platforms
+npm run build:all
+```
+
+### Output
+
+Builds are placed in `desktop/dist/`:
+- **Windows**: `ModelForge-0.1.0-win-x64.exe` (installer), `ModelForge-0.1.0-win-x64-portable.exe`
+- **macOS**: `ModelForge-0.1.0-mac-x64.dmg`, `ModelForge-0.1.0-mac-arm64.dmg`
+- **Linux**: `ModelForge-0.1.0-linux-x64.AppImage`, `ModelForge-0.1.0-linux-x64.deb`
+
+## App Icons
+
+Place icons in `desktop/assets/`:
+- `icon.ico` (256x256 for Windows)
+- `icon.icns` (for macOS)
+- `icon.png` (512x512 for Linux)
+
+## Distribution
+
+Users download the installer/portable and run it directly - **no additional setup required**.
+
+The bundled app includes:
+- ✅ Next.js server (standalone mode)
+- ✅ All dependencies
+- ✅ Auto-update support (via electron-updater)

@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:standalone": "next build && node -e \"console.log('Standalone build ready')\"",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
@@ -12,11 +13,15 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "test:user": "node scripts/create-test-user.js",
+    "test:vision": "tsx scripts/test-vision.ts",
+    "test:memory": "tsx scripts/test-memory.ts",
+    "test:rag": "tsx scripts/test-rag.ts",
     "analyze:orchestration": "node scripts/analyze-orchestration.mjs",
     "ingest:blender": "tsx scripts/ingest-blender-docs.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.6.0",
+    "@google/generative-ai": "^0.24.1",
     "@langchain/core": "^0.3.0",
     "@langchain/google-genai": "^0.1.0",
     "@prisma/client": "^5.20.0",
