@@ -117,6 +117,17 @@ npm run test:user        # Create test user
 
 ## 📝 Session Log
 
+### 2026-01-21
+- **Custom ModelForge Blender Addon**:
+  - Created `desktop/assets/modelforge-addon.py` with branded UI
+  - Panel under "ModelForge" tab with status indicator (●/○)
+  - Organized UI with Settings and Asset Sources sections
+  - Added IPC handlers: `addon:get-path`, `addon:open-folder`
+- **Addon Setup Page**:
+  - Created `app/setup/page.tsx` with step-by-step installation guide
+  - Cross-platform path detection (Windows/macOS/Linux)
+  - "Open Addon Folder" button for easy access
+
 ### 2026-01-18
 - **Test Scripts**:
   - Created `scripts/test-vision.ts` for vision module testing
