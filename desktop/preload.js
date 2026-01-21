@@ -19,4 +19,12 @@ contextBridge.exposeInMainWorld("modelforge", {
   openAddonFolder: async () => {
     return ipcRenderer.invoke("addon:open-folder")
   },
+
+  // Auth - Listen for OAuth tokens from deep link
+  onAuthToken: (callback) => {
+    ipcRenderer.on("auth:token", (event, tokens) => {
+      callback(tokens)
+    })
+  },
 })
+

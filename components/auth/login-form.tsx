@@ -20,6 +20,9 @@ export function LoginForm({ initialErrorCode, callbackUrl }: LoginFormProps) {
   const [isOAuthLoading, setIsOAuthLoading] = useState(false)
   const [error, setError] = useState<string | null>(initialErrorCode || null)
 
+  // Detect if running in Electron
+  const isElectron = typeof window !== "undefined" && window.navigator.userAgent.includes("Electron")
+
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setIsLoading(true)
@@ -55,10 +58,16 @@ export function LoginForm({ initialErrorCode, callbackUrl }: LoginFormProps) {
     setIsOAuthLoading(true)
     try {
       const targetUrl = callbackUrl ?? "/dashboard"
+
+      // In Electron, use deep link redirect; in browser, use web redirect
+      const redirectUrl = isElectron
+        ? `modelforge://auth/callback?next=${encodeURIComponent(targetUrl)}`
+        : `${window.location.origin}/auth/callback?next=${encodeURIComponent(targetUrl)}`
+
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(targetUrl)}`,
+          redirectTo: redirectUrl,
         },
       })
 

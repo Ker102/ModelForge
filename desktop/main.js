@@ -1,14 +1,25 @@
 const path = require("node:path")
 const { spawn } = require("node:child_process")
-const { app, BrowserWindow, ipcMain, nativeTheme, dialog } = require("electron")
+const { app, BrowserWindow, ipcMain, nativeTheme, dialog, shell } = require("electron")
 
 // Configuration
 const DEFAULT_PORT = 3000
 const IS_DEV = process.env.MODELFORGE_DESKTOP_ENV === "development"
+const PROTOCOL = "modelforge"
+
+// Register deep link protocol (for OAuth callback)
+if (process.defaultApp) {
+  if (process.argv.length >= 2) {
+    app.setAsDefaultProtocolClient(PROTOCOL, process.execPath, [path.resolve(process.argv[1])])
+  }
+} else {
+  app.setAsDefaultProtocolClient(PROTOCOL)
+}
 
 let mainWindow = null
 let serverProcess = null
 let serverReady = false
+let pendingDeepLink = null
 
 /**
  * Get the URL to load in the renderer
@@ -155,6 +166,26 @@ function createWindow() {
     mainWindow = null
   })
 
+  // Handle external URLs (OAuth, etc.) - open in system browser
+  const { shell } = require("electron")
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    // Open external URLs in system browser
+    if (url.startsWith("https://") && !url.includes("127.0.0.1") && !url.includes("localhost")) {
+      shell.openExternal(url)
+      return { action: "deny" }
+    }
+    return { action: "allow" }
+  })
+
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    // If navigating to OAuth provider, open in system browser
+    if (url.includes("supabase.co") || url.includes("accounts.google.com")) {
+      event.preventDefault()
+      shell.openExternal(url)
+    }
+  })
+
   return mainWindow
 }
 
@@ -183,6 +214,68 @@ app.on("ready", async () => {
       createWindow()
     }
   })
+})
+
+/**
+ * Handle deep links (OAuth callback)
+ * Windows/Linux: second-instance event
+ * macOS: open-url event
+ */
+function handleDeepLink(url) {
+  console.log("[Desktop] Deep link received:", url)
+
+  if (url.startsWith(`${PROTOCOL}://`)) {
+    // Parse the deep link URL
+    const urlObj = new URL(url)
+    const params = urlObj.searchParams
+
+    // Check if this is an auth callback
+    if (urlObj.pathname === "/auth/callback" || urlObj.host === "auth") {
+      const accessToken = params.get("access_token")
+      const refreshToken = params.get("refresh_token")
+
+      if (accessToken && mainWindow) {
+        // Send tokens to renderer to complete auth
+        mainWindow.webContents.send("auth:token", { accessToken, refreshToken })
+        mainWindow.focus()
+      } else if (mainWindow) {
+        // Navigate to callback URL in app
+        const port = process.env.PORT || DEFAULT_PORT
+        const callbackUrl = `http://127.0.0.1:${port}/auth/callback?${params.toString()}`
+        mainWindow.loadURL(callbackUrl)
+        mainWindow.focus()
+      }
+    }
+  }
+}
+
+// Windows/Linux: Handle protocol when app is already running
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+  app.quit()
+} else {
+  app.on("second-instance", (event, commandLine) => {
+    // Find the deep link URL in command line args
+    const deepLinkUrl = commandLine.find((arg) => arg.startsWith(`${PROTOCOL}://`))
+    if (deepLinkUrl) {
+      handleDeepLink(deepLinkUrl)
+    }
+
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.focus()
+    }
+  })
+}
+
+// macOS: Handle protocol
+app.on("open-url", (event, url) => {
+  event.preventDefault()
+  if (app.isReady()) {
+    handleDeepLink(url)
+  } else {
+    pendingDeepLink = url
+  }
 })
 
 /**
