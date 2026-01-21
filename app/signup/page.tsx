@@ -1,13 +1,14 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { auth } from "@/lib/auth"
+import { createClient } from "@/lib/supabase/server"
 import { SignupForm } from "@/components/auth/signup-form"
 import { Hammer } from "lucide-react"
 
 export default async function SignupPage() {
-  const session = await auth()
-  
-  if (session) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (user) {
     redirect("/dashboard")
   }
 
@@ -39,4 +40,3 @@ export default async function SignupPage() {
     </div>
   )
 }
-

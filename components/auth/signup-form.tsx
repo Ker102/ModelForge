@@ -2,14 +2,18 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Loader2 } from "lucide-react"
 
 export function SignupForm() {
   const router = useRouter()
+  const supabase = createClient()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -22,24 +26,43 @@ export function SignupForm() {
     const name = formData.get("name") as string
 
     try {
-      const response = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, name }),
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+          },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
       })
 
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "Failed to create account")
+      if (signUpError) {
+        setError(signUpError.message)
+      } else {
+        setSuccess(true)
       }
-
-      // Auto-login after signup
-      router.push("/login?registered=true")
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "An error occurred")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred")
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (success) {
+    return (
+      <div className="grid gap-4 text-center">
+        <div className="text-green-600 font-medium">
+          ✓ Check your email!
+        </div>
+        <p className="text-sm text-muted-foreground">
+          We sent you a confirmation link. Click it to activate your account.
+        </p>
+        <Button variant="outline" onClick={() => router.push("/login")}>
+          Go to Login
+        </Button>
+      </div>
+    )
   }
 
   return (
@@ -89,7 +112,14 @@ export function SignupForm() {
             <div className="text-sm text-destructive">{error}</div>
           )}
           <Button disabled={isLoading}>
-            {isLoading ? "Creating account..." : "Create Account"}
+            {isLoading ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Creating account...
+              </span>
+            ) : (
+              "Create Account"
+            )}
           </Button>
         </div>
       </form>
@@ -99,4 +129,3 @@ export function SignupForm() {
     </div>
   )
 }
-

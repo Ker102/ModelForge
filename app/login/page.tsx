@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { auth } from "@/lib/auth"
+import { createClient } from "@/lib/supabase/server"
 import { LoginForm } from "@/components/auth/login-form"
 import { Hammer } from "lucide-react"
 
@@ -9,10 +9,11 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ error?: string; callbackUrl?: string }>
 }) {
-  const session = await auth()
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
   const resolvedSearchParams = await searchParams
 
-  if (session) {
+  if (user) {
     redirect("/dashboard")
   }
 
