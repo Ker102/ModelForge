@@ -218,3 +218,26 @@ ipcMain.handle("app:get-info", () => {
     isDev: IS_DEV,
   }
 })
+
+ipcMain.handle("addon:get-path", () => {
+  // In production, addon is in resources/assets
+  // In dev, it's in desktop/assets
+  const addonPath = IS_DEV
+    ? path.join(__dirname, "assets", "modelforge-addon.py")
+    : path.join(process.resourcesPath, "assets", "modelforge-addon.py")
+
+  return {
+    path: addonPath,
+    exists: require("fs").existsSync(addonPath)
+  }
+})
+
+ipcMain.handle("addon:open-folder", () => {
+  const { shell } = require("electron")
+  const addonPath = IS_DEV
+    ? path.join(__dirname, "assets")
+    : path.join(process.resourcesPath, "assets")
+
+  shell.openPath(addonPath)
+  return { opened: true, path: addonPath }
+})
