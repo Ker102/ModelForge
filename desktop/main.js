@@ -3,7 +3,7 @@ const { spawn } = require("node:child_process")
 const { app, BrowserWindow, ipcMain, nativeTheme, dialog, shell } = require("electron")
 
 // Configuration
-const DEFAULT_PORT = 3000
+const DEFAULT_PORT = 8081
 const IS_DEV = process.env.MODELFORGE_DESKTOP_ENV === "development"
 const PROTOCOL = "modelforge"
 

@@ -127,6 +127,12 @@ npm run test:user        # Create test user
   - Created `app/setup/page.tsx` with step-by-step installation guide
   - Cross-platform path detection (Windows/macOS/Linux)
   - "Open Addon Folder" button for easy access
+- **Supabase Auth Migration**:
+  - Created `lib/supabase/` with client, server, and middleware utilities
+  - Replaced NextAuth with Supabase auth in middleware
+  - Updated login/signup forms and pages to use Supabase
+  - Created OAuth callback route at `app/auth/callback/`
+  - Added Supabase environment variables
 
 ### 2026-01-18
 - **Test Scripts**:
