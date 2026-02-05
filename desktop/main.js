@@ -1,9 +1,11 @@
 const path = require("node:path")
+const http = require("node:http")
 const { spawn } = require("node:child_process")
 const { app, BrowserWindow, ipcMain, nativeTheme, dialog, shell } = require("electron")
 
 // Configuration
 const DEFAULT_PORT = 8081
+const AUTH_CALLBACK_PORT = 45678 // Local port for OAuth callback
 const IS_DEV = process.env.MODELFORGE_DESKTOP_ENV === "development"
 const PROTOCOL = "modelforge"
 
@@ -20,6 +22,7 @@ let mainWindow = null
 let serverProcess = null
 let serverReady = false
 let pendingDeepLink = null
+let authCallbackServer = null
 
 /**
  * Get the URL to load in the renderer
@@ -113,6 +116,91 @@ function getMcpConfigFromEnv() {
 }
 
 /**
+ * Start a local HTTP server to receive OAuth callback tokens
+ * This is more reliable than custom protocol handlers, especially on Linux
+ */
+function startAuthCallbackServer() {
+  if (authCallbackServer) return // Already running
+
+  authCallbackServer = http.createServer((req, res) => {
+    const url = new URL(req.url, `http://localhost:${AUTH_CALLBACK_PORT}`)
+
+    if (url.pathname === "/auth/callback") {
+      const accessToken = url.searchParams.get("access_token")
+      const refreshToken = url.searchParams.get("refresh_token")
+      const error = url.searchParams.get("error")
+
+      // Set CORS headers to allow browser redirect
+      res.setHeader("Access-Control-Allow-Origin", "*")
+      res.setHeader("Content-Type", "text/html")
+
+      if (error) {
+        console.log("[Desktop Auth] OAuth error:", error)
+        res.writeHead(200)
+        res.end(`
+          <!DOCTYPE html>
+          <html>
+          <head><title>Authentication Failed</title></head>
+          <body style="background:#1e293b;color:#f8fafc;font-family:system-ui;display:flex;justify-content:center;align-items:center;height:100vh;margin:0">
+            <div style="text-align:center">
+              <h1>❌ Authentication Failed</h1>
+              <p>${error}</p>
+              <p>You can close this window.</p>
+            </div>
+          </body>
+          </html>
+        `)
+        return
+      }
+
+      if (accessToken) {
+        console.log("[Desktop Auth] Received tokens, sending to renderer")
+
+        // Send tokens to renderer
+        if (mainWindow) {
+          mainWindow.webContents.send("auth:token", { accessToken, refreshToken })
+          mainWindow.focus()
+        }
+
+        res.writeHead(200)
+        res.end(`
+          <!DOCTYPE html>
+          <html>
+          <head><title>Authentication Successful</title></head>
+          <body style="background:#1e293b;color:#f8fafc;font-family:system-ui;display:flex;justify-content:center;align-items:center;height:100vh;margin:0">
+            <div style="text-align:center">
+              <h1 style="color:#22c55e">✓ Authentication Successful!</h1>
+              <p>You can close this window and return to ModelForge.</p>
+              <script>setTimeout(() => window.close(), 2000)</script>
+            </div>
+          </body>
+          </html>
+        `)
+        return
+      }
+
+      res.writeHead(400)
+      res.end("Missing tokens")
+      return
+    }
+
+    res.writeHead(404)
+    res.end("Not found")
+  })
+
+  authCallbackServer.listen(AUTH_CALLBACK_PORT, "127.0.0.1", () => {
+    console.log(`[Desktop Auth] Local callback server listening on http://127.0.0.1:${AUTH_CALLBACK_PORT}`)
+  })
+
+  authCallbackServer.on("error", (err) => {
+    console.error("[Desktop Auth] Server error:", err)
+    if (err.code === "EADDRINUSE") {
+      console.log("[Desktop Auth] Port already in use, assuming another instance is running")
+    }
+  })
+}
+
+/**
  * Create the main application window
  */
 function createWindow() {
@@ -201,6 +289,23 @@ app.on("ready", async () => {
     if (!IS_DEV) {
       await startBundledServer()
     }
+
+    // In development, clear any stale session cookies to prevent redirect loops
+    if (IS_DEV) {
+      const { session } = require("electron")
+      await session.defaultSession.clearStorageData({
+        storages: ["cookies"],
+        origin: "http://127.0.0.1:3000"
+      })
+      await session.defaultSession.clearStorageData({
+        storages: ["cookies"],
+        origin: "http://localhost:3000"
+      })
+      console.log("[Desktop] Cleared dev session cookies")
+    }
+
+    // Start local auth callback server (for OAuth tokens from browser)
+    startAuthCallbackServer()
 
     createWindow()
   } catch (error) {
@@ -333,4 +438,15 @@ ipcMain.handle("addon:open-folder", () => {
 
   shell.openPath(addonPath)
   return { opened: true, path: addonPath }
+})
+
+// Open URL in system browser (not Electron window)
+ipcMain.handle("shell:open-external", async (event, url) => {
+  try {
+    await shell.openExternal(url)
+    return { success: true }
+  } catch (error) {
+    console.error("[Desktop] Failed to open external URL:", error)
+    return { success: false, error: error.message }
+  }
 })

@@ -20,6 +20,11 @@ contextBridge.exposeInMainWorld("modelforge", {
     return ipcRenderer.invoke("addon:open-folder")
   },
 
+  // Open URL in system browser (not Electron window)
+  openExternal: async (url) => {
+    return ipcRenderer.invoke("shell:open-external", url)
+  },
+
   // Auth - Listen for OAuth tokens from deep link
   onAuthToken: (callback) => {
     ipcRenderer.on("auth:token", (event, tokens) => {
@@ -27,4 +32,3 @@ contextBridge.exposeInMainWorld("modelforge", {
     })
   },
 })
-

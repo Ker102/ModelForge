@@ -59,10 +59,24 @@ export function LoginForm({ initialErrorCode, callbackUrl }: LoginFormProps) {
     try {
       const targetUrl = callbackUrl ?? "/dashboard"
 
-      // In Electron, use deep link redirect; in browser, use web redirect
-      const redirectUrl = isElectron
-        ? `modelforge://auth/callback?next=${encodeURIComponent(targetUrl)}`
-        : `${window.location.origin}/auth/callback?next=${encodeURIComponent(targetUrl)}`
+      if (isElectron && window.modelforge?.openExternal) {
+        // For Electron: Open the browser with start-oauth page using shell.openExternal
+        // This opens the REAL system browser (not an Electron window)
+        // The browser will handle the entire OAuth flow and deep link back
+        const startOAuthUrl = `${window.location.origin}/auth/start-oauth?provider=google`
+        const result = await window.modelforge.openExternal(startOAuthUrl)
+
+        if (!result.success) {
+          setError("Failed to open browser for authentication")
+          setIsOAuthLoading(false)
+        }
+        // Keep loading state - user will return via deep link
+        // The ElectronAuthListener component will handle the session
+        return
+      }
+
+      // For regular browser: use standard OAuth flow
+      const redirectUrl = `${window.location.origin}/auth/callback?next=${encodeURIComponent(targetUrl)}`
 
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -81,6 +95,11 @@ export function LoginForm({ initialErrorCode, callbackUrl }: LoginFormProps) {
       setError("Failed to sign in with Google. Please try again.")
       setIsOAuthLoading(false)
     }
+  }
+
+  function cancelOAuth() {
+    setIsOAuthLoading(false)
+    setError(null)
   }
 
   return (
@@ -172,8 +191,20 @@ export function LoginForm({ initialErrorCode, callbackUrl }: LoginFormProps) {
             />
           </svg>
         )}
-        Continue with Google
+        {isOAuthLoading ? "Waiting for authentication..." : "Continue with Google"}
       </Button>
+
+      {/* Cancel button shown during OAuth loading */}
+      {isOAuthLoading && isElectron && (
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={cancelOAuth}
+          className="text-muted-foreground"
+        >
+          Cancel
+        </Button>
+      )}
     </div>
   )
 }

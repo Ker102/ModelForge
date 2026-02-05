@@ -7,9 +7,16 @@ export const runtime = "nodejs"
 export default async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname
 
+  // Debug logging for OAuth troubleshooting
+  const cookies = req.cookies.getAll()
+  const authCookies = cookies.filter(c => c.name.includes('auth-token'))
+  console.log(`[Middleware] ${pathname} - Auth cookies present: ${authCookies.length > 0}`, authCookies.map(c => c.name))
+
   // Update Supabase session
   const { supabaseResponse, user } = await updateSession(req)
   const isLoggedIn = !!user
+
+  console.log(`[Middleware] ${pathname} - User logged in: ${isLoggedIn}`, user?.email || 'none')
 
   const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/signup")
   const isDashboard = pathname.startsWith("/dashboard")
@@ -25,6 +32,7 @@ export default async function middleware(req: NextRequest) {
 
   // Protect dashboard routes
   if (isDashboard && !isLoggedIn) {
+    console.log(`[Middleware] Redirecting unauthenticated user from dashboard to login`)
     return NextResponse.redirect(new URL("/login", req.url))
   }
 
@@ -39,3 +47,4 @@ export default async function middleware(req: NextRequest) {
 export const config = {
   matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 }
+

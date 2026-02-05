@@ -117,6 +117,31 @@ npm run test:user        # Create test user
 
 ## 📝 Session Log
 
+### 2026-02-05 (WIP - Electron OAuth Session Persistence)
+- **Electron OAuth Flow Debugging** (IN PROGRESS):
+  - Investigating redirect loop after Google OAuth authentication
+  - Issue: Cookies set via API routes not persisting to subsequent requests
+  - **Files Modified**:
+    - `app/api/auth/set-session/route.ts` - Server-side session setting API
+    - `app/api/auth/set-session-redirect/route.ts` - Combined session set + redirect API
+    - `components/auth/electron-auth-listener.tsx` - Listens for tokens from Electron
+    - `middleware.ts` - Added debug logging for cookie inspection
+  - **Root Cause Analysis**:
+    - Cookies are being set correctly on API response (confirmed in logs)
+    - Origin mismatch fixed (127.0.0.1 vs localhost)
+    - Cookies not being sent with subsequent `/dashboard` requests
+    - Redirect loop: `/dashboard` → `/login` → `/dashboard`
+  - **Files Created**:
+    - `app/api/auth/set-session-redirect/route.ts` - Sets cookies AND redirects in one response
+  - **Debug Logging Added**:
+    - Middleware now logs cookie presence and user auth status
+    - Run `npm run dev` and check console for `[Middleware]` logs
+  - **Next Steps for Continuation**:
+    1. Check middleware logs to see if auth cookies are present on `/dashboard` requests
+    2. If cookies missing: Investigate Electron session/cookie storage
+    3. If cookies present but user null: Debug Supabase `getUser()` call
+    4. Consider alternative: Store session token in Electron and pass via header
+
 ### 2026-01-21
 - **Custom ModelForge Blender Addon**:
   - Created `desktop/assets/modelforge-addon.py` with branded UI
@@ -236,9 +261,11 @@ npm run test:user        # Create test user
 
 ## 🐛 Known Issues
 
-*No known issues at this time.*
-
----
+### 🔴 Electron OAuth Redirect Loop (Active Blocker)
+- **Symptom**: After successful Google OAuth authentication, Electron shows blue screen due to redirect loop
+- **Cause**: Cookies set in API response are not being sent with subsequent requests to `/dashboard`
+- **Status**: Under investigation - debug logging added to middleware
+- **Workaround**: None currently - OAuth in browser works fine, only Electron affected
 
 ## 📝 Session Log
 

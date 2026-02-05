@@ -1,0 +1,36 @@
+/**
+ * Global type definitions for ModelForge Electron IPC
+ */
+
+export interface ModelForgeElectronAPI {
+    // MCP Configuration
+    getMcpConfig: () => Promise<{ host: string; port: number }>
+
+    // App Info
+    getAppInfo: () => Promise<{
+        version: string
+        platform: string
+        arch: string
+        isDev: boolean
+    }>
+
+    // Addon Management
+    getAddonPath: () => Promise<{ path: string; exists: boolean }>
+    openAddonFolder: () => Promise<{ opened: boolean; path: string }>
+
+    // Open URL in system browser (not Electron window)
+    openExternal: (url: string) => Promise<{ success: boolean; error?: string }>
+
+    // Auth - Listen for OAuth tokens from deep link
+    onAuthToken: (
+        callback: (tokens: { accessToken: string; refreshToken: string }) => void
+    ) => void
+}
+
+declare global {
+    interface Window {
+        modelforge?: ModelForgeElectronAPI
+    }
+}
+
+export { }
