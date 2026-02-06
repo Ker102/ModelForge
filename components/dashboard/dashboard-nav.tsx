@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Hammer, LogOut, Settings, FolderOpen } from "lucide-react"
-import { signOut } from "next-auth/react"
+import { createClient } from "@/lib/supabase/client"
 
 interface DashboardNavProps {
   user?: {
@@ -22,6 +22,12 @@ export function DashboardNav({ user }: DashboardNavProps) {
   const searchString = searchParams.toString()
   const currentLocation = searchString ? `${pathname}?${searchString}` : pathname
   const upgradeHref = `/dashboard/settings?section=plans&from=${encodeURIComponent(currentLocation)}#plans`
+
+  async function handleSignOut() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    window.location.href = "/"
+  }
 
   return (
     <nav className="border-b bg-background">
@@ -69,7 +75,7 @@ export function DashboardNav({ user }: DashboardNavProps) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => signOut({ callbackUrl: "/" })}
+            onClick={handleSignOut}
             className="gap-2"
           >
             <LogOut className="h-4 w-4" />

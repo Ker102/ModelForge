@@ -7,20 +7,14 @@ export const runtime = "nodejs"
 export default async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname
 
-  // Debug logging for OAuth troubleshooting
-  const cookies = req.cookies.getAll()
-  const authCookies = cookies.filter(c => c.name.includes('auth-token'))
-  console.log(`[Middleware] ${pathname} - Auth cookies present: ${authCookies.length > 0}`, authCookies.map(c => c.name))
-
-  // Update Supabase session
+  // Update Supabase session (refreshes JWT if needed)
   const { supabaseResponse, user } = await updateSession(req)
   const isLoggedIn = !!user
-
-  console.log(`[Middleware] ${pathname} - User logged in: ${isLoggedIn}`, user?.email || 'none')
 
   const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/signup")
   const isDashboard = pathname.startsWith("/dashboard")
   const isSetupPage = pathname.startsWith("/setup")
+  const isGeneratePage = pathname.startsWith("/generate")
 
   // Redirect logged-in users away from auth pages
   if (isAuthPage) {
@@ -30,9 +24,8 @@ export default async function middleware(req: NextRequest) {
     return supabaseResponse
   }
 
-  // Protect dashboard routes
-  if (isDashboard && !isLoggedIn) {
-    console.log(`[Middleware] Redirecting unauthenticated user from dashboard to login`)
+  // Protect dashboard and generate routes
+  if ((isDashboard || isGeneratePage) && !isLoggedIn) {
     return NextResponse.redirect(new URL("/login", req.url))
   }
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
-import bcrypt from "bcryptjs"
+import { createClient } from "@/lib/supabase/server"
 import { z } from "zod"
 
 const signupSchema = z.object({
@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     const body = await req.json()
     const { email, password, name } = signupSchema.parse(body)
 
-    // Check if user already exists
+    // Check if user already exists in Prisma
     const existingUser = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
     })
@@ -26,14 +26,28 @@ export async function POST(req: Request) {
       )
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10)
+    // Sign up via Supabase Auth
+    const supabase = await createClient()
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: email.toLowerCase(),
+      password,
+      options: {
+        data: { name },
+      },
+    })
 
-    // Create user
+    if (authError) {
+      console.error("Supabase signup error:", authError)
+      return NextResponse.json(
+        { error: authError.message },
+        { status: 400 }
+      )
+    }
+
+    // Create the Prisma user record so it's ready when they confirm
     const user = await prisma.user.create({
       data: {
         email: email.toLowerCase(),
-        password: hashedPassword,
         name,
         subscriptionTier: "free",
       },
@@ -45,7 +59,9 @@ export async function POST(req: Request) {
           id: user.id, 
           email: user.email, 
           name: user.name 
-        } 
+        },
+        // If Supabase email confirmation is enabled this will be true
+        confirmEmail: !authData.session,
       },
       { status: 201 }
     )

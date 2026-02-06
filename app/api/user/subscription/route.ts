@@ -70,8 +70,8 @@ export async function POST(req: Request) {
           quantity: 1,
         },
       ],
-      success_url: successUrl || `${process.env.NEXTAUTH_URL}/dashboard?success=true`,
-      cancel_url: cancelUrl || `${process.env.NEXTAUTH_URL}/dashboard?canceled=true`,
+      success_url: successUrl || `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard?success=true`,
+      cancel_url: cancelUrl || `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard?canceled=true`,
       metadata: {
         userId: session.user.id,
       },
