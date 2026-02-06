@@ -20,7 +20,7 @@ export default function DocsPage() {
               <CardHeader>
                 <CardTitle>Quick Start Checklist</CardTitle>
                 <CardDescription>
-                  Before installing the desktop app or running the MCP bridge
+                  Get connected in three steps — no extra tools required
                 </CardDescription>
               </CardHeader>
               <CardContent className="prose prose-slate dark:prose-invert max-w-none">
@@ -28,101 +28,59 @@ export default function DocsPage() {
                   <li>
                     <p className="font-semibold">Install Blender 3.0+</p>
                     <div className="rounded-md bg-muted/40 p-3 text-sm text-muted-foreground space-y-1">
-                      <p><strong className="text-foreground">Linux:</strong> Download from <a href="https://www.blender.org/download/" target="_blank" rel="noreferrer">blender.org</a> or use your distribution&apos;s package manager.</p>
-                      <p><strong className="text-foreground">macOS:</strong> Use the universal dmg from <a href="https://www.blender.org/download/" target="_blank" rel="noreferrer">blender.org</a>.</p>
-                      <p><strong className="text-foreground">Windows:</strong> Download the installer from <a href="https://www.blender.org/download/" target="_blank" rel="noreferrer">blender.org</a> and follow the wizard.</p>
+                      <p>Download from <a href="https://www.blender.org/download/" target="_blank" rel="noreferrer">blender.org</a> and follow the installer for your platform.</p>
                     </div>
                   </li>
                   <li>
-                    <p className="font-semibold">Install Python 3.10+</p>
-                    <div className="rounded-md bg-muted/40 p-3 text-sm text-muted-foreground space-y-1">
-                      <p><strong className="text-foreground">Linux:</strong> <code>sudo apt install python3.10</code> / <code>sudo dnf install python3.10</code></p>
-                      <p><strong className="text-foreground">macOS:</strong> <code>brew install python@3.10</code> or download from <a href="https://www.python.org/downloads/" target="_blank" rel="noreferrer">python.org</a></p>
-                      <p><strong className="text-foreground">Windows:</strong> Installer from <a href="https://www.python.org/downloads/windows/" target="_blank" rel="noreferrer">python.org</a> (enable “Add to PATH”)</p>
-                    </div>
-                  </li>
-                  <li>
-                    <p className="font-semibold">Install Git</p>
-                    <div className="rounded-md bg-muted/40 p-3 text-sm text-muted-foreground space-y-1">
-                      <p><strong className="text-foreground">Linux:</strong> <code>sudo apt install git</code> / <code>sudo dnf install git</code></p>
-                      <p><strong className="text-foreground">macOS:</strong> <code>brew install git</code> or install Xcode command line tools</p>
-                      <p><strong className="text-foreground">Windows:</strong> Download from <a href="https://git-scm.com/downloads" target="_blank" rel="noreferrer">git-scm.com</a></p>
-                    </div>
-                  </li>
-                  <li>
-                    <p className="font-semibold">Install the <code>uv</code> package manager</p>
-                    <div className="rounded-md bg-muted/40 p-3 text-sm text-muted-foreground space-y-1">
-                      <p><strong className="text-foreground">Linux:</strong> <code>curl -LsSf https://astral.sh/uv/install.sh | sh</code></p>
-                      <p><strong className="text-foreground">macOS:</strong> <code>brew install uv</code> (or use the Linux script)</p>
-                      <p><strong className="text-foreground">Windows (PowerShell):</strong> <code>powershell -c &quot;irm https://astral.sh/uv/install.ps1 | iex&quot;</code></p>
-                      <p className="pt-1">Add the printed directory (e.g. <code>~/.local/bin</code> or <code>%USERPROFILE%\.local\bin</code>) to your PATH and verify with <code>uv --version</code>.</p>
-                    </div>
-                  </li>
-                  <li>
-                    <p className="font-semibold">Choose a local LLM runtime (required for free tier)</p>
-                    <div className="rounded-md bg-muted/40 p-3 text-sm text-muted-foreground space-y-1">
-                      <p><strong className="text-foreground">Ollama:</strong> install from <a href="https://ollama.com" target="_blank" rel="noreferrer">ollama.com</a>, run <code>ollama serve</code>, then pull a model such as <code>ollama pull llama3.1</code>.</p>
-                      <p><strong className="text-foreground">LM Studio:</strong> download from <a href="https://lmstudio.ai" target="_blank" rel="noreferrer">lmstudio.ai</a>, enable the OpenAI-compatible server (default <code>http://localhost:1234</code>), and copy the base URL.</p>
-                      <p>Open <strong>Dashboard → Settings → Local LLM Configuration</strong>, select your provider, enter the base URL/model name, and press <strong>Test connection</strong> before saving.</p>
-                    </div>
-                  </li>
-                  <li>
-                    <p className="font-semibold">Download the Blender MCP addon</p>
+                    <p className="font-semibold">Install the ModelForge addon in Blender</p>
                     <div className="rounded-md bg-muted/40 p-3 text-sm text-muted-foreground space-y-2">
+                      <p>The addon is bundled with the ModelForge desktop app. You can also download it directly:</p>
                       <a
                         href="/downloads/blender-mcp-addon.py"
                         download
                         className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
                       >
-                        <span>Direct download</span>
+                        <span>Download addon</span>
                       </a>
-                      <p>
-                        or clone the upstream repository:
-                        <br />
-                        <code>git clone https://github.com/ahujasid/blender-mcp.git</code>
-                      </p>
+                      <p className="pt-1">In Blender, go to <strong>Edit → Preferences → Add-ons → Install</strong>, select the downloaded file, and enable <strong>&quot;Interface: ModelForge Blender&quot;</strong>.</p>
                     </div>
                   </li>
-                  <li>Install the addon (Blender → Preferences → Add-ons → Install) and start the bridge with <code>uvx blender-mcp</code>.</li>
-                  <li>Launch ModelForge and confirm the MCP Connection card shows “Connected”.</li>
+                  <li>
+                    <p className="font-semibold">Connect to ModelForge</p>
+                    <div className="rounded-md bg-muted/40 p-3 text-sm text-muted-foreground space-y-1">
+                      <p>In Blender&apos;s 3D View, press <strong>N</strong> to open the sidebar, click the <strong>ModelForge</strong> tab, and hit <strong>&quot;Connect to ModelForge&quot;</strong>.</p>
+                      <p className="pt-1">Back in the ModelForge dashboard, the <em>MCP Connection</em> card should show &quot;Connected&quot;. You&apos;re ready to go!</p>
+                    </div>
+                  </li>
                 </ol>
+                <div className="mt-4 rounded-md bg-muted/40 p-3 text-sm text-muted-foreground">
+                  <p className="font-semibold text-foreground">No extra dependencies needed</p>
+                  <p>ModelForge bundles everything — no separate Python, Git, or <code>uv</code> install required. The addon runs inside Blender&apos;s built-in Python and communicates directly with ModelForge over a local socket connection.</p>
+                </div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Blender MCP Setup</CardTitle>
-                <CardDescription>Connect Blender to ModelForge</CardDescription>
+                <CardTitle>How It Works</CardTitle>
+                <CardDescription>How ModelForge controls Blender</CardDescription>
               </CardHeader>
               <CardContent className="prose prose-slate dark:prose-invert max-w-none">
+                <p>
+                  The ModelForge addon creates a lightweight socket server inside Blender (port 9876 by default).
+                  When you send a prompt in ModelForge, the AI generates Blender Python code, which is sent
+                  to the addon and executed directly in your scene.
+                </p>
+                <h4>Architecture</h4>
                 <ol>
-                  <li>
-                    Install <strong>Blender 3.0+</strong>, <strong>Python 3.10+</strong>, and the{" "}
-                    <code>uv</code> package manager (see <code>blendermcpreadme.md</code> or the upstream repo).
-                  </li>
-                  <li>
-                    Download the latest <code>addon.py</code> (use our <a href="/downloads/blender-mcp-addon.py" download>direct download</a> or clone the upstream repo with <code>git clone https://github.com/ahujasid/blender-mcp.git</code>) and install it via Blender → Preferences → Add-ons → Install.
-                  </li>
-                  <li>
-                    Start the MCP server in a terminal:
-                    <pre>
-{`uvx blender-mcp`}
-                    </pre>
-                    Match the host/port with your <code>.env</code> values (
-                    <code>BLENDER_MCP_HOST</code> / <code>BLENDER_MCP_PORT</code>).
-                  </li>
-                  <li>
-                    Open ModelForge’s dashboard. The new{" "}
-                    <em>“MCP Connection”</em> card shows connectivity and lets you send a test command. The same
-                    status is available in the Electron desktop app.
-                  </li>
-                  <li>
-                    Once connected, the AI chat endpoint can translate actions into MCP commands and stream results
-                    back to the UI.
-                  </li>
+                  <li>You type a natural-language instruction in the ModelForge chat.</li>
+                  <li>The orchestration engine plans the steps and generates Blender Python code via Gemini.</li>
+                  <li>ModelForge sends the code to the addon over a local TCP socket.</li>
+                  <li>The addon executes the code inside Blender and returns results.</li>
+                  <li>ModelForge can also request viewport screenshots for visual feedback loops.</li>
                 </ol>
                 <p className="text-sm text-muted-foreground">
-                  Tip: only run a single MCP instance at a time (Cursor, Claude, or ModelForge) to avoid port conflicts.
+                  Tip: only run one connection to the addon at a time (Cursor, Claude Desktop, or ModelForge) to avoid port conflicts.
                 </p>
               </CardContent>
             </Card>
@@ -160,9 +118,7 @@ export default function DocsPage() {
               </CardHeader>
               <CardContent className="prose prose-slate dark:prose-invert max-w-none">
                 <p>
-                  The first ModelForge AI endpoint is available for early testing. It currently
-                  returns a placeholder response so you can integrate against the contract while
-                  we finish the Gemini hookup.
+                  The ModelForge AI endpoint streams responses as NDJSON chunks for real-time updates.
                 </p>
                 <h4>POST /api/ai/chat</h4>
                 <pre>

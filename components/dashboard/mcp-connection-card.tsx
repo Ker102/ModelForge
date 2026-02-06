@@ -138,8 +138,7 @@ export function McpConnectionCard({ host, port, initialStatus }: McpConnectionCa
                 </div>
               )}
               <p className="text-xs text-muted-foreground">
-                Make sure Blender is running with the MCP addon enabled and the server started via{" "}
-                <code>uvx blender-mcp</code>. If you haven&apos;t installed <code>uv</code> yet, follow the instructions in the docs.
+                Make sure Blender is running with the ModelForge addon enabled and connected. In Blender, press <strong>N</strong> → <strong>ModelForge</strong> tab → <strong>&quot;Connect to ModelForge&quot;</strong>.
               </p>
             </div>
           )}
