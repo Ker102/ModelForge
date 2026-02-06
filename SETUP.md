@@ -25,9 +25,12 @@ Then edit `.env` and fill in these values:
 # Database - Update with your PostgreSQL credentials
 DATABASE_URL="postgresql://user:password@localhost:5432/modelforge"
 
-# NextAuth - Your local URL and a random secret
-NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="<run: openssl rand -base64 32>"
+# App URL
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+
+# Supabase Auth - Get from https://supabase.com/dashboard
+NEXT_PUBLIC_SUPABASE_URL="https://your-project.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="your-anon-key"
 
 # Stripe - Get from https://dashboard.stripe.com/apikeys
 STRIPE_SECRET_KEY="sk_test_..."
@@ -174,9 +177,10 @@ modelforge/
 │   ├── dashboard/     # Dashboard components
 │   └── auth/          # Auth forms
 ├── lib/               # Utility libraries
-│   ├── auth.ts       # NextAuth config
+│   ├── auth.ts       # Supabase auth helper (drop-in session provider)
 │   ├── db.ts         # Prisma client
 │   ├── stripe.ts     # Stripe client
+│   ├── supabase/     # Supabase client/server/middleware helpers
 │   └── utils.ts      # Helper functions
 ├── prisma/
 │   └── schema.prisma # Database schema
@@ -292,15 +296,17 @@ Defaults to email `test@modelforge.dev` with password `TestPass123!`. Override u
 
 ## Next Steps
 
-Phase 1 is complete! Here's what comes next:
+Auth migration complete. Current priorities:
 
-- [ ] Deploy to DigitalOcean
+- [x] Supabase Auth migration (NextAuth fully removed)
+- [x] Electron desktop app (dev mode working)
+- [x] AI chat with Gemini (streaming + orchestration)
+- [x] Vector embeddings for project memory (pgvector)
+- [ ] Test end-to-end Blender MCP scene generation
+- [ ] Deploy to production
 - [ ] Set up production database
 - [ ] Configure production Stripe webhooks
-- [ ] Build Electron desktop app (Phase 2)
-- [ ] Integrate Blender MCP server
-- [ ] Implement AI chat with Gemini
-- [ ] Add vector embeddings for project memory
+- [ ] Package Electron app for distribution
 
 ## Need Help?
 
