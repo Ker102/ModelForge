@@ -1624,7 +1624,10 @@ export async function POST(req: Request) {
               const executionResult = await planExecutor.executePlan(
                 planResult.plan,
                 message,
-                assetConfig,
+                {
+                  ...assetConfig,
+                  onStreamEvent: (event) => send(event),
+                },
                 planResult.analysis,
                 llmProvider
               )

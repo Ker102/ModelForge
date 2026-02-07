@@ -4,7 +4,7 @@ import { createBlenderAgent, type AgentLog } from "@/lib/ai/agents"
 import { type Plan, type PlanStep } from "@/lib/ai/chains"
 import { type LlmProviderSpec } from "@/lib/llm"
 import { createMcpClient, getViewportScreenshot, type McpCommand } from "@/lib/mcp"
-import { ExecutionLogEntry, ExecutionPlan, PlanAnalysis } from "./types"
+import { ExecutionLogEntry, ExecutionPlan, PlanAnalysis, AgentStreamEvent } from "./types"
 
 export interface ExecutionResult {
   success: boolean
@@ -41,6 +41,8 @@ export interface ExecutionOptions {
   enableVisualFeedback?: boolean
   /** Maximum visual validation iterations per step (default: 3) */
   maxVisualIterations?: number
+  /** Callback to stream real-time agent events to the client */
+  onStreamEvent?: (event: AgentStreamEvent) => void
 }
 
 export class PlanExecutor {
@@ -67,19 +69,21 @@ export class PlanExecutor {
         }
         : undefined,
       onLog: (log: AgentLog) => {
-        // Bridge agent logs to execution logs
-        if (log.type === "error" || log.type === "execute" || log.type === "recover" || log.type === "vision") {
-          logs.push({
-            timestamp: log.timestamp.toISOString(),
-            tool: log.type === "execute" ? (log.data as PlanStep)?.action ?? "unknown" :
-              log.type === "vision" ? "vision_analysis" : "system",
-            parameters: log.type === "execute" ? (log.data as PlanStep)?.parameters ?? {} : {},
-            error: log.type === "error" ? log.message : undefined,
-            result: log.type === "complete" ? log.data : undefined,
-            visualValidation: log.type === "vision" ? log.data as ExecutionLogEntry["visualValidation"] : undefined,
-          })
-        }
+        // Bridge ALL agent logs to execution logs
+        const logType = log.type as ExecutionLogEntry["logType"]
+        logs.push({
+          timestamp: log.timestamp.toISOString(),
+          tool: log.type === "execute" ? (log.data as PlanStep)?.action ?? "unknown" :
+            log.type === "vision" ? "vision_analysis" : "system",
+          parameters: log.type === "execute" ? (log.data as PlanStep)?.parameters ?? {} : {},
+          error: log.type === "error" ? log.message : undefined,
+          result: log.type === "complete" ? log.data : undefined,
+          logType,
+          detail: log.message,
+          visualValidation: log.type === "vision" ? log.data as ExecutionLogEntry["visualValidation"] : undefined,
+        })
       },
+      onStreamEvent: options.onStreamEvent,
     })
 
     // 2. Load plan into agent

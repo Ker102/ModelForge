@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import type { UsageSummary } from "@/lib/usage"
-import type { PlanningMetadata, PlanStep } from "@/lib/orchestration/types"
+import type { PlanningMetadata, PlanStep, AgentStreamEvent } from "@/lib/orchestration/types"
 import { parsePlanningMetadata } from "@/lib/orchestration/plan-utils"
 import { ImagePlus, X } from "lucide-react"
 
@@ -116,6 +116,8 @@ export function ProjectChat({
   const [attachments, setAttachments] = useState<PendingAttachment[]>([])
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [localReady, setLocalReady] = useState<boolean>(localProviderConfigured)
+  const [agentEvents, setAgentEvents] = useState<AgentStreamEvent[]>([])
+  const [agentActive, setAgentActive] = useState(false)
   const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024
   const MAX_ATTACHMENTS = 4
 
@@ -575,6 +577,7 @@ async function handleSend(e: React.FormEvent) {
 
               router.refresh()
               streamFinished = true
+              setAgentActive(false)
               break
             }
             case "error": {
@@ -583,6 +586,7 @@ async function handleSend(e: React.FormEvent) {
                   ? event.error
                   : "Failed to process AI request"
               setError(errorMessage)
+              setAgentActive(false)
               setMessages((prev) =>
                 prev.filter((msg) => msg.id !== tempAssistantId)
               )
@@ -590,6 +594,19 @@ async function handleSend(e: React.FormEvent) {
               break
             }
             default:
+              // Handle agent stream events
+              if (eventType.startsWith("agent:")) {
+                const agentEvent = event as unknown as AgentStreamEvent
+                if (agentEvent.type === "agent:planning_start") {
+                  setAgentActive(true)
+                  setAgentEvents([agentEvent])
+                } else if (agentEvent.type === "agent:complete") {
+                  setAgentEvents((prev) => [...prev, agentEvent])
+                  // Keep active briefly so user can see the final status
+                } else {
+                  setAgentEvents((prev) => [...prev, agentEvent])
+                }
+              }
               break
           }
         }
@@ -977,6 +994,26 @@ async function handleSend(e: React.FormEvent) {
                                   {commandForStep.error}
                                 </div>
                               )}
+                              {/* Show tool result from execution log */}
+                              {(() => {
+                                const logEntry = message.plan?.executionLog?.find(
+                                  (entry) => entry.tool === step.action && entry.result !== undefined
+                                )
+                                if (!logEntry?.result) return null
+                                const resultText = typeof logEntry.result === "string"
+                                  ? logEntry.result
+                                  : JSON.stringify(logEntry.result, null, 2)
+                                return (
+                                  <details className="mt-1">
+                                    <summary className="cursor-pointer text-[11px] text-primary">
+                                      View result
+                                    </summary>
+                                    <pre className="mt-1 whitespace-pre-wrap break-words rounded bg-muted/60 px-2 py-1 text-[10px] text-muted-foreground max-h-40 overflow-y-auto">
+                                      {resultText}
+                                    </pre>
+                                  </details>
+                                )
+                              })()}
                             </div>
                           )
                         })}
@@ -987,6 +1024,44 @@ async function handleSend(e: React.FormEvent) {
                         {message.plan.errors.join("; ")}
                       </div>
                     ) : null}
+                    {/* Full execution log */}
+                    {message.plan.executionLog?.length ? (
+                      <details className="rounded bg-background/70 px-2 py-1 text-[11px] text-muted-foreground">
+                        <summary className="cursor-pointer text-primary font-medium">
+                          Full execution log ({message.plan.executionLog.length} entries)
+                        </summary>
+                        <div className="mt-1 max-h-48 overflow-y-auto space-y-1 font-mono">
+                          {message.plan.executionLog.map((entry, idx) => (
+                            <div key={idx} className={cn(
+                              "rounded px-2 py-0.5 text-[10px]",
+                              entry.error ? "bg-destructive/10 text-destructive" : "bg-muted/40"
+                            )}>
+                              <span className="text-muted-foreground/60 mr-1">{entry.timestamp?.split("T")[1]?.split(".")[0] ?? ""}</span>
+                              <strong>{entry.logType ?? entry.tool}</strong>
+                              {entry.detail && <span className="ml-1">— {entry.detail}</span>}
+                              {entry.error && <span className="ml-1 text-destructive">⚠ {entry.error}</span>}
+                              {entry.result && (
+                                <details className="mt-0.5">
+                                  <summary className="cursor-pointer text-primary">result</summary>
+                                  <pre className="whitespace-pre-wrap break-words max-h-24 overflow-y-auto bg-background/50 rounded p-1">
+                                    {typeof entry.result === "string" ? entry.result : JSON.stringify(entry.result, null, 2)}
+                                  </pre>
+                                </details>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    ) : null}
+                    {/* Raw LLM plan response */}
+                    {message.plan.rawPlan && (
+                      <details className="rounded bg-background/70 px-2 py-1 text-[11px] text-muted-foreground">
+                        <summary className="cursor-pointer text-primary">Raw LLM plan response</summary>
+                        <pre className="mt-1 whitespace-pre-wrap break-words text-[10px] max-h-48 overflow-y-auto">
+                          {message.plan.rawPlan}
+                        </pre>
+                      </details>
+                    )}
                   </div>
                 )}
                 {message.role === "assistant" &&
@@ -1036,6 +1111,82 @@ async function handleSend(e: React.FormEvent) {
             ))
           )}
         </div>
+
+        {/* ── Agent Activity Log ── */}
+        {agentEvents.length > 0 && (
+          <details open={agentActive} className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
+            <summary className="cursor-pointer font-semibold text-primary flex items-center gap-2">
+              {agentActive && (
+                <span className="inline-block h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              )}
+              Agent Activity Log ({agentEvents.length} events)
+            </summary>
+            <div className="mt-2 max-h-64 overflow-y-auto space-y-1 font-mono text-[11px]">
+              {agentEvents.map((evt, i) => (
+                <div key={i} className={cn(
+                  "rounded px-2 py-1",
+                  evt.type === "agent:step_error" || (evt.type === "agent:step_validate" && !evt.valid)
+                    ? "bg-destructive/10 text-destructive"
+                    : evt.type === "agent:step_validate" && evt.valid
+                      ? "bg-green-500/10 text-green-700 dark:text-green-400"
+                      : evt.type === "agent:planning_reasoning" || evt.type === "agent:step_recover"
+                        ? "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                        : "bg-muted/50 text-muted-foreground"
+                )}>
+                  <span className="text-[10px] text-muted-foreground/70 mr-2">
+                    {new Date(evt.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                  </span>
+                  {evt.type === "agent:planning_start" && (
+                    <span>🧠 Planning started...</span>
+                  )}
+                  {evt.type === "agent:planning_reasoning" && (
+                    <span className="whitespace-pre-wrap">💭 <strong>LLM Reasoning:</strong> {evt.reasoning}</span>
+                  )}
+                  {evt.type === "agent:planning_complete" && (
+                    <span>📋 Plan ready — {evt.stepCount} steps</span>
+                  )}
+                  {evt.type === "agent:step_start" && (
+                    <span>▶ Step {evt.stepIndex + 1}/{evt.stepCount}: <strong>{evt.action}</strong> — {evt.rationale}</span>
+                  )}
+                  {evt.type === "agent:step_result" && (
+                    <details className="inline">
+                      <summary className="cursor-pointer">
+                        {evt.success ? "✅" : "❌"} Step {evt.stepIndex + 1} result ({evt.action})
+                      </summary>
+                      <pre className="mt-1 whitespace-pre-wrap break-words text-[10px] max-h-32 overflow-y-auto bg-background/50 rounded p-1">
+                        {typeof evt.result === "string" ? evt.result : JSON.stringify(evt.result, null, 2)}
+                      </pre>
+                    </details>
+                  )}
+                  {evt.type === "agent:step_validate" && (
+                    <span>
+                      {evt.valid ? "✓ Validated" : "✗ Validation failed"}: {evt.action}
+                      {evt.reason && <span className="ml-1 text-[10px]">— {evt.reason}</span>}
+                    </span>
+                  )}
+                  {evt.type === "agent:step_recover" && (
+                    <span>🔄 Recovery for {evt.action}: <strong>{evt.recoveryAction}</strong> — {evt.rationale}</span>
+                  )}
+                  {evt.type === "agent:step_error" && (
+                    <span>⚠ Step {evt.stepIndex + 1} error (attempt {evt.attempt + 1}): {evt.error}</span>
+                  )}
+                  {evt.type === "agent:vision" && (
+                    <span>👁 Vision: {evt.assessment}{evt.issues?.length ? ` | Issues: ${evt.issues.join(", ")}` : ""}</span>
+                  )}
+                  {evt.type === "agent:audit" && (
+                    <span>{evt.success ? "✅" : "❌"} Scene audit: {evt.reason ?? (evt.success ? "passed" : "failed")}</span>
+                  )}
+                  {evt.type === "agent:complete" && (
+                    <span>
+                      {evt.success ? "🎉" : "⚠"} Complete: {evt.completedCount} succeeded, {evt.failedCount} failed
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
+
         {error && (
           <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {error}

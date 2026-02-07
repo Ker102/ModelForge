@@ -42,6 +42,23 @@ export type Plan = z.infer<typeof PlanSchema>
 export type ValidationResult = z.infer<typeof ValidationSchema>
 export type RecoveryAction = z.infer<typeof RecoverySchema>
 
+/** Extended result types that preserve LLM reasoning */
+export interface PlanWithReasoning {
+    plan: Plan
+    reasoning: string
+    rawResponse: string
+}
+
+export interface ValidationWithReasoning {
+    result: ValidationResult
+    reasoning: string
+}
+
+export interface RecoveryWithReasoning {
+    recovery: RecoveryAction
+    reasoning: string
+}
+
 // ============================================================================
 // Chain Functions
 // ============================================================================
@@ -54,7 +71,7 @@ export async function generatePlan(options: {
     sceneState?: string
     tools: string[]
     context?: string
-}): Promise<Plan> {
+}): Promise<PlanWithReasoning> {
     const model = createGeminiModel({ temperature: 0.3 })
 
     const formattedPrompt = await planningPrompt.format({
@@ -67,14 +84,19 @@ export async function generatePlan(options: {
     const response = await model.invoke(formattedPrompt)
     const content = response.content as string
 
-    // Extract JSON from response
+    // Extract reasoning (everything before the JSON block)
     const jsonMatch = content.match(/\{[\s\S]*\}/)
     if (!jsonMatch) {
         throw new Error("Failed to extract JSON plan from response")
     }
 
+    const jsonStart = content.indexOf(jsonMatch[0])
+    const reasoning = content.substring(0, jsonStart).trim()
+
     const parsed = JSON.parse(jsonMatch[0])
-    return PlanSchema.parse(parsed)
+    const plan = PlanSchema.parse(parsed)
+
+    return { plan, reasoning, rawResponse: content }
 }
 
 /**
@@ -84,7 +106,7 @@ export async function validateStep(options: {
     stepDescription: string
     expectedOutcome: string
     actualResult: string
-}): Promise<ValidationResult> {
+}): Promise<ValidationWithReasoning> {
     const model = createGeminiModel({ temperature: 0.1 })
 
     const formattedPrompt = await validationPrompt.format({
@@ -98,11 +120,17 @@ export async function validateStep(options: {
 
     const jsonMatch = content.match(/\{[\s\S]*\}/)
     if (!jsonMatch) {
-        return { success: false, reason: "Failed to parse validation response", suggestions: [] }
+        return {
+            result: { success: false, reason: "Failed to parse validation response", suggestions: [] },
+            reasoning: content,
+        }
     }
 
+    const jsonStart = content.indexOf(jsonMatch[0])
+    const reasoning = content.substring(0, jsonStart).trim()
+
     const parsed = JSON.parse(jsonMatch[0])
-    return ValidationSchema.parse(parsed)
+    return { result: ValidationSchema.parse(parsed), reasoning }
 }
 
 /**
@@ -112,7 +140,7 @@ export async function generateRecovery(options: {
     stepDescription: string
     error: string
     sceneState?: string
-}): Promise<RecoveryAction> {
+}): Promise<RecoveryWithReasoning> {
     const model = createGeminiModel({ temperature: 0.2 })
 
     const formattedPrompt = await recoveryPrompt.format({
@@ -126,11 +154,17 @@ export async function generateRecovery(options: {
 
     const jsonMatch = content.match(/\{[\s\S]*\}/)
     if (!jsonMatch) {
-        return { action: "skip", parameters: {}, rationale: "Failed to generate recovery" }
+        return {
+            recovery: { action: "skip", parameters: {}, rationale: "Failed to generate recovery" },
+            reasoning: content,
+        }
     }
 
     const parsed = JSON.parse(jsonMatch[0])
-    return RecoverySchema.parse(parsed)
+    const jsonStart = content.indexOf(jsonMatch[0])
+    const reasoning = content.substring(0, jsonStart).trim()
+
+    return { recovery: RecoverySchema.parse(parsed), reasoning }
 }
 
 /**

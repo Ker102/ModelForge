@@ -5,7 +5,7 @@
  */
 
 import { createGeminiModel } from "./index"
-import { generatePlan, validateStep, generateRecovery, type Plan, type PlanStep } from "./chains"
+import { generatePlan, validateStep, generateRecovery, type Plan, type PlanStep, type PlanWithReasoning } from "./chains"
 import { formatContextFromSources, type RAGResult } from "./rag"
 import { similaritySearch } from "./vectorstore"
 import { analyzeViewport, compareWithExpectation, type VisionAnalysisResult } from "./vision"
@@ -47,6 +47,8 @@ export interface AgentConfig {
     onStepComplete?: (step: PlanStep, result: unknown) => void
     /** Callback to capture viewport screenshot */
     onCaptureViewport?: () => Promise<string>
+    /** Callback to stream real-time agent events to the client */
+    onStreamEvent?: (event: import("@/lib/orchestration/types").AgentStreamEvent) => void
 }
 
 // ============================================================================
@@ -93,6 +95,7 @@ export class BlenderAgent {
             onLog: config.onLog,
             onStepComplete: config.onStepComplete,
             onCaptureViewport: config.onCaptureViewport,
+            onStreamEvent: config.onStreamEvent,
         }
 
         this.state = {
@@ -114,11 +117,19 @@ export class BlenderAgent {
     }
 
     /**
+     * Emit a stream event to the client in real-time
+     */
+    private emit(event: import("@/lib/orchestration/types").AgentStreamEvent) {
+        this.config.onStreamEvent?.(event)
+    }
+
+    /**
      * Generate a plan for the user request
      */
     async plan(request: string): Promise<Plan> {
         this.state.request = request
         this.log("plan", `Planning for: ${request}`)
+        this.emit({ type: "agent:planning_start", timestamp: new Date().toISOString() })
 
         // Optionally retrieve context from RAG
         let context = ""
@@ -136,7 +147,7 @@ export class BlenderAgent {
             }
         }
 
-        const plan = await generatePlan({
+        const { plan, reasoning, rawResponse } = await generatePlan({
             request,
             tools: MCP_TOOLS,
             context,
@@ -145,6 +156,17 @@ export class BlenderAgent {
 
         this.state.plan = plan
         this.log("plan", `Generated plan with ${plan.steps.length} steps`, plan)
+
+        // Emit reasoning and plan details
+        if (reasoning) {
+            this.emit({ type: "agent:planning_reasoning", timestamp: new Date().toISOString(), reasoning })
+        }
+        this.emit({
+            type: "agent:planning_complete",
+            timestamp: new Date().toISOString(),
+            stepCount: plan.steps.length,
+            summary: plan.steps.map((s, i) => `${i + 1}. ${s.action}: ${s.rationale}`).join("\n"),
+        })
 
         return plan
     }
@@ -176,6 +198,14 @@ export class BlenderAgent {
         }
 
         this.log("execute", `Executing step ${stepIndex + 1}: ${step.action}`, step)
+        this.emit({
+            type: "agent:step_start",
+            timestamp: new Date().toISOString(),
+            stepIndex,
+            stepCount: this.state.plan.steps.length,
+            action: step.action,
+            rationale: step.rationale,
+        })
 
         let lastError: string | undefined
 
@@ -183,8 +213,18 @@ export class BlenderAgent {
             try {
                 const result = await executor(step)
 
+                // Emit step result
+                this.emit({
+                    type: "agent:step_result",
+                    timestamp: new Date().toISOString(),
+                    stepIndex,
+                    action: step.action,
+                    result,
+                    success: true,
+                })
+
                 // Validate the result
-                const validation = await validateStep({
+                const { result: validation, reasoning: validationReasoning } = await validateStep({
                     stepDescription: `${step.action} - ${step.rationale}`,
                     expectedOutcome: step.expected_outcome,
                     actualResult: JSON.stringify(result),
@@ -194,21 +234,45 @@ export class BlenderAgent {
                     this.state.completedSteps.push({ step, result })
                     this.config.onStepComplete?.(step, result)
                     this.log("validate", `Step ${stepIndex + 1} validated successfully`)
+                    this.emit({
+                        type: "agent:step_validate",
+                        timestamp: new Date().toISOString(),
+                        stepIndex,
+                        action: step.action,
+                        valid: true,
+                        reason: validationReasoning || undefined,
+                    })
                     return { success: true, result }
                 }
 
                 lastError = validation.reason ?? "Validation failed"
                 this.log("validate", `Step ${stepIndex + 1} validation failed: ${lastError}`)
+                this.emit({
+                    type: "agent:step_validate",
+                    timestamp: new Date().toISOString(),
+                    stepIndex,
+                    action: step.action,
+                    valid: false,
+                    reason: `${lastError}${validationReasoning ? ` | Reasoning: ${validationReasoning}` : ""}`,
+                })
 
                 // Try recovery if we have retries left
                 if (attempt < this.config.maxRetries) {
-                    const recovery = await generateRecovery({
+                    const { recovery, reasoning: recoveryReasoning } = await generateRecovery({
                         stepDescription: step.action,
                         error: lastError ?? "Unknown error",
                         sceneState: JSON.stringify(this.state.sceneState ?? {}),
                     })
 
                     this.log("recover", `Recovery suggestion: ${recovery.action}`, recovery)
+                    this.emit({
+                        type: "agent:step_recover",
+                        timestamp: new Date().toISOString(),
+                        stepIndex,
+                        action: step.action,
+                        recoveryAction: recovery.action,
+                        rationale: `${recovery.rationale}${recoveryReasoning ? ` | ${recoveryReasoning}` : ""}`,
+                    })
 
                     if (recovery.action === "skip") {
                         break
@@ -220,6 +284,14 @@ export class BlenderAgent {
             } catch (error) {
                 lastError = error instanceof Error ? error.message : String(error)
                 this.log("error", `Step ${stepIndex + 1} failed: ${lastError}`)
+                this.emit({
+                    type: "agent:step_error",
+                    timestamp: new Date().toISOString(),
+                    stepIndex,
+                    action: step.action,
+                    error: lastError,
+                    attempt,
+                })
             }
         }
 
