@@ -4,7 +4,7 @@
 - **Auth**: Fully migrated to Supabase Auth. NextAuth removed entirely. Login, signup, dashboard access, and sign-out all verified working in both browser and Electron.
 - **Web app**: AI chat with Gemini streaming, MCP connection card, usage tracking, docs/quick start fully updated.
 - **Desktop app**: Electron shell wraps web dashboard on port 3000; quick start/usage cards visible. OAuth via deep-link flow.
-- **MCP**: Socket client + `/api/mcp/status` + `/api/mcp/execute`; addon available at `/downloads/blender-mcp-addon.py`.
+- **MCP**: Socket client + `/api/mcp/status` + `/api/mcp/execute`; addon available at `/downloads/modelforge-addon.py`.
 - **RAG pipeline**: 113+ Blender scripts ingested into Neon pgvector for context-aware code generation.
 - **Orchestration**: Two-phase planner/executor (Gemini generates JSON plan → step-by-step execution with validation/recovery).
 - **Monetization**: Stripe integration with Free / Starter ($12/mo) / Pro ($29/mo) tiers.

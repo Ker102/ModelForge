@@ -1,4 +1,6 @@
-# Code created by Siddharth Ahuja: www.github.com/ahujasid © 2025
+# ModelForge Blender Addon
+# Based on BlenderMCP by Siddharth Ahuja (www.github.com/ahujasid)
+# Modified for ModelForge - AI-Powered Blender Assistant
 
 import bpy
 import mathutils
@@ -17,20 +19,21 @@ import io
 from contextlib import redirect_stdout, suppress
 
 bl_info = {
-    "name": "Blender MCP",
-    "author": "BlenderMCP",
-    "version": (1, 2),
+    "name": "ModelForge Blender",
+    "author": "ModelForge Team",
+    "version": (1, 0, 0),
     "blender": (3, 0, 0),
-    "location": "View3D > Sidebar > BlenderMCP",
-    "description": "Connect Blender to Claude via MCP",
+    "location": "View3D > Sidebar > ModelForge",
+    "description": "Connect Blender to ModelForge AI Assistant",
     "category": "Interface",
+    "doc_url": "https://github.com/Ker102/ModelForge",
 }
 
 RODIN_FREE_TRIAL_KEY = "k9TcfFoEhNd9cCPP2guHAHHHkctZHIRhZDywZ1euGUXwihbYLpOjQhofby80NJez"
 
 # Add User-Agent as required by Poly Haven API
 REQ_HEADERS = requests.utils.default_headers()
-REQ_HEADERS.update({"User-Agent": "blender-mcp"})
+REQ_HEADERS.update({"User-Agent": "modelforge-blender"})
 
 class BlenderMCPServer:
     def __init__(self, host='localhost', port=9876):
@@ -1690,39 +1693,63 @@ class BlenderMCPServer:
     #endregion
 
 # Blender UI Panel
-class BLENDERMCP_PT_Panel(bpy.types.Panel):
-    bl_label = "Blender MCP"
-    bl_idname = "BLENDERMCP_PT_Panel"
+class MODELFORGE_PT_Panel(bpy.types.Panel):
+    bl_label = "ModelForge"
+    bl_idname = "MODELFORGE_PT_Panel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = 'BlenderMCP'
+    bl_category = 'ModelForge'
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
 
-        layout.prop(scene, "blendermcp_port")
-        layout.prop(scene, "blendermcp_use_polyhaven", text="Use assets from Poly Haven")
-
-        layout.prop(scene, "blendermcp_use_hyper3d", text="Use Hyper3D Rodin 3D model generation")
-        if scene.blendermcp_use_hyper3d:
-            layout.prop(scene, "blendermcp_hyper3d_mode", text="Rodin Mode")
-            layout.prop(scene, "blendermcp_hyper3d_api_key", text="API Key")
-            layout.operator("blendermcp.set_hyper3d_free_trial_api_key", text="Set Free Trial API Key")
-
-        layout.prop(scene, "blendermcp_use_sketchfab", text="Use assets from Sketchfab")
-        if scene.blendermcp_use_sketchfab:
-            layout.prop(scene, "blendermcp_sketchfab_api_key", text="API Key")
-
-        if not scene.blendermcp_server_running:
-            layout.operator("blendermcp.start_server", text="Connect to MCP server")
+        # Header with status
+        box = layout.box()
+        row = box.row()
+        row.scale_y = 1.5
+        
+        if scene.blendermcp_server_running:
+            row.label(text="● Connected", icon='CHECKMARK')
         else:
-            layout.operator("blendermcp.stop_server", text="Disconnect from MCP server")
-            layout.label(text=f"Running on port {scene.blendermcp_port}")
+            row.label(text="○ Disconnected", icon='X')
+
+        # Connection button
+        if not scene.blendermcp_server_running:
+            layout.operator("modelforge.start_server", text="Connect to ModelForge", icon='PLAY')
+        else:
+            layout.operator("modelforge.stop_server", text="Disconnect", icon='PAUSE')
+            layout.label(text=f"Port: {scene.blendermcp_port}")
+
+        layout.separator()
+
+        # Settings section
+        box = layout.box()
+        box.label(text="Settings", icon='PREFERENCES')
+        box.prop(scene, "blendermcp_port", text="Port")
+
+        layout.separator()
+
+        # Asset Sources
+        box = layout.box()
+        box.label(text="Asset Sources", icon='ASSET_MANAGER')
+        box.prop(scene, "blendermcp_use_polyhaven", text="Poly Haven")
+
+        box.prop(scene, "blendermcp_use_hyper3d", text="Hyper3D Rodin")
+        if scene.blendermcp_use_hyper3d:
+            col = box.column(align=True)
+            col.prop(scene, "blendermcp_hyper3d_mode", text="Mode")
+            col.prop(scene, "blendermcp_hyper3d_api_key", text="API Key")
+            col.operator("modelforge.set_hyper3d_free_trial_api_key", text="Use Free Trial Key")
+
+        box.prop(scene, "blendermcp_use_sketchfab", text="Sketchfab")
+        if scene.blendermcp_use_sketchfab:
+            col = box.column(align=True)
+            col.prop(scene, "blendermcp_sketchfab_api_key", text="API Key")
 
 # Operator to set Hyper3D API Key
-class BLENDERMCP_OT_SetFreeTrialHyper3DAPIKey(bpy.types.Operator):
-    bl_idname = "blendermcp.set_hyper3d_free_trial_api_key"
+class MODELFORGE_OT_SetFreeTrialHyper3DAPIKey(bpy.types.Operator):
+    bl_idname = "modelforge.set_hyper3d_free_trial_api_key"
     bl_label = "Set Free Trial API Key"
 
     def execute(self, context):
@@ -1732,10 +1759,10 @@ class BLENDERMCP_OT_SetFreeTrialHyper3DAPIKey(bpy.types.Operator):
         return {'FINISHED'}
 
 # Operator to start the server
-class BLENDERMCP_OT_StartServer(bpy.types.Operator):
-    bl_idname = "blendermcp.start_server"
-    bl_label = "Connect to Claude"
-    bl_description = "Start the BlenderMCP server to connect with Claude"
+class MODELFORGE_OT_StartServer(bpy.types.Operator):
+    bl_idname = "modelforge.start_server"
+    bl_label = "Connect to ModelForge"
+    bl_description = "Start the server to connect with ModelForge"
 
     def execute(self, context):
         scene = context.scene
@@ -1751,10 +1778,10 @@ class BLENDERMCP_OT_StartServer(bpy.types.Operator):
         return {'FINISHED'}
 
 # Operator to stop the server
-class BLENDERMCP_OT_StopServer(bpy.types.Operator):
-    bl_idname = "blendermcp.stop_server"
-    bl_label = "Stop the connection to Claude"
-    bl_description = "Stop the connection to Claude"
+class MODELFORGE_OT_StopServer(bpy.types.Operator):
+    bl_idname = "modelforge.stop_server"
+    bl_label = "Disconnect from ModelForge"
+    bl_description = "Stop the connection to ModelForge"
 
     def execute(self, context):
         scene = context.scene
@@ -1825,12 +1852,12 @@ def register():
         default=""
     )
 
-    bpy.utils.register_class(BLENDERMCP_PT_Panel)
-    bpy.utils.register_class(BLENDERMCP_OT_SetFreeTrialHyper3DAPIKey)
-    bpy.utils.register_class(BLENDERMCP_OT_StartServer)
-    bpy.utils.register_class(BLENDERMCP_OT_StopServer)
+    bpy.utils.register_class(MODELFORGE_PT_Panel)
+    bpy.utils.register_class(MODELFORGE_OT_SetFreeTrialHyper3DAPIKey)
+    bpy.utils.register_class(MODELFORGE_OT_StartServer)
+    bpy.utils.register_class(MODELFORGE_OT_StopServer)
 
-    print("BlenderMCP addon registered")
+    print("ModelForge Blender addon registered")
 
 def unregister():
     # Stop the server if it's running
@@ -1838,10 +1865,10 @@ def unregister():
         bpy.types.blendermcp_server.stop()
         del bpy.types.blendermcp_server
 
-    bpy.utils.unregister_class(BLENDERMCP_PT_Panel)
-    bpy.utils.unregister_class(BLENDERMCP_OT_SetFreeTrialHyper3DAPIKey)
-    bpy.utils.unregister_class(BLENDERMCP_OT_StartServer)
-    bpy.utils.unregister_class(BLENDERMCP_OT_StopServer)
+    bpy.utils.unregister_class(MODELFORGE_PT_Panel)
+    bpy.utils.unregister_class(MODELFORGE_OT_SetFreeTrialHyper3DAPIKey)
+    bpy.utils.unregister_class(MODELFORGE_OT_StartServer)
+    bpy.utils.unregister_class(MODELFORGE_OT_StopServer)
 
     del bpy.types.Scene.blendermcp_port
     del bpy.types.Scene.blendermcp_server_running
@@ -1852,7 +1879,8 @@ def unregister():
     del bpy.types.Scene.blendermcp_use_sketchfab
     del bpy.types.Scene.blendermcp_sketchfab_api_key
 
-    print("BlenderMCP addon unregistered")
+    print("ModelForge Blender addon unregistered")
 
 if __name__ == "__main__":
     register()
+

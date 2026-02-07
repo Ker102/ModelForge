@@ -36,7 +36,7 @@ export default function DocsPage() {
                     <div className="rounded-md bg-muted/40 p-3 text-sm text-muted-foreground space-y-2">
                       <p>The addon is bundled with the ModelForge desktop app. You can also download it directly:</p>
                       <a
-                        href="/downloads/blender-mcp-addon.py"
+                        href="/downloads/modelforge-addon.py"
                         download
                         className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
                       >

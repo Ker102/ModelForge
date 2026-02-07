@@ -248,7 +248,7 @@ To enable direct Blender automation you will need the community [blender-mcp](ht
 
 1. Install Blender ≥ 3.0, Python ≥ 3.10, Git, and the [`uv`](https://docs.astral.sh/uv/getting-started/installation/) package manager.
 2. Obtain the addon:
-   - Direct download: [`/downloads/blender-mcp-addon.py`](/downloads/blender-mcp-addon.py)
+   - Direct download: [`/downloads/modelforge-addon.py`](/downloads/modelforge-addon.py)
    - Or clone the upstream repository: `git clone https://github.com/ahujasid/blender-mcp.git`
 3. Install the addon via Blender → Preferences → Add-ons → Install.
 4. Launch the MCP server with `uvx blender-mcp` (consult the upstream README for IDE integrations). Keep the `.env` variables `BLENDER_MCP_HOST` and `BLENDER_MCP_PORT` aligned with the server.
