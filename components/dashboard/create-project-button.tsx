@@ -19,28 +19,37 @@ export function CreateProjectButton({ children }: { children: React.ReactNode })
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setIsLoading(true)
+    setError(null)
 
     const formData = new FormData(e.currentTarget)
     const name = formData.get("name") as string
     const description = formData.get("description") as string
 
     try {
+      console.log("[CreateProject] Sending request...", { name, description })
       const response = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, description }),
       })
 
+      const data = await response.json()
+      console.log("[CreateProject] Response:", response.status, data)
+
       if (response.ok) {
         setOpen(false)
         router.refresh()
+      } else {
+        setError(data.error || `Request failed (${response.status})`)
       }
-    } catch (error) {
-      console.error("Failed to create project:", error)
+    } catch (err) {
+      console.error("[CreateProject] Failed:", err)
+      setError(err instanceof Error ? err.message : "Network error")
     } finally {
       setIsLoading(false)
     }
@@ -76,6 +85,11 @@ export function CreateProjectButton({ children }: { children: React.ReactNode })
               />
             </div>
           </div>
+          {error && (
+            <div className="rounded-md bg-destructive/15 px-4 py-3 text-sm text-destructive">
+              {error}
+            </div>
+          )}
           <DialogFooter>
             <Button type="submit" disabled={isLoading}>
               {isLoading ? "Creating..." : "Create Project"}

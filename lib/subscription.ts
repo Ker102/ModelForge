@@ -1,7 +1,7 @@
 export type SubscriptionTier = "free" | "starter" | "pro"
 
 export const PROJECT_LIMITS: Record<SubscriptionTier, number> = {
-  free: 1,
+  free: 3,
   starter: 10,
   pro: -1, // unlimited
 }

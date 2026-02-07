@@ -3,6 +3,7 @@ Available Blender MCP tools:
 
 - get_scene_info: Summarize the scene (objects, counts, materials). Call this first to establish context.
 - get_object_info: Inspect a specific object by name (type, transforms, materials).
+- get_all_object_info: Get detailed info for every object at once (transforms, materials, modifiers, mesh stats, light/camera data). Use when you need the full scene picture.
 - get_viewport_screenshot: Capture a viewport image for visual confirmation.
 - execute_code: Run Blender Python. Use for geometry, materials, lighting, and camera adjustments. Keep scripts focused and idempotent.
 - get_polyhaven_status / search_polyhaven_assets / download_polyhaven_asset / set_texture: Manage PolyHaven HDRIs, textures, and models.

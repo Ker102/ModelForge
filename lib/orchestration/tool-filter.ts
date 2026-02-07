@@ -1,7 +1,7 @@
 import { TOOL_REGISTRY } from "./tool-registry"
 
 const CATEGORY_GROUPS: Record<string, string[]> = {
-  inspection: ["get_scene_info", "get_object_info", "get_viewport_screenshot"],
+  inspection: ["get_scene_info", "get_object_info", "get_all_object_info", "get_viewport_screenshot"],
   geometry: ["execute_code"],
   materials: ["execute_code", "set_texture"],
   lighting: ["execute_code"],

@@ -229,6 +229,10 @@ function createWindow() {
   // Show window when ready
   mainWindow.once("ready-to-show", () => {
     mainWindow.show()
+    // Open DevTools in dev mode for debugging
+    if (IS_DEV) {
+      mainWindow.webContents.openDevTools({ mode: "detach" })
+    }
   })
 
   // Load the app

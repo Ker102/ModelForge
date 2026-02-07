@@ -14,6 +14,12 @@ export const TOOL_REGISTRY: ToolMetadata[] = [
     category: "inspection",
   },
   {
+    name: "get_all_object_info",
+    description:
+      "Retrieve detailed info for every object in the scene at once: transforms, materials, modifiers, mesh stats, light/camera data. Use instead of multiple get_object_info calls when you need the full picture.",
+    category: "inspection",
+  },
+  {
     name: "get_viewport_screenshot",
     description:
       "Capture the active viewport for visual confirmation. Useful when the user requests a preview or validation of results.",

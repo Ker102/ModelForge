@@ -44,11 +44,14 @@ export async function POST(req: Request) {
     const session = await auth()
     
     if (!session?.user) {
+      console.log("[API /api/projects POST] Unauthorized - no session")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const body = await req.json()
     const { name, description, blenderVersion } = createProjectSchema.parse(body)
+
+    console.log("[API /api/projects POST] User:", session.user.email, "Tier:", session.user.subscriptionTier)
 
     // Check project limit based on subscription tier
     const userProjects = await prisma.project.count({
@@ -66,9 +69,12 @@ export async function POST(req: Request) {
 
     const maxProjects = PROJECT_LIMITS[tier] ?? PROJECT_LIMITS.free
 
+    console.log("[API /api/projects POST] Projects:", userProjects, "/", maxProjects, "(tier:", tier, ")")
+
     if (maxProjects !== -1 && userProjects >= maxProjects) {
+      console.log("[API /api/projects POST] BLOCKED - project limit reached")
       return NextResponse.json(
-        { error: `Project limit reached. Upgrade to create more projects.` },
+        { error: `Project limit reached (${userProjects}/${maxProjects}). Upgrade to create more projects.` },
         { status: 403 }
       )
     }

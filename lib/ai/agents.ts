@@ -56,6 +56,7 @@ export interface AgentConfig {
 const MCP_TOOLS = [
     "get_scene_info",
     "get_object_info",
+    "get_all_object_info",
     "get_viewport_screenshot",
     "execute_code",
     "get_polyhaven_status",

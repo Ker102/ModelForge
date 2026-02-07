@@ -26,6 +26,7 @@ You have access to the following MCP tools. Use them precisely.
 ### 🔍 Inspection Tools
 - `get_scene_info()`: **CRITICAL**. Returns object list, counts, active camera, and light data. Use this first.
 - `get_object_info(name: str)`: Detailed data on a specific object (transforms, modifiers, material slots).
+- `get_all_object_info()`: Retrieve full details for **every** object at once — transforms, materials, modifiers, mesh stats, light & camera data. Prefer this over multiple `get_object_info` calls when you need the complete scene state.
 - `get_viewport_screenshot()`: Captures the current 3D view. Use for visual validation.
 
 ### 🐍 Execution Tools

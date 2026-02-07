@@ -205,6 +205,7 @@ class BlenderMCPServer:
         handlers = {
             "get_scene_info": self.get_scene_info,
             "get_object_info": self.get_object_info,
+            "get_all_object_info": self.get_all_object_info,
             "get_viewport_screenshot": self.get_viewport_screenshot,
             "execute_code": self.execute_code,
             "get_polyhaven_status": self.get_polyhaven_status,
@@ -347,6 +348,94 @@ class BlenderMCPServer:
             }
 
         return obj_info
+
+    def get_all_object_info(self):
+        """Get detailed information about all objects in the scene.
+        Returns a list of object details including type, transforms, materials,
+        mesh stats, and modifiers for every object."""
+        try:
+            print("Getting all object info...")
+            all_objects = []
+
+            for obj in bpy.context.scene.objects:
+                obj_info = {
+                    "name": obj.name,
+                    "type": obj.type,
+                    "location": [round(float(obj.location.x), 3),
+                                 round(float(obj.location.y), 3),
+                                 round(float(obj.location.z), 3)],
+                    "rotation": [round(float(obj.rotation_euler.x), 3),
+                                 round(float(obj.rotation_euler.y), 3),
+                                 round(float(obj.rotation_euler.z), 3)],
+                    "scale": [round(float(obj.scale.x), 3),
+                              round(float(obj.scale.y), 3),
+                              round(float(obj.scale.z), 3)],
+                    "visible": obj.visible_get(),
+                    "materials": [],
+                    "modifiers": [],
+                }
+
+                # Bounding box for mesh objects
+                if obj.type == "MESH":
+                    try:
+                        bounding_box = self._get_aabb(obj)
+                        obj_info["world_bounding_box"] = bounding_box
+                    except Exception:
+                        pass
+
+                # Material slots
+                for slot in obj.material_slots:
+                    if slot.material:
+                        obj_info["materials"].append(slot.material.name)
+
+                # Mesh stats
+                if obj.type == 'MESH' and obj.data:
+                    mesh = obj.data
+                    obj_info["mesh"] = {
+                        "vertices": len(mesh.vertices),
+                        "edges": len(mesh.edges),
+                        "polygons": len(mesh.polygons),
+                    }
+
+                # Modifiers
+                for mod in obj.modifiers:
+                    obj_info["modifiers"].append({
+                        "name": mod.name,
+                        "type": mod.type,
+                    })
+
+                # Light-specific data
+                if obj.type == 'LIGHT' and obj.data:
+                    light = obj.data
+                    obj_info["light"] = {
+                        "type": light.type,
+                        "energy": round(float(light.energy), 2),
+                        "color": [round(float(light.color.r), 3),
+                                  round(float(light.color.g), 3),
+                                  round(float(light.color.b), 3)],
+                    }
+
+                # Camera-specific data
+                if obj.type == 'CAMERA' and obj.data:
+                    cam = obj.data
+                    obj_info["camera"] = {
+                        "type": cam.type,
+                        "lens": round(float(cam.lens), 2),
+                        "clip_start": round(float(cam.clip_start), 3),
+                        "clip_end": round(float(cam.clip_end), 2),
+                    }
+
+                all_objects.append(obj_info)
+
+            print(f"Collected info for {len(all_objects)} objects")
+            return {
+                "object_count": len(all_objects),
+                "objects": all_objects,
+            }
+        except Exception as e:
+            print(f"Error in get_all_object_info: {str(e)}")
+            traceback.print_exc()
+            return {"error": str(e)}
 
     def get_viewport_screenshot(self, max_size=800, filepath=None, format="png"):
         """
