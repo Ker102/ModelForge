@@ -93,10 +93,14 @@ export async function generatePlan(options: {
     const jsonStart = content.indexOf(jsonMatch[0])
     const reasoning = content.substring(0, jsonStart).trim()
 
-    const parsed = JSON.parse(jsonMatch[0])
-    const plan = PlanSchema.parse(parsed)
-
-    return { plan, reasoning, rawResponse: content }
+    try {
+        const parsed = JSON.parse(jsonMatch[0])
+        const plan = PlanSchema.parse(parsed)
+        return { plan, reasoning, rawResponse: content }
+    } catch (parseError) {
+        const errMsg = parseError instanceof Error ? parseError.message : String(parseError)
+        throw new Error(`Failed to parse plan from LLM output: ${errMsg}\n\nRaw content:\n${content.substring(0, 500)}`)
+    }
 }
 
 /**
@@ -129,8 +133,15 @@ export async function validateStep(options: {
     const jsonStart = content.indexOf(jsonMatch[0])
     const reasoning = content.substring(0, jsonStart).trim()
 
-    const parsed = JSON.parse(jsonMatch[0])
-    return { result: ValidationSchema.parse(parsed), reasoning }
+    try {
+        const parsed = JSON.parse(jsonMatch[0])
+        return { result: ValidationSchema.parse(parsed), reasoning }
+    } catch {
+        return {
+            result: { success: false, reason: "Failed to parse validation response", suggestions: [] },
+            reasoning,
+        }
+    }
 }
 
 /**
@@ -160,11 +171,18 @@ export async function generateRecovery(options: {
         }
     }
 
-    const parsed = JSON.parse(jsonMatch[0])
     const jsonStart = content.indexOf(jsonMatch[0])
     const reasoning = content.substring(0, jsonStart).trim()
 
-    return { recovery: RecoverySchema.parse(parsed), reasoning }
+    try {
+        const parsed = JSON.parse(jsonMatch[0])
+        return { recovery: RecoverySchema.parse(parsed), reasoning }
+    } catch {
+        return {
+            recovery: { action: "skip", parameters: {}, rationale: "Failed to parse recovery response" },
+            reasoning,
+        }
+    }
 }
 
 /**

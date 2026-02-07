@@ -9,6 +9,7 @@ import { generatePlan, validateStep, generateRecovery, type Plan, type PlanStep,
 import { formatContextFromSources, type RAGResult } from "./rag"
 import { similaritySearch } from "./vectorstore"
 import { analyzeViewport, compareWithExpectation, type VisionAnalysisResult } from "./vision"
+import type { AgentStreamEvent } from "@/lib/orchestration/types"
 
 // ============================================================================
 // Types
@@ -48,7 +49,7 @@ export interface AgentConfig {
     /** Callback to capture viewport screenshot */
     onCaptureViewport?: () => Promise<string>
     /** Callback to stream real-time agent events to the client */
-    onStreamEvent?: (event: import("@/lib/orchestration/types").AgentStreamEvent) => void
+    onStreamEvent?: (event: AgentStreamEvent) => void
 }
 
 // ============================================================================
@@ -119,7 +120,7 @@ export class BlenderAgent {
     /**
      * Emit a stream event to the client in real-time
      */
-    private emit(event: import("@/lib/orchestration/types").AgentStreamEvent) {
+    private emit(event: AgentStreamEvent) {
         this.config.onStreamEvent?.(event)
     }
 

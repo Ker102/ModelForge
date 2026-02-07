@@ -29,11 +29,14 @@ bl_info = {
     "doc_url": "https://github.com/Ker102/ModelForge",
 }
 
-RODIN_FREE_TRIAL_KEY = "k9TcfFoEhNd9cCPP2guHAHHHkctZHIRhZDywZ1euGUXwihbYLpOjQhofby80NJez"
+RODIN_FREE_TRIAL_KEY = os.environ.get("RODIN_FREE_TRIAL_KEY", "")
 
 # Add User-Agent as required by Poly Haven API
 REQ_HEADERS = requests.utils.default_headers()
 REQ_HEADERS.update({"User-Agent": "modelforge-blender"})
+
+# Default timeout for HTTP requests (seconds)
+DEFAULT_TIMEOUT = 30
 
 class BlenderMCPServer:
     def __init__(self, host='localhost', port=9876):
@@ -48,14 +51,15 @@ class BlenderMCPServer:
             print("Server is already running")
             return
 
-        self.running = True
-
         try:
             # Create socket
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.socket.bind((self.host, self.port))
             self.socket.listen(1)
+
+            # Only set running after socket is successfully bound
+            self.running = True
 
             # Start server thread
             self.server_thread = threading.Thread(target=self._server_loop)
@@ -127,6 +131,7 @@ class BlenderMCPServer:
         print("Client handler started")
         client.settimeout(None)  # No timeout
         buffer = b''
+        MAX_BUFFER_BYTES = 10 * 1024 * 1024  # 10 MB safety limit
 
         try:
             while self.running:
@@ -138,6 +143,9 @@ class BlenderMCPServer:
                         break
 
                     buffer += data
+                    if len(buffer) > MAX_BUFFER_BYTES:
+                        print(f"Buffer exceeded {MAX_BUFFER_BYTES} bytes, dropping connection")
+                        break
                     try:
                         # Try to parse command
                         command = json.loads(buffer.decode('utf-8'))
@@ -197,10 +205,6 @@ class BlenderMCPServer:
         cmd_type = command.get("type")
         params = command.get("params", {})
 
-        # Add a handler for checking PolyHaven status
-        if cmd_type == "get_polyhaven_status":
-            return {"status": "success", "result": self.get_polyhaven_status()}
-
         # Base handlers that are always available
         handlers = {
             "get_scene_info": self.get_scene_info,
@@ -225,12 +229,12 @@ class BlenderMCPServer:
 
         # Add Hyper3d handlers only if enabled
         if bpy.context.scene.blendermcp_use_hyper3d:
-            polyhaven_handlers = {
+            hyper3d_handlers = {
                 "create_rodin_job": self.create_rodin_job,
                 "poll_rodin_job_status": self.poll_rodin_job_status,
                 "import_generated_asset": self.import_generated_asset,
             }
-            handlers.update(polyhaven_handlers)
+            handlers.update(hyper3d_handlers)
 
         # Add Sketchfab handlers only if enabled
         if bpy.context.scene.blendermcp_use_sketchfab:
@@ -349,15 +353,19 @@ class BlenderMCPServer:
 
         return obj_info
 
-    def get_all_object_info(self):
+    def get_all_object_info(self, max_objects=50, start_index=0):
         """Get detailed information about all objects in the scene.
         Returns a list of object details including type, transforms, materials,
-        mesh stats, and modifiers for every object."""
+        mesh stats, and modifiers for every object.
+        Supports pagination via max_objects and start_index."""
         try:
             print("Getting all object info...")
+            all_scene_objects = list(bpy.context.scene.objects)
+            total_count = len(all_scene_objects)
+            subset = all_scene_objects[start_index:start_index + max_objects]
             all_objects = []
 
-            for obj in bpy.context.scene.objects:
+            for obj in subset:
                 obj_info = {
                     "name": obj.name,
                     "type": obj.type,
@@ -427,15 +435,18 @@ class BlenderMCPServer:
 
                 all_objects.append(obj_info)
 
-            print(f"Collected info for {len(all_objects)} objects")
+            print(f"Collected info for {len(all_objects)} objects (of {total_count} total)")
             return {
                 "object_count": len(all_objects),
+                "total_in_scene": total_count,
+                "start_index": start_index,
+                "has_more": start_index + max_objects < total_count,
                 "objects": all_objects,
             }
         except Exception as e:
             print(f"Error in get_all_object_info: {str(e)}")
             traceback.print_exc()
-            return {"error": str(e)}
+            raise
 
     def get_viewport_screenshot(self, max_size=800, filepath=None, format="png"):
         """
@@ -519,7 +530,7 @@ class BlenderMCPServer:
             if asset_type not in ["hdris", "textures", "models", "all"]:
                 return {"error": f"Invalid asset type: {asset_type}. Must be one of: hdris, textures, models, all"}
 
-            response = requests.get(f"https://api.polyhaven.com/categories/{asset_type}", headers=REQ_HEADERS)
+            response = requests.get(f"https://api.polyhaven.com/categories/{asset_type}", headers=REQ_HEADERS, timeout=DEFAULT_TIMEOUT)
             if response.status_code == 200:
                 return {"categories": response.json()}
             else:
@@ -541,7 +552,7 @@ class BlenderMCPServer:
             if categories:
                 params["categories"] = categories
 
-            response = requests.get(url, params=params, headers=REQ_HEADERS)
+            response = requests.get(url, params=params, headers=REQ_HEADERS, timeout=DEFAULT_TIMEOUT)
             if response.status_code == 200:
                 # Limit the response size to avoid overwhelming Blender
                 assets = response.json()
@@ -561,7 +572,7 @@ class BlenderMCPServer:
     def download_polyhaven_asset(self, asset_id, asset_type, resolution="1k", file_format=None):
         try:
             # First get the files information
-            files_response = requests.get(f"https://api.polyhaven.com/files/{asset_id}", headers=REQ_HEADERS)
+            files_response = requests.get(f"https://api.polyhaven.com/files/{asset_id}", headers=REQ_HEADERS, timeout=DEFAULT_TIMEOUT)
             if files_response.status_code != 200:
                 return {"error": f"Failed to get asset files: {files_response.status_code}"}
 
@@ -647,8 +658,9 @@ class BlenderMCPServer:
 
                         # Clean up temporary file
                         try:
-                            tempfile._cleanup()  # This will clean up all temporary files
-                        except:
+                            if tmp_path and os.path.isfile(tmp_path):
+                                os.remove(tmp_path)
+                        except OSError:
                             pass
 
                         return {
@@ -991,27 +1003,7 @@ class BlenderMCPServer:
 
                 links.new(mapping.outputs['Vector'], tex_node.inputs['Vector'])
 
-                # Connect to appropriate input on Principled BSDF
-                if map_type.lower() in ['color', 'diffuse', 'albedo']:
-                    links.new(tex_node.outputs['Color'], principled.inputs['Base Color'])
-                elif map_type.lower() in ['roughness', 'rough']:
-                    links.new(tex_node.outputs['Color'], principled.inputs['Roughness'])
-                elif map_type.lower() in ['metallic', 'metalness', 'metal']:
-                    links.new(tex_node.outputs['Color'], principled.inputs['Metallic'])
-                elif map_type.lower() in ['normal', 'nor', 'dx', 'gl']:
-                    # Add normal map node
-                    normal_map = nodes.new(type='ShaderNodeNormalMap')
-                    normal_map.location = (x_pos + 200, y_pos)
-                    links.new(tex_node.outputs['Color'], normal_map.inputs['Color'])
-                    links.new(normal_map.outputs['Normal'], principled.inputs['Normal'])
-                elif map_type.lower() in ['displacement', 'disp', 'height']:
-                    # Add displacement node
-                    disp_node = nodes.new(type='ShaderNodeDisplacement')
-                    disp_node.location = (x_pos + 200, y_pos - 200)
-                    disp_node.inputs['Scale'].default_value = 0.1  # Reduce displacement strength
-                    links.new(tex_node.outputs['Color'], disp_node.inputs['Height'])
-                    links.new(disp_node.outputs['Displacement'], output.inputs['Displacement'])
-
+                # Store reference for second-pass wiring (avoid double-linking)
                 y_pos -= 250
 
             # Second pass: Connect nodes with proper handling for special cases
@@ -1236,7 +1228,7 @@ class BlenderMCPServer:
             case "FAL_AI":
                 return self.create_rodin_job_fal_ai(*args, **kwargs)
             case _:
-                return f"Error: Unknown Hyper3D Rodin mode!"
+                return {"error": f"Unknown Hyper3D Rodin mode: {bpy.context.scene.blendermcp_hyper3d_mode}"}
 
     def create_rodin_job_main_site(
             self,
@@ -1328,8 +1320,9 @@ class BlenderMCPServer:
         response = requests.get(
             f"https://queue.fal.run/fal-ai/hyper3d/requests/{request_id}/status",
             headers={
-                "Authorization": f"KEY {bpy.context.scene.blendermcp_hyper3d_api_key}",
+                "Authorization": f"Key {bpy.context.scene.blendermcp_hyper3d_api_key}",
             },
+            timeout=30,
         )
         data = response.json()
         return data
@@ -1408,7 +1401,7 @@ class BlenderMCPServer:
             case "FAL_AI":
                 return self.import_generated_asset_fal_ai(*args, **kwargs)
             case _:
-                return f"Error: Unknown Hyper3D Rodin mode!"
+                return {"error": f"Unknown Hyper3D Rodin mode: {bpy.context.scene.blendermcp_hyper3d_mode}"}
 
     def import_generated_asset_main_site(self, task_uuid: str, name: str):
         """Fetch the generated asset, import into blender"""
@@ -1458,6 +1451,8 @@ class BlenderMCPServer:
                 filepath=temp_file.name,
                 mesh_name=name
             )
+            if obj is None:
+                return {"succeed": False, "error": "Import succeeded but no mesh object was found"}
             result = {
                 "name": obj.name,
                 "type": obj.type,
@@ -1475,6 +1470,13 @@ class BlenderMCPServer:
             }
         except Exception as e:
             return {"succeed": False, "error": str(e)}
+        finally:
+            # Clean up temp file
+            try:
+                if temp_file and os.path.isfile(temp_file.name):
+                    os.unlink(temp_file.name)
+            except OSError:
+                pass
 
     def import_generated_asset_fal_ai(self, request_id: str, name: str):
         """Fetch the generated asset, import into blender"""
@@ -1516,6 +1518,8 @@ class BlenderMCPServer:
                 filepath=temp_file.name,
                 mesh_name=name
             )
+            if obj is None:
+                return {"succeed": False, "error": "Import succeeded but no mesh object was found"}
             result = {
                 "name": obj.name,
                 "type": obj.type,
@@ -1533,6 +1537,13 @@ class BlenderMCPServer:
             }
         except Exception as e:
             return {"succeed": False, "error": str(e)}
+        finally:
+            # Clean up temp file
+            try:
+                if temp_file and os.path.isfile(temp_file.name):
+                    os.unlink(temp_file.name)
+            except OSError:
+                pass
     #endregion
 
     #region Sketchfab API
@@ -1577,9 +1588,9 @@ class BlenderMCPServer:
                     "message": f"Error testing Sketchfab API key: {str(e)}"
                 }
 
-        if enabled and api_key:
-            return {"enabled": True, "message": "Sketchfab integration is enabled and ready to use."}
-        elif enabled and not api_key:
+        # If api_key was present, the block above already returned.
+        # This handles: enabled with no key, or disabled entirely.
+        if enabled and not api_key:
             return {
                 "enabled": False,
                 "message": """Sketchfab integration is currently enabled, but API key is not given. To enable it:
@@ -1862,7 +1873,7 @@ class MODELFORGE_OT_StartServer(bpy.types.Operator):
 
         # Start the server
         bpy.types.blendermcp_server.start()
-        scene.blendermcp_server_running = True
+        scene.blendermcp_server_running = bpy.types.blendermcp_server.running
 
         return {'FINISHED'}
 
@@ -1907,7 +1918,7 @@ def register():
 
     bpy.types.Scene.blendermcp_use_hyper3d = bpy.props.BoolProperty(
         name="Use Hyper3D Rodin",
-        description="Enable Hyper3D Rodin generatino integration",
+        description="Enable Hyper3D Rodin generation integration",
         default=False
     )
 
@@ -1954,19 +1965,23 @@ def unregister():
         bpy.types.blendermcp_server.stop()
         del bpy.types.blendermcp_server
 
-    bpy.utils.unregister_class(MODELFORGE_PT_Panel)
-    bpy.utils.unregister_class(MODELFORGE_OT_SetFreeTrialHyper3DAPIKey)
-    bpy.utils.unregister_class(MODELFORGE_OT_StartServer)
-    bpy.utils.unregister_class(MODELFORGE_OT_StopServer)
+    for cls in (MODELFORGE_OT_StopServer, MODELFORGE_OT_StartServer,
+                MODELFORGE_OT_SetFreeTrialHyper3DAPIKey, MODELFORGE_PT_Panel):
+        try:
+            bpy.utils.unregister_class(cls)
+        except RuntimeError:
+            pass
 
-    del bpy.types.Scene.blendermcp_port
-    del bpy.types.Scene.blendermcp_server_running
-    del bpy.types.Scene.blendermcp_use_polyhaven
-    del bpy.types.Scene.blendermcp_use_hyper3d
-    del bpy.types.Scene.blendermcp_hyper3d_mode
-    del bpy.types.Scene.blendermcp_hyper3d_api_key
-    del bpy.types.Scene.blendermcp_use_sketchfab
-    del bpy.types.Scene.blendermcp_sketchfab_api_key
+    props = [
+        "blendermcp_port", "blendermcp_server_running", "blendermcp_use_polyhaven",
+        "blendermcp_use_hyper3d", "blendermcp_hyper3d_mode", "blendermcp_hyper3d_api_key",
+        "blendermcp_use_sketchfab", "blendermcp_sketchfab_api_key",
+    ]
+    for prop in props:
+        try:
+            delattr(bpy.types.Scene, prop)
+        except AttributeError:
+            pass
 
     print("ModelForge Blender addon unregistered")
 

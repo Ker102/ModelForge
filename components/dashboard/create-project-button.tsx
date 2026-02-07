@@ -31,24 +31,40 @@ export function CreateProjectButton({ children }: { children: React.ReactNode })
     const description = formData.get("description") as string
 
     try {
-      console.log("[CreateProject] Sending request...", { name, description })
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[CreateProject] Sending request...", { name, description })
+      }
       const response = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, description }),
       })
 
-      const data = await response.json()
-      console.log("[CreateProject] Response:", response.status, data)
+      let data: Record<string, unknown>
+      try {
+        data = await response.json()
+      } catch {
+        const text = await response.text().catch(() => "")
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[CreateProject] Non-JSON response body:", text)
+        }
+        data = { error: text || `Request failed (${response.status})` }
+      }
+
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[CreateProject] Response:", response.status, data)
+      }
 
       if (response.ok) {
         setOpen(false)
         router.refresh()
       } else {
-        setError(data.error || `Request failed (${response.status})`)
+        setError((data.error as string) || `Request failed (${response.status})`)
       }
     } catch (err) {
-      console.error("[CreateProject] Failed:", err)
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[CreateProject] Failed:", err)
+      }
       setError(err instanceof Error ? err.message : "Network error")
     } finally {
       setIsLoading(false)
@@ -86,7 +102,7 @@ export function CreateProjectButton({ children }: { children: React.ReactNode })
             </div>
           </div>
           {error && (
-            <div className="rounded-md bg-destructive/15 px-4 py-3 text-sm text-destructive">
+            <div role="alert" aria-live="assertive" className="rounded-md bg-destructive/15 px-4 py-3 text-sm text-destructive">
               {error}
             </div>
           )}

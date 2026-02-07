@@ -77,20 +77,39 @@ export interface ExecutionLogEntry {
 }
 
 /**
+ * Base fields shared by all agent stream events
+ */
+interface AgentEventBase {
+  timestamp: string
+}
+
+interface AgentPlanningStart extends AgentEventBase { type: "agent:planning_start" }
+interface AgentPlanningReasoning extends AgentEventBase { type: "agent:planning_reasoning"; reasoning: string }
+interface AgentPlanningComplete extends AgentEventBase { type: "agent:planning_complete"; stepCount: number; summary: string }
+interface AgentStepStart extends AgentEventBase { type: "agent:step_start"; stepIndex: number; stepCount: number; action: string; rationale: string }
+interface AgentStepResult extends AgentEventBase { type: "agent:step_result"; stepIndex: number; action: string; result: unknown; success: boolean }
+interface AgentStepValidate extends AgentEventBase { type: "agent:step_validate"; stepIndex: number; action: string; valid: boolean; reason?: string }
+interface AgentStepRecover extends AgentEventBase { type: "agent:step_recover"; stepIndex: number; action: string; recoveryAction: string; rationale: string }
+interface AgentStepError extends AgentEventBase { type: "agent:step_error"; stepIndex: number; action: string; error: string; attempt: number }
+interface AgentVision extends AgentEventBase { type: "agent:vision"; stepIndex?: number; assessment: string; issues: string[] }
+interface AgentAudit extends AgentEventBase { type: "agent:audit"; success: boolean; reason?: string }
+interface AgentComplete extends AgentEventBase { type: "agent:complete"; success: boolean; completedCount: number; failedCount: number }
+
+/**
  * Real-time stream event types sent during agent execution
  */
 export type AgentStreamEvent =
-  | { type: "agent:planning_start"; timestamp: string }
-  | { type: "agent:planning_reasoning"; timestamp: string; reasoning: string }
-  | { type: "agent:planning_complete"; timestamp: string; stepCount: number; summary: string }
-  | { type: "agent:step_start"; timestamp: string; stepIndex: number; stepCount: number; action: string; rationale: string }
-  | { type: "agent:step_result"; timestamp: string; stepIndex: number; action: string; result: unknown; success: boolean }
-  | { type: "agent:step_validate"; timestamp: string; stepIndex: number; action: string; valid: boolean; reason?: string }
-  | { type: "agent:step_recover"; timestamp: string; stepIndex: number; action: string; recoveryAction: string; rationale: string }
-  | { type: "agent:step_error"; timestamp: string; stepIndex: number; action: string; error: string; attempt: number }
-  | { type: "agent:vision"; timestamp: string; stepIndex?: number; assessment: string; issues: string[] }
-  | { type: "agent:audit"; timestamp: string; success: boolean; reason?: string }
-  | { type: "agent:complete"; timestamp: string; success: boolean; completedCount: number; failedCount: number }
+  | AgentPlanningStart
+  | AgentPlanningReasoning
+  | AgentPlanningComplete
+  | AgentStepStart
+  | AgentStepResult
+  | AgentStepValidate
+  | AgentStepRecover
+  | AgentStepError
+  | AgentVision
+  | AgentAudit
+  | AgentComplete
 
 export interface PlanningMetadata {
   planSummary: string

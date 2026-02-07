@@ -51,7 +51,7 @@ export async function POST(req: Request) {
     const body = await req.json()
     const { name, description, blenderVersion } = createProjectSchema.parse(body)
 
-    console.log("[API /api/projects POST] User:", session.user.email, "Tier:", session.user.subscriptionTier)
+    console.log("[API /api/projects POST] User:", session.user.id ?? "unknown-user", "Tier:", session.user.subscriptionTier)
 
     // Check project limit based on subscription tier
     const userProjects = await prisma.project.count({

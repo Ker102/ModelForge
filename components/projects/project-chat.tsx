@@ -234,6 +234,8 @@ function handleLoadConversation(conversation: ConversationHistoryItem) {
   setInput("")
   setIsSending(false)
   setAttachments([])
+  setAgentEvents([])
+  setAgentActive(false)
 }
 
 const handleAttachmentButton = () => {
@@ -596,7 +598,11 @@ async function handleSend(e: React.FormEvent) {
             default:
               // Handle agent stream events
               if (eventType.startsWith("agent:")) {
-                const agentEvent = event as unknown as AgentStreamEvent
+                const agentEvent: AgentStreamEvent | null =
+                  event && typeof event === "object" && "type" in event && typeof event.type === "string" && event.type.startsWith("agent:")
+                    ? (event as AgentStreamEvent)
+                    : null
+                if (!agentEvent) break
                 if (agentEvent.type === "agent:planning_start") {
                   setAgentActive(true)
                   setAgentEvents([agentEvent])
@@ -629,6 +635,8 @@ async function handleSend(e: React.FormEvent) {
     setError(null)
     setInput("")
     setAttachments([])
+    setAgentEvents([])
+    setAgentActive(false)
   }
 
   async function updateAssetConfig(partial: Partial<typeof assetConfig>) {
@@ -997,7 +1005,10 @@ async function handleSend(e: React.FormEvent) {
                               {/* Show tool result from execution log */}
                               {(() => {
                                 const logEntry = message.plan?.executionLog?.find(
-                                  (entry) => entry.tool === step.action && entry.result !== undefined
+                                  (entry) =>
+                                    entry.tool === step.action &&
+                                    ("stepIndex" in entry ? entry.stepIndex === step.stepNumber - 1 : true) &&
+                                    entry.result !== undefined
                                 )
                                 if (!logEntry?.result) return null
                                 const resultText = typeof logEntry.result === "string"
@@ -1134,7 +1145,13 @@ async function handleSend(e: React.FormEvent) {
                         : "bg-muted/50 text-muted-foreground"
                 )}>
                   <span className="text-[10px] text-muted-foreground/70 mr-2">
-                    {new Date(evt.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                    {(() => {
+                      try {
+                        return new Date(evt.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+                      } catch {
+                        return "--:--:--"
+                      }
+                    })()}
                   </span>
                   {evt.type === "agent:planning_start" && (
                     <span>🧠 Planning started...</span>

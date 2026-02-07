@@ -29,7 +29,7 @@ bl_info = {
     "doc_url": "https://github.com/Ker102/ModelForge",
 }
 
-RODIN_FREE_TRIAL_KEY = "k9TcfFoEhNd9cCPP2guHAHHHkctZHIRhZDywZ1euGUXwihbYLpOjQhofby80NJez"
+RODIN_FREE_TRIAL_KEY = os.environ.get("RODIN_FREE_TRIAL_KEY", "")
 
 # Add User-Agent as required by Poly Haven API
 REQ_HEADERS = requests.utils.default_headers()
@@ -48,14 +48,15 @@ class BlenderMCPServer:
             print("Server is already running")
             return
 
-        self.running = True
-
         try:
             # Create socket
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.socket.bind((self.host, self.port))
             self.socket.listen(1)
+
+            # Only set running after socket is successfully bound
+            self.running = True
 
             # Start server thread
             self.server_thread = threading.Thread(target=self._server_loop)
@@ -127,6 +128,7 @@ class BlenderMCPServer:
         print("Client handler started")
         client.settimeout(None)  # No timeout
         buffer = b''
+        MAX_BUFFER_BYTES = 10 * 1024 * 1024  # 10 MB safety limit
 
         try:
             while self.running:
@@ -138,6 +140,9 @@ class BlenderMCPServer:
                         break
 
                     buffer += data
+                    if len(buffer) > MAX_BUFFER_BYTES:
+                        print(f"Buffer exceeded {MAX_BUFFER_BYTES} bytes, dropping connection")
+                        break
                     try:
                         # Try to parse command
                         command = json.loads(buffer.decode('utf-8'))
@@ -197,10 +202,6 @@ class BlenderMCPServer:
         cmd_type = command.get("type")
         params = command.get("params", {})
 
-        # Add a handler for checking PolyHaven status
-        if cmd_type == "get_polyhaven_status":
-            return {"status": "success", "result": self.get_polyhaven_status()}
-
         # Base handlers that are always available
         handlers = {
             "get_scene_info": self.get_scene_info,
@@ -225,12 +226,12 @@ class BlenderMCPServer:
 
         # Add Hyper3d handlers only if enabled
         if bpy.context.scene.blendermcp_use_hyper3d:
-            polyhaven_handlers = {
+            hyper3d_handlers = {
                 "create_rodin_job": self.create_rodin_job,
                 "poll_rodin_job_status": self.poll_rodin_job_status,
                 "import_generated_asset": self.import_generated_asset,
             }
-            handlers.update(polyhaven_handlers)
+            handlers.update(hyper3d_handlers)
 
         # Add Sketchfab handlers only if enabled
         if bpy.context.scene.blendermcp_use_sketchfab:
@@ -349,15 +350,19 @@ class BlenderMCPServer:
 
         return obj_info
 
-    def get_all_object_info(self):
+    def get_all_object_info(self, max_objects=50, start_index=0):
         """Get detailed information about all objects in the scene.
         Returns a list of object details including type, transforms, materials,
-        mesh stats, and modifiers for every object."""
+        mesh stats, and modifiers for every object.
+        Supports pagination via max_objects and start_index."""
         try:
             print("Getting all object info...")
+            all_scene_objects = list(bpy.context.scene.objects)
+            total_count = len(all_scene_objects)
+            subset = all_scene_objects[start_index:start_index + max_objects]
             all_objects = []
 
-            for obj in bpy.context.scene.objects:
+            for obj in subset:
                 obj_info = {
                     "name": obj.name,
                     "type": obj.type,
@@ -427,15 +432,18 @@ class BlenderMCPServer:
 
                 all_objects.append(obj_info)
 
-            print(f"Collected info for {len(all_objects)} objects")
+            print(f"Collected info for {len(all_objects)} objects (of {total_count} total)")
             return {
                 "object_count": len(all_objects),
+                "total_in_scene": total_count,
+                "start_index": start_index,
+                "has_more": start_index + max_objects < total_count,
                 "objects": all_objects,
             }
         except Exception as e:
             print(f"Error in get_all_object_info: {str(e)}")
             traceback.print_exc()
-            return {"error": str(e)}
+            raise
 
     def get_viewport_screenshot(self, max_size=800, filepath=None, format="png"):
         """
@@ -647,8 +655,9 @@ class BlenderMCPServer:
 
                         # Clean up temporary file
                         try:
-                            tempfile._cleanup()  # This will clean up all temporary files
-                        except:
+                            if tmp_path and os.path.isfile(tmp_path):
+                                os.remove(tmp_path)
+                        except OSError:
                             pass
 
                         return {
@@ -1862,7 +1871,7 @@ class MODELFORGE_OT_StartServer(bpy.types.Operator):
 
         # Start the server
         bpy.types.blendermcp_server.start()
-        scene.blendermcp_server_running = True
+        scene.blendermcp_server_running = bpy.types.blendermcp_server.running
 
         return {'FINISHED'}
 
@@ -1907,7 +1916,7 @@ def register():
 
     bpy.types.Scene.blendermcp_use_hyper3d = bpy.props.BoolProperty(
         name="Use Hyper3D Rodin",
-        description="Enable Hyper3D Rodin generatino integration",
+        description="Enable Hyper3D Rodin generation integration",
         default=False
     )
 
@@ -1954,19 +1963,23 @@ def unregister():
         bpy.types.blendermcp_server.stop()
         del bpy.types.blendermcp_server
 
-    bpy.utils.unregister_class(MODELFORGE_PT_Panel)
-    bpy.utils.unregister_class(MODELFORGE_OT_SetFreeTrialHyper3DAPIKey)
-    bpy.utils.unregister_class(MODELFORGE_OT_StartServer)
-    bpy.utils.unregister_class(MODELFORGE_OT_StopServer)
+    for cls in (MODELFORGE_OT_StopServer, MODELFORGE_OT_StartServer,
+                MODELFORGE_OT_SetFreeTrialHyper3DAPIKey, MODELFORGE_PT_Panel):
+        try:
+            bpy.utils.unregister_class(cls)
+        except RuntimeError:
+            pass
 
-    del bpy.types.Scene.blendermcp_port
-    del bpy.types.Scene.blendermcp_server_running
-    del bpy.types.Scene.blendermcp_use_polyhaven
-    del bpy.types.Scene.blendermcp_use_hyper3d
-    del bpy.types.Scene.blendermcp_hyper3d_mode
-    del bpy.types.Scene.blendermcp_hyper3d_api_key
-    del bpy.types.Scene.blendermcp_use_sketchfab
-    del bpy.types.Scene.blendermcp_sketchfab_api_key
+    props = [
+        "blendermcp_port", "blendermcp_server_running", "blendermcp_use_polyhaven",
+        "blendermcp_use_hyper3d", "blendermcp_hyper3d_mode", "blendermcp_hyper3d_api_key",
+        "blendermcp_use_sketchfab", "blendermcp_sketchfab_api_key",
+    ]
+    for prop in props:
+        try:
+            delattr(bpy.types.Scene, prop)
+        except AttributeError:
+            pass
 
     print("ModelForge Blender addon unregistered")
 

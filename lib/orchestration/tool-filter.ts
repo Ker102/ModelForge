@@ -23,6 +23,7 @@ const CATEGORY_GROUPS: Record<string, string[]> = {
 }
 
 const KEYWORD_CATEGORY_MAP: Array<{ keywords: RegExp; categories: Array<keyof typeof CATEGORY_GROUPS> }> = [
+  { keywords: /(scene|object|info|inspect|list|describe|what|show me|tell me|details)/i, categories: ["inspection"] },
   { keywords: /(create|add|generate|build)/i, categories: ["geometry"] },
   { keywords: /(color|material|texture|paint|shade|metallic)/i, categories: ["materials"] },
   { keywords: /(light|lighting|sun|shadow|illum|hdr)/i, categories: ["lighting", "assets"] },

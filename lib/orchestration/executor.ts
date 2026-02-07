@@ -70,7 +70,10 @@ export class PlanExecutor {
         : undefined,
       onLog: (log: AgentLog) => {
         // Bridge ALL agent logs to execution logs
-        const logType = log.type as ExecutionLogEntry["logType"]
+        const VALID_LOG_TYPES = new Set<ExecutionLogEntry["logType"]>(["plan", "execute", "validate", "recover", "vision", "audit", "reasoning", "system"])
+        const logType: ExecutionLogEntry["logType"] = VALID_LOG_TYPES.has(log.type as ExecutionLogEntry["logType"])
+          ? (log.type as ExecutionLogEntry["logType"])
+          : "system"
         logs.push({
           timestamp: log.timestamp.toISOString(),
           tool: log.type === "execute" ? (log.data as PlanStep)?.action ?? "unknown" :
