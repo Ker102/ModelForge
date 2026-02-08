@@ -1165,6 +1165,9 @@ async function handleSend(e: React.FormEvent) {
                   {evt.type === "agent:step_start" && (
                     <span>▶ Step {evt.stepIndex + 1}/{evt.stepCount}: <strong>{evt.action}</strong> — {evt.rationale}</span>
                   )}
+                  {evt.type === "agent:code_generation" && (
+                    <span>🐍 Generating Python for step {evt.stepIndex + 1}: {evt.description}</span>
+                  )}
                   {evt.type === "agent:step_result" && (
                     <details className="inline">
                       <summary className="cursor-pointer">

@@ -2,7 +2,7 @@
  * ModelForge AI Module
  * 
  * Core AI infrastructure using:
- * - Gemini 3 Pro Preview for LLM generation
+ * - Gemini 2.5 Pro for LLM generation
  * - Together.ai M2-BERT-Retrieval-32k for embeddings
  * - LangChain.js for chains and agents
  * - Neon pgvector for RAG storage
@@ -15,12 +15,12 @@ import OpenAI from "openai"
 // Configuration
 // ============================================================================
 
-const DEFAULT_MODEL = "gemini-3-pro-preview"
+const DEFAULT_MODEL = process.env.GEMINI_MODEL ?? "gemini-2.5-pro"
 const EMBEDDING_MODEL = "togethercomputer/m2-bert-80M-32k-retrieval"
 const EMBEDDING_DIMENSIONS = 768
 
 // ============================================================================
-// LLM Client (Gemini 3 Pro Preview)
+// LLM Client (Gemini)
 // ============================================================================
 
 /**
@@ -40,7 +40,7 @@ export function createGeminiModel(options?: {
         apiKey,
         model: options?.model ?? DEFAULT_MODEL,
         temperature: options?.temperature ?? 0.4,
-        maxOutputTokens: options?.maxOutputTokens ?? 2048,
+        maxOutputTokens: options?.maxOutputTokens ?? 65536,
     })
 }
 

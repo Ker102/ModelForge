@@ -72,7 +72,7 @@ export async function generatePlan(options: {
     tools: string[]
     context?: string
 }): Promise<PlanWithReasoning> {
-    const model = createGeminiModel({ temperature: 0.3 })
+    const model = createGeminiModel({ temperature: 0.3, maxOutputTokens: 65536 })
 
     const formattedPrompt = await planningPrompt.format({
         request: options.request,
@@ -85,21 +85,40 @@ export async function generatePlan(options: {
     const content = response.content as string
 
     // Extract reasoning (everything before the JSON block)
-    const jsonMatch = content.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) {
+    // Find the outermost JSON object by matching braces
+    const jsonStart = content.indexOf('{')
+    if (jsonStart === -1) {
         throw new Error("Failed to extract JSON plan from response")
     }
 
-    const jsonStart = content.indexOf(jsonMatch[0])
+    // Find matching closing brace by counting
+    let braceCount = 0
+    let jsonEnd = -1
+    for (let i = jsonStart; i < content.length; i++) {
+        if (content[i] === '{') braceCount++
+        else if (content[i] === '}') {
+            braceCount--
+            if (braceCount === 0) {
+                jsonEnd = i + 1
+                break
+            }
+        }
+    }
+
+    if (jsonEnd === -1) {
+        throw new Error("Failed to find complete JSON object in response (possible truncation)")
+    }
+
     const reasoning = content.substring(0, jsonStart).trim()
+    const jsonStr = content.substring(jsonStart, jsonEnd)
 
     try {
-        const parsed = JSON.parse(jsonMatch[0])
+        const parsed = JSON.parse(jsonStr)
         const plan = PlanSchema.parse(parsed)
         return { plan, reasoning, rawResponse: content }
     } catch (parseError) {
         const errMsg = parseError instanceof Error ? parseError.message : String(parseError)
-        throw new Error(`Failed to parse plan from LLM output: ${errMsg}\n\nRaw content:\n${content.substring(0, 500)}`)
+        throw new Error(`Failed to parse plan from LLM output: ${errMsg}\n\nRaw JSON (first 800 chars):\n${jsonStr.substring(0, 800)}`)
     }
 }
 
@@ -197,7 +216,7 @@ export async function generateCode(options: {
 }): Promise<string> {
     const model = createGeminiModel({
         temperature: 0.2,
-        maxOutputTokens: 4096,
+        maxOutputTokens: 16384,
     })
 
     const formattedPrompt = await codeGenerationPrompt.format({

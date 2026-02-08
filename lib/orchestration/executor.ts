@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto"
 
 import { createBlenderAgent, type AgentLog } from "@/lib/ai/agents"
-import { type Plan, type PlanStep } from "@/lib/ai/chains"
+import { type Plan, type PlanStep, generateCode } from "@/lib/ai/chains"
 import { type LlmProviderSpec } from "@/lib/llm"
 import { createMcpClient, getViewportScreenshot, type McpCommand } from "@/lib/mcp"
 import { ExecutionLogEntry, ExecutionPlan, PlanAnalysis, AgentStreamEvent } from "./types"
@@ -121,11 +121,47 @@ export class PlanExecutor {
             throw new Error("Poly Haven tools are disabled for this project")
           }
 
+          // For execute_code steps: generate Python from description if no code is provided
+          let params = normalizeParameters(step.action, step.parameters ?? {})
+
+          if (step.action === "execute_code" && typeof params.code !== "string") {
+            // The planner provided a description instead of code — generate Python
+            const description = typeof params.description === "string"
+              ? params.description
+              : step.rationale ?? step.expected_outcome ?? "Execute the requested Blender operation"
+
+            options.onStreamEvent?.({
+              type: "agent:code_generation",
+              timestamp: new Date().toISOString(),
+              stepIndex: i,
+              description,
+            } as AgentStreamEvent)
+
+            const generatedCode = await generateCode({
+              request: description,
+              context: userRequest,
+              applyMaterials: true,
+              namingPrefix: "ModelForge_",
+              constraints: step.expected_outcome,
+            })
+
+            params = { code: generatedCode }
+
+            logs.push({
+              timestamp: new Date().toISOString(),
+              tool: "code_generation",
+              parameters: { description },
+              result: { codeLength: generatedCode.length, codePreview: generatedCode.substring(0, 200) },
+              logType: "reasoning",
+              detail: `Generated ${generatedCode.length} chars of Python for: ${description.substring(0, 100)}`,
+            })
+          }
+
           // Execute MCP command
           const command: McpCommand = {
             id: randomUUID(),
             type: step.action,
-            params: normalizeParameters(step.action, step.parameters ?? {}),
+            params,
           }
 
           const toolResult = await client.execute(command)
@@ -388,12 +424,8 @@ function normalizeParameters(action: string, parameters: Record<string, unknown>
       clone.code = clone.python
     }
 
-    if (typeof clone.code === "string") {
-      clone.code = clone.code
-    } else {
-      throw new Error("execute_code requires a string 'code' parameter")
-    }
-
+    // If there's still no code, the caller (executor) will handle code generation
+    // from the description parameter — don't throw here
     delete clone.script
     delete clone.lines
     delete clone.python
