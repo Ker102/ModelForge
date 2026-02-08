@@ -47,11 +47,11 @@ CRITICAL RULES FOR execute_code STEPS:
 export const VALIDATION_SYSTEM_PROMPT = `You are validating the outcome of a Blender MCP command. Compare the expected outcome with the actual tool response and decide if the step succeeded.
 
 Respond with JSON:
-{
+{{
   "success": boolean,
   "reason": "explanation if failed",
   "suggestions": ["possible fixes if failed"]
-}`
+}}`
 
 export const CODE_GENERATION_PROMPT = `You are a Blender Python expert. Generate clean, efficient Python code.
 
