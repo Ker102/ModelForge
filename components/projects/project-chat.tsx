@@ -118,6 +118,7 @@ export function ProjectChat({
   const [localReady, setLocalReady] = useState<boolean>(localProviderConfigured)
   const [agentEvents, setAgentEvents] = useState<AgentStreamEvent[]>([])
   const [agentActive, setAgentActive] = useState(false)
+  const [mcpConnected, setMcpConnected] = useState<boolean | null>(null)
   const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024
   const MAX_ATTACHMENTS = 4
 
@@ -164,6 +165,25 @@ export function ProjectChat({
   useEffect(() => {
     setLocalReady(localProviderConfigured)
   }, [localProviderConfigured])
+
+  // Poll MCP (Blender addon) connection status every 10s
+  useEffect(() => {
+    let cancelled = false
+    const checkConnection = async () => {
+      try {
+        const res = await fetch("/api/mcp/status")
+        if (!cancelled && res.ok) {
+          const data = await res.json()
+          setMcpConnected(data.status?.connected === true)
+        }
+      } catch {
+        if (!cancelled) setMcpConnected(false)
+      }
+    }
+    checkConnection()
+    const interval = setInterval(checkConnection, 10_000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [])
 
   useEffect(() => {
     if (initialConversation?.id && initialConversation.id !== conversationId) {
@@ -1268,6 +1288,31 @@ async function handleSend(e: React.FormEvent) {
                 Manage
               </Button>
             </div>
+          </div>
+          {/* Blender MCP connection indicator */}
+          <div
+            className={cn(
+              "flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs",
+              mcpConnected === true
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                : mcpConnected === false
+                  ? "border-destructive/30 bg-destructive/10 text-destructive"
+                  : "border-border/50 bg-muted/30 text-muted-foreground"
+            )}
+          >
+            <span
+              className={cn(
+                "inline-block h-2 w-2 rounded-full",
+                mcpConnected === true
+                  ? "bg-emerald-500 animate-pulse"
+                  : mcpConnected === false
+                    ? "bg-destructive"
+                    : "bg-muted-foreground"
+              )}
+            />
+            {mcpConnected === true && "Blender addon connected (port 9876)"}
+            {mcpConnected === false && "Blender addon not connected — open Blender and connect the ModelForge addon on port 9876"}
+            {mcpConnected === null && "Checking Blender connection…"}
           </div>
           {attachments.length > 0 && (
             <div className="flex flex-wrap gap-3">
