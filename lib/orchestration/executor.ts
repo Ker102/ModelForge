@@ -135,17 +135,23 @@ export class PlanExecutor {
               timestamp: new Date().toISOString(),
               stepIndex: i,
               description,
-            } as AgentStreamEvent)
-
-            const generatedCode = await generateCode({
-              request: description,
-              context: userRequest,
-              applyMaterials: true,
-              namingPrefix: "ModelForge_",
-              constraints: step.expected_outcome,
             })
 
-            params = { code: generatedCode }
+            let generatedCode: string
+            try {
+              generatedCode = await generateCode({
+                request: description,
+                context: userRequest,
+                applyMaterials: true,
+                namingPrefix: "ModelForge_",
+                constraints: step.expected_outcome,
+              })
+            } catch (codeGenError) {
+              processLogger.error(`Code generation failed for step ${i + 1}: ${description.substring(0, 100)}`, codeGenError)
+              throw codeGenError
+            }
+
+            params = { ...params, code: generatedCode }
 
             logs.push({
               timestamp: new Date().toISOString(),

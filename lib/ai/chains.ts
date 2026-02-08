@@ -91,16 +91,29 @@ export async function generatePlan(options: {
         throw new Error("Failed to extract JSON plan from response")
     }
 
-    // Find matching closing brace by counting
+    // Find matching closing brace by counting (string-aware)
     let braceCount = 0
     let jsonEnd = -1
+    let inString = false
     for (let i = jsonStart; i < content.length; i++) {
-        if (content[i] === '{') braceCount++
-        else if (content[i] === '}') {
-            braceCount--
-            if (braceCount === 0) {
-                jsonEnd = i + 1
-                break
+        const ch = content[i]
+        if (inString) {
+            if (ch === '\\') {
+                i++ // skip escaped character
+            } else if (ch === '"') {
+                inString = false
+            }
+        } else {
+            if (ch === '"') {
+                inString = true
+            } else if (ch === '{') {
+                braceCount++
+            } else if (ch === '}') {
+                braceCount--
+                if (braceCount === 0) {
+                    jsonEnd = i + 1
+                    break
+                }
             }
         }
     }

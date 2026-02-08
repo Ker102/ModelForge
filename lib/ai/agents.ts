@@ -123,12 +123,23 @@ export class BlenderAgent {
     private isMcpSuccess(result: unknown): boolean {
         if (!result || typeof result !== "object") return false
         const r = result as Record<string, unknown>
+
+        // Check for explicit error indicators at top level
+        if (r.error || r.errors || (typeof r.message === "string" && r.message.toLowerCase().includes("error"))) {
+            return false
+        }
+
         const status = typeof r.status === "string" ? r.status.toLowerCase() : ""
         if (status === "success" || status === "ok") return true
+
         // Check nested result
         const inner = r.result
         if (inner && typeof inner === "object") {
             const innerObj = inner as Record<string, unknown>
+            // Check for error indicators on inner object
+            if (innerObj.error || innerObj.errors || (typeof innerObj.message === "string" && innerObj.message.toLowerCase().includes("error"))) {
+                return false
+            }
             if (innerObj.executed === true) return true
         }
         return false
@@ -242,10 +253,20 @@ export class BlenderAgent {
                 })
 
                 // Fast-path: for execute_code steps, if MCP returned success
-                // we trust it — the code either ran or threw an error.
-                // LLM validation adds no value since the result is just {"executed": true}.
+                // and there is no non-trivial expected_outcome or vision validation,
+                // auto-validate — LLM validation adds no value for {"executed": true}.
                 const mcpSuccess = this.isMcpSuccess(result)
-                if (step.action === "execute_code" && mcpSuccess) {
+                const hasNonTrivialExpectedOutcome = step.expected_outcome
+                    && step.expected_outcome.trim().length > 0
+                    && !step.expected_outcome.toLowerCase().includes("executed")
+                    && step.expected_outcome.toLowerCase() !== "true"
+
+                if (
+                    step.action === "execute_code"
+                    && mcpSuccess
+                    && !hasNonTrivialExpectedOutcome
+                    && !this.config.useVision
+                ) {
                     this.state.completedSteps.push({ step, result })
                     this.config.onStepComplete?.(step, result)
                     this.log("validate", `Step ${stepIndex + 1} auto-validated (execute_code succeeded)`)

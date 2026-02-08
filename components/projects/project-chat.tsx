@@ -172,9 +172,13 @@ export function ProjectChat({
     const checkConnection = async () => {
       try {
         const res = await fetch("/api/mcp/status")
-        if (!cancelled && res.ok) {
+        if (cancelled) return
+        if (res.ok) {
           const data = await res.json()
           setMcpConnected(data.status?.connected === true)
+        } else {
+          console.warn(`MCP status check failed: HTTP ${res.status}`)
+          setMcpConnected(false)
         }
       } catch {
         if (!cancelled) setMcpConnected(false)
