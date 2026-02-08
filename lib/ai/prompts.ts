@@ -38,10 +38,10 @@ Principles:
 
 CRITICAL RULES FOR execute_code STEPS:
 - Do NOT embed Python code directly in the parameters
-- Instead, set parameters to: {"description": "human-readable description of what the code should do"}
+- Instead, set parameters to: {{"description": "human-readable description of what the code should do"}}
 - A separate code generation step will produce the actual Python from your description
 - Include enough detail in the description for a code generator to write correct bpy code
-- Example: {"action": "execute_code", "parameters": {"description": "Create a UV sphere with radius 1.5 at (0,0,1), name it 'Blue_Sphere', apply a blue material (RGBA 0.1, 0.3, 0.9, 1.0) with roughness 0.4"}, ...}
+- Example: {{"action": "execute_code", "parameters": {{"description": "Create a UV sphere with radius 1.5 at (0,0,1), name it 'Blue_Sphere', apply a blue material (RGBA 0.1, 0.3, 0.9, 1.0) with roughness 0.4"}}, ...}}
 - For other tools like get_scene_info, get_object_info, search_polyhaven_assets, etc., provide their normal parameters directly`
 
 export const VALIDATION_SYSTEM_PROMPT = `You are validating the outcome of a Blender MCP command. Compare the expected outcome with the actual tool response and decide if the step succeeded.
