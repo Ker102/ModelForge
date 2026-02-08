@@ -118,6 +118,23 @@ export class BlenderAgent {
     }
 
     /**
+     * Check if an MCP result indicates success
+     */
+    private isMcpSuccess(result: unknown): boolean {
+        if (!result || typeof result !== "object") return false
+        const r = result as Record<string, unknown>
+        const status = typeof r.status === "string" ? r.status.toLowerCase() : ""
+        if (status === "success" || status === "ok") return true
+        // Check nested result
+        const inner = r.result
+        if (inner && typeof inner === "object") {
+            const innerObj = inner as Record<string, unknown>
+            if (innerObj.executed === true) return true
+        }
+        return false
+    }
+
+    /**
      * Emit a stream event to the client in real-time
      */
     private emit(event: AgentStreamEvent) {
@@ -224,7 +241,26 @@ export class BlenderAgent {
                     success: true,
                 })
 
-                // Validate the result
+                // Fast-path: for execute_code steps, if MCP returned success
+                // we trust it — the code either ran or threw an error.
+                // LLM validation adds no value since the result is just {"executed": true}.
+                const mcpSuccess = this.isMcpSuccess(result)
+                if (step.action === "execute_code" && mcpSuccess) {
+                    this.state.completedSteps.push({ step, result })
+                    this.config.onStepComplete?.(step, result)
+                    this.log("validate", `Step ${stepIndex + 1} auto-validated (execute_code succeeded)`)
+                    this.emit({
+                        type: "agent:step_validate",
+                        timestamp: new Date().toISOString(),
+                        stepIndex,
+                        action: step.action,
+                        valid: true,
+                        reason: "Code executed successfully — auto-validated",
+                    })
+                    return { success: true, result }
+                }
+
+                // For non-execute_code steps, use LLM validation
                 const { result: validation, reasoning: validationReasoning } = await validateStep({
                     stepDescription: `${step.action} - ${step.rationale}`,
                     expectedOutcome: step.expected_outcome,
