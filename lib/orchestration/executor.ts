@@ -141,7 +141,7 @@ export class PlanExecutor {
             try {
               generatedCode = await generateCode({
                 request: description,
-                context: userRequest,
+                context: `This is one step in a larger plan for: "${userRequest}". Generate code for ONLY the described task, not the entire plan.`,
                 applyMaterials: true,
                 namingPrefix: "ModelForge_",
                 constraints: step.expected_outcome,
@@ -435,6 +435,12 @@ function normalizeParameters(action: string, parameters: Record<string, unknown>
     delete clone.script
     delete clone.lines
     delete clone.python
+
+    // If we have actual code, strip description so the addon doesn't reject it
+    // (addon only accepts `code` kwarg)
+    if (typeof clone.code === "string") {
+      delete clone.description
+    }
   }
 
   return clone

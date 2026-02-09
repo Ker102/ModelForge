@@ -98,10 +98,23 @@ COMMON PATTERNS:
 - Set active camera:
   bpy.context.scene.camera = cam_obj
 
+BLENDER 4.x API — CRITICAL:
+- The Principled BSDF shader in Blender 4.0+ RENAMED several inputs:
+  • "Specular" is now "Specular IOR Level" (or just skip it — default is fine)
+  • "Emission" was SPLIT into "Emission Color" and "Emission Strength"
+  • "Transmission" is now "Transmission Weight"
+  • Always use .get() to access shader inputs safely: bsdf.inputs.get('Metallic')
+  • "Metallic" is still "Metallic" (not "Metalic" — watch the spelling)
+- For emission/glow effects, set BOTH:
+  bsdf.inputs['Emission Color'].default_value = (R, G, B, 1.0)
+  bsdf.inputs['Emission Strength'].default_value = 5.0
+
 AVOID:
 - Using deprecated \`bpy.context.scene.objects.link()\` — use \`bpy.context.collection.objects.link()\` if needed.
 - Hard-coding absolute file paths.
 - Calling \`bpy.ops\` operators that require specific UI context without overriding context.
+- Accessing \`bpy.context.active_object\` after deleting objects — it may be None or stale.
+- Use \`bpy.data.objects.remove(obj, do_unlink=True)\` to delete, then re-fetch references.
 
 {context}`
 
@@ -144,7 +157,9 @@ REMINDER: For execute_code steps, set parameters to {{"description": "detailed d
  */
 export const codeGenerationPrompt = ChatPromptTemplate.fromMessages([
     SystemMessagePromptTemplate.fromTemplate(CODE_GENERATION_PROMPT),
-    HumanMessagePromptTemplate.fromTemplate(`Generate Blender Python code for: {request}
+    HumanMessagePromptTemplate.fromTemplate(`Generate Blender Python code for ONLY this specific task: {request}
+
+IMPORTANT: Generate code for ONLY the task described above. Do NOT create the entire scene — other steps handle the rest.
 
 Requirements:
 - Apply materials: {applyMaterials}
@@ -168,8 +183,18 @@ Validate this step and respond with JSON.`),
  * Recovery prompt template
  */
 export const recoveryPrompt = ChatPromptTemplate.fromMessages([
-    SystemMessagePromptTemplate.fromTemplate(`You are helping recover from a failed Blender operation.
-Analyze the error and suggest a fix.`),
+    SystemMessagePromptTemplate.fromTemplate(`You are helping recover from a failed Blender MCP operation.
+Analyze the error and suggest a fix.
+
+CRITICAL RULES:
+- For execute_code recovery: set action to "execute_code" and only provide {{"description": "what the code should do"}} — NEVER put raw Python code in the parameters.
+- For other tools: use the EXACT parameter names the tool expects. Common tools:
+  • search_polyhaven_assets: asset_type ('hdris'|'textures'|'models'|'all'), categories (comma-separated)
+  • download_polyhaven_asset: asset_id, asset_type, resolution ('1k'), file_format
+  • get_object_info: name (object name)
+  • set_texture: object_name, texture_id
+- If a tool keeps failing and cannot be fixed, suggest "skip" to move on.
+- If the error mentions "unexpected keyword argument", you are using wrong parameter names — check above.`),
     HumanMessagePromptTemplate.fromTemplate(`Failed step: {stepDescription}
 Error: {error}
 Scene state: {sceneState}
