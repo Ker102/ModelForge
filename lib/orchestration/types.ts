@@ -40,6 +40,7 @@ export interface ToolMetadata {
   name: string
   description: string
   category: ToolCategory
+  parameters?: string
 }
 
 export type ToolCategory =

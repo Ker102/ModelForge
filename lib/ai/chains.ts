@@ -6,6 +6,7 @@
 
 import { createGeminiModel } from "./index"
 import { planningPrompt, validationPrompt, recoveryPrompt, codeGenerationPrompt } from "./prompts"
+import { formatToolListForPrompt } from "@/lib/orchestration/tool-filter"
 import { z } from "zod"
 
 // ============================================================================
@@ -77,7 +78,7 @@ export async function generatePlan(options: {
     const formattedPrompt = await planningPrompt.format({
         request: options.request,
         sceneState: options.sceneState ?? "Unknown",
-        tools: options.tools.join(", "),
+        tools: formatToolListForPrompt(options.tools),
         context: options.context ?? "",
     })
 

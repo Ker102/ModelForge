@@ -108,9 +108,11 @@ export function formatToolListForPrompt(toolNames: string[]): string {
   const lines = toolNames
     .map((name) => {
       const metadata = TOOL_REGISTRY.find((tool) => tool.name === name)
-      return metadata
-        ? `- ${metadata.name}: ${metadata.description}`
-        : `- ${name}`
+      if (metadata) {
+        const params = metadata.parameters ? ` | Params: ${metadata.parameters}` : ""
+        return `- ${metadata.name}: ${metadata.description}${params}`
+      }
+      return `- ${name}`
     })
     .join("\n")
 
