@@ -93,7 +93,6 @@ def _create_backdrop(
     
     # Material
     mat = bpy.data.materials.new(f"{name_prefix}_BackdropMat")
-    mat.use_nodes = True
     nodes = mat.node_tree.nodes
     bsdf = nodes.get("Principled BSDF")
     
@@ -251,7 +250,6 @@ def _setup_world(color: tuple, style: str) -> None:
         world = bpy.data.worlds.new("ProductWorld")
         bpy.context.scene.world = world
     
-    world.use_nodes = True
     nodes = world.node_tree.nodes
     links = world.node_tree.links
     nodes.clear()

@@ -49,7 +49,6 @@ def create_simple_car(
     
     # Body material
     body_mat = bpy.data.materials.new(name=f"{name_prefix}_Paint")
-    body_mat.use_nodes = True
     bsdf = body_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = body_color
     bsdf.inputs['Metallic'].default_value = 0.9
@@ -77,7 +76,6 @@ def create_simple_car(
     
     # Wheel material
     wheel_mat = bpy.data.materials.new(name=f"{name_prefix}_Rubber")
-    wheel_mat.use_nodes = True
     wheel_bsdf = wheel_mat.node_tree.nodes.get("Principled BSDF")
     wheel_bsdf.inputs['Base Color'].default_value = (0.02, 0.02, 0.02, 1.0)
     wheel_bsdf.inputs['Roughness'].default_value = 0.8
@@ -94,7 +92,6 @@ def create_simple_car(
     
     # === WINDOWS ===
     glass_mat = bpy.data.materials.new(name=f"{name_prefix}_Glass")
-    glass_mat.use_nodes = True
     glass_bsdf = glass_mat.node_tree.nodes.get("Principled BSDF")
     glass_bsdf.inputs['Base Color'].default_value = (0.1, 0.1, 0.15, 1.0)
     glass_bsdf.inputs['Metallic'].default_value = 0.0
@@ -120,7 +117,6 @@ def create_simple_car(
     
     # === HEADLIGHTS ===
     headlight_mat = bpy.data.materials.new(name=f"{name_prefix}_Headlight")
-    headlight_mat.use_nodes = True
     nodes = headlight_mat.node_tree.nodes
     links = headlight_mat.node_tree.links
     nodes.clear()
@@ -141,7 +137,6 @@ def create_simple_car(
     
     # === TAILLIGHTS ===
     taillight_mat = bpy.data.materials.new(name=f"{name_prefix}_Taillight")
-    taillight_mat.use_nodes = True
     nodes = taillight_mat.node_tree.nodes
     links = taillight_mat.node_tree.links
     nodes.clear()

@@ -52,7 +52,6 @@ def create_ground_plane(
 def _create_ground_material(material_type: str, name: str) -> bpy.types.Material:
     """Create ground material based on type."""
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
     
@@ -174,7 +173,6 @@ def create_curved_backdrop(
     bpy.ops.object.shade_smooth()
     
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*color, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.8

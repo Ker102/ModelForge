@@ -59,7 +59,6 @@ def create_coin(
     }
     
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     color = colors.get(material, colors['GOLD'])
     bsdf.inputs['Base Color'].default_value = (*color, 1.0)

@@ -81,9 +81,8 @@ STRICT RULES:
 6. Output ONLY raw Python code — no markdown fences, no explanations, no comments about what the code does.
 
 COMMON PATTERNS:
-- Create a material:
+- Create a material (Blender 5.x — use_nodes is auto-enabled):
   mat = bpy.data.materials.new(name='MyMaterial')
-  mat.use_nodes = True
   bsdf = mat.node_tree.nodes.get('Principled BSDF')
   bsdf.inputs['Base Color'].default_value = (R, G, B, 1.0)
   bsdf.inputs['Roughness'].default_value = 0.5
@@ -98,8 +97,11 @@ COMMON PATTERNS:
 - Set active camera:
   bpy.context.scene.camera = cam_obj
 
-BLENDER 4.x API — CRITICAL:
-- The Principled BSDF shader in Blender 4.0+ RENAMED several inputs:
+BLENDER 5.x API — CRITICAL:
+- \`material.use_nodes = True\` is DEPRECATED in Blender 5.0+ — do NOT call it. The node tree is auto-created by \`bpy.data.materials.new()\`.
+- \`world.use_nodes = True\` is also DEPRECATED — same auto-creation behavior.
+- The EEVEE render engine identifier is now "BLENDER_EEVEE" (not "BLENDER_EEVEE_NEXT").
+- The Principled BSDF shader (since Blender 4.0) RENAMED several inputs:
   • "Specular" is now "Specular IOR Level" (or just skip it — default is fine)
   • "Emission" was SPLIT into "Emission Color" and "Emission Strength"
   • "Transmission" is now "Transmission Weight"
@@ -110,6 +112,7 @@ BLENDER 4.x API — CRITICAL:
   bsdf.inputs['Emission Strength'].default_value = 5.0
 
 AVOID:
+- Calling \`mat.use_nodes = True\` — deprecated in Blender 5.x, node tree is auto-created.
 - Using deprecated \`bpy.context.scene.objects.link()\` — use \`bpy.context.collection.objects.link()\` if needed.
 - Hard-coding absolute file paths.
 - Calling \`bpy.ops\` operators that require specific UI context without overriding context.
@@ -226,7 +229,6 @@ sphere.name = 'Blue_Sphere'
 mat = bpy.data.materials.get('ModelForge_Blue')
 if mat is None:
     mat = bpy.data.materials.new('ModelForge_Blue')
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get('Principled BSDF')
     bsdf.inputs['Base Color'].default_value = (0.1, 0.3, 0.9, 1.0)
 

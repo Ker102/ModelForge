@@ -82,7 +82,6 @@ def create_rain_effect(
     
     # Material for rain
     rain_mat = bpy.data.materials.new(f"{name}_Mat")
-    rain_mat.use_nodes = True
     bsdf = rain_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.8, 0.85, 0.9, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.1

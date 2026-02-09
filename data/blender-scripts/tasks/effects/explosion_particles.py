@@ -91,7 +91,6 @@ def _create_debris_particles(
     
     # Add material
     debris_mat = bpy.data.materials.new(name=f"{name}_DebrisMat")
-    debris_mat.use_nodes = True
     bsdf = debris_mat.node_tree.nodes["Principled BSDF"]
     bsdf.inputs['Base Color'].default_value = (0.15, 0.12, 0.1, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.8
@@ -211,7 +210,6 @@ def _create_fire_glow(
     
     # Emission material
     glow_mat = bpy.data.materials.new(name=f"{name}_FireMat")
-    glow_mat.use_nodes = True
     nodes = glow_mat.node_tree.nodes
     links = glow_mat.node_tree.links
     nodes.clear()

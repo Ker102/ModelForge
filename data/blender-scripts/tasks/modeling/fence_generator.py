@@ -47,7 +47,6 @@ def create_fence(
     
     # Materials
     post_mat = bpy.data.materials.new(f"{name}_PostMat")
-    post_mat.use_nodes = True
     bsdf = post_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.45, 0.35, 0.2, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.7

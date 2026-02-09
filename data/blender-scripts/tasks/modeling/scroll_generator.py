@@ -61,7 +61,6 @@ def create_scroll(
         
         # Paper material
         paper_mat = bpy.data.materials.new(f"{name}_PaperMat")
-        paper_mat.use_nodes = True
         bsdf = paper_mat.node_tree.nodes.get("Principled BSDF")
         bsdf.inputs['Base Color'].default_value = (0.9, 0.85, 0.7, 1.0)
         bsdf.inputs['Roughness'].default_value = 0.8
@@ -85,7 +84,6 @@ def create_scroll(
     roll.rotation_euler.x = math.radians(90)
     
     roll_mat = bpy.data.materials.new(f"{name}_RollMat")
-    roll_mat.use_nodes = True
     bsdf = roll_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.85, 0.8, 0.65, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.7
@@ -137,7 +135,6 @@ def _create_scroll_ribbon(
     ribbon.rotation_euler.x = math.radians(90)
     
     mat = bpy.data.materials.new(f"{name}_RibbonMat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.6, 0.1, 0.1, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.5
@@ -172,7 +169,6 @@ def create_book_page(
     page.modifiers["SimpleDeform"].angle = curl
     
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.95, 0.93, 0.88, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.9

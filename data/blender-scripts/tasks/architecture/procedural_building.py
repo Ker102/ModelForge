@@ -57,7 +57,6 @@ def create_procedural_building(
     
     # Building material
     building_mat = bpy.data.materials.new(name=f"{name_prefix}_Facade")
-    building_mat.use_nodes = True
     bsdf = building_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.7, 0.68, 0.65, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.8
@@ -66,7 +65,6 @@ def create_procedural_building(
     
     # === WINDOWS ===
     glass_mat = bpy.data.materials.new(name=f"{name_prefix}_Glass")
-    glass_mat.use_nodes = True
     glass_bsdf = glass_mat.node_tree.nodes.get("Principled BSDF")
     glass_bsdf.inputs['Base Color'].default_value = (0.2, 0.3, 0.4, 1.0)
     glass_bsdf.inputs['Metallic'].default_value = 0.8
@@ -116,7 +114,6 @@ def create_procedural_building(
     roof_edge.scale = (width / 2 + 0.2, depth / 2 + 0.2, 0.3)
     
     roof_mat = bpy.data.materials.new(name=f"{name_prefix}_Concrete")
-    roof_mat.use_nodes = True
     roof_bsdf = roof_mat.node_tree.nodes.get("Principled BSDF")
     roof_bsdf.inputs['Base Color'].default_value = (0.4, 0.4, 0.4, 1.0)
     roof_bsdf.inputs['Roughness'].default_value = 0.9

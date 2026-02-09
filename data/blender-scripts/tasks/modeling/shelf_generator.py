@@ -94,7 +94,6 @@ def create_shelf_unit(
     
     # === MATERIAL ===
     mat = bpy.data.materials.new(f"{name}_WoodMat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.4, 0.28, 0.15, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.6
@@ -155,7 +154,6 @@ def create_wall_shelf(
     
     # Material
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.35, 0.25, 0.12, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.5

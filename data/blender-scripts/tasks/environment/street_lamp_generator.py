@@ -60,7 +60,6 @@ def create_street_lamp(
     pole.name = f"{name}_Pole"
     
     pole_mat = bpy.data.materials.new(f"{name}_PoleMat")
-    pole_mat.use_nodes = True
     bsdf = pole_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.15, 0.15, 0.17, 1.0)
     bsdf.inputs['Metallic'].default_value = 0.9

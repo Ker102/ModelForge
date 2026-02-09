@@ -129,7 +129,6 @@ def create_chair(
     
     # === MATERIAL ===
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.3, 0.18, 0.08, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.45

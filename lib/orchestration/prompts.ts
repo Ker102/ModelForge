@@ -56,7 +56,6 @@ import bpy
 mat = bpy.data.materials.get('ModelForge_Blue')
 if mat is None:
     mat = bpy.data.materials.new('ModelForge_Blue')
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get('Principled BSDF')
     bsdf.inputs['Base Color'].default_value = (0.1, 0.3, 0.9, 1.0)
 
@@ -97,7 +96,6 @@ body.scale = (1.5, 0.7, 0.4)
 paint = bpy.data.materials.get('Car_Paint_Metallic')
 if paint is None:
     paint = bpy.data.materials.new('Car_Paint_Metallic')
-    paint.use_nodes = True
     bsdf = paint.node_tree.nodes['Principled BSDF']
     bsdf.inputs['Base Color'].default_value = (0.9, 0.12, 0.12, 1.0)
     bsdf.inputs['Metallic'].default_value = 0.9
@@ -124,7 +122,6 @@ for offset in [(-1.2, 0.9), (1.2, 0.9), (-1.2, -0.9), (1.2, -0.9)]:
 rubber = bpy.data.materials.get('Wheel_Rubber')
 if rubber is None:
     rubber = bpy.data.materials.new('Wheel_Rubber')
-    rubber.use_nodes = True
     bsdf = rubber.node_tree.nodes['Principled BSDF']
     bsdf.inputs['Base Color'].default_value = (0.05, 0.05, 0.05, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.7
@@ -145,9 +142,8 @@ import bpy
 glass = bpy.data.materials.get('Glass_Shader')
 if glass is None:
     glass = bpy.data.materials.new('Glass_Shader')
-    glass.use_nodes = True
     bsdf = glass.node_tree.nodes['Principled BSDF']
-    bsdf.inputs['Transmission'].default_value = 1.0
+    bsdf.inputs['Transmission Weight'].default_value = 1.0
 
 bpy.ops.mesh.primitive_plane_add(size=1.6, location=(0, 0, 1.3))
 front_window = bpy.context.active_object
@@ -162,7 +158,6 @@ for x_offset in (-0.9, 0.9):
     lamp = bpy.context.active_object
     lamp.name = f'Headlight_{"L" if x_offset < 0 else "R"}'
     emissive = bpy.data.materials.new(name=f'{lamp.name}_Emitter')
-    emissive.use_nodes = True
     emit = emissive.node_tree.nodes.new('ShaderNodeEmission')
     output = emissive.node_tree.nodes['Material Output']
     emissive.node_tree.links.new(emit.outputs['Emission'], output.inputs['Surface'])

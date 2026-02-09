@@ -61,7 +61,6 @@ def create_lamp(
         
         # Add metal material to base
         base_mat = bpy.data.materials.new(f"{name}_BaseMat")
-        base_mat.use_nodes = True
         bsdf = base_mat.node_tree.nodes.get("Principled BSDF")
         bsdf.inputs['Base Color'].default_value = (0.15, 0.15, 0.18, 1.0)
         bsdf.inputs['Metallic'].default_value = 0.8
@@ -82,7 +81,6 @@ def create_lamp(
         pole.name = f"{name}_Pole"
         
         pole_mat = bpy.data.materials.new(f"{name}_PoleMat")
-        pole_mat.use_nodes = True
         bsdf = pole_mat.node_tree.nodes.get("Principled BSDF")
         bsdf.inputs['Base Color'].default_value = (0.6, 0.55, 0.4, 1.0)
         bsdf.inputs['Metallic'].default_value = 0.9
@@ -116,7 +114,6 @@ def create_lamp(
     
     # Shade material (slightly translucent)
     shade_mat = bpy.data.materials.new(f"{name}_ShadeMat")
-    shade_mat.use_nodes = True
     bsdf = shade_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*shade_color, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.9

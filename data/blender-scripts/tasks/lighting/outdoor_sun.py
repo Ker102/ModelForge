@@ -85,7 +85,6 @@ def create_outdoor_sun_lighting(
         world = bpy.data.worlds.new(f"{name_prefix}_World")
         bpy.context.scene.world = world
     
-    world.use_nodes = True
     nodes = world.node_tree.nodes
     links = world.node_tree.links
     nodes.clear()
@@ -207,7 +206,6 @@ def create_overcast_lighting(
         world = bpy.data.worlds.new(f"{name_prefix}_World")
         bpy.context.scene.world = world
     
-    world.use_nodes = True
     nodes = world.node_tree.nodes
     links = world.node_tree.links
     nodes.clear()

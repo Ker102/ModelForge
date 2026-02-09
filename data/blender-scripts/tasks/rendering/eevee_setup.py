@@ -23,7 +23,7 @@ def setup_eevee_quality(quality: str = 'MEDIUM') -> dict:
     Returns:
         Dictionary with applied settings
     """
-    bpy.context.scene.render.engine = 'BLENDER_EEVEE_NEXT'
+    bpy.context.scene.render.engine = 'BLENDER_EEVEE'
     eevee = bpy.context.scene.eevee
     
     presets = {

@@ -58,7 +58,6 @@ def create_book(
     
     # Cover material
     cover_mat = bpy.data.materials.new(f"{name}_CoverMat")
-    cover_mat.use_nodes = True
     bsdf = cover_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*cover_color, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.7
@@ -71,7 +70,6 @@ def create_book(
         
         # Pages material (cream/white)
         page_mat = bpy.data.materials.new(f"{name}_PageMat")
-        page_mat.use_nodes = True
         bsdf = page_mat.node_tree.nodes.get("Principled BSDF")
         bsdf.inputs['Base Color'].default_value = (0.95, 0.93, 0.88, 1.0)
         bsdf.inputs['Roughness'].default_value = 0.9

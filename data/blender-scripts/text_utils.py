@@ -138,7 +138,6 @@ def create_title_text(
     
     # Add material
     mat = bpy.data.materials.new(f"TitleMat_{text[:10]}")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*color, 1.0)
     bsdf.inputs['Metallic'].default_value = 0.3

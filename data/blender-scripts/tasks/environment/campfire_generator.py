@@ -62,7 +62,6 @@ def _create_logs(
     """Create log arrangement."""
     logs = []
     log_mat = bpy.data.materials.new(f"{name}_LogMat")
-    log_mat.use_nodes = True
     bsdf = log_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.2, 0.12, 0.06, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.9
@@ -102,7 +101,6 @@ def _create_fire_stones(
     """Create surrounding stones."""
     stones = []
     stone_mat = bpy.data.materials.new(f"{name}_StoneMat")
-    stone_mat.use_nodes = True
     bsdf = stone_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.35, 0.32, 0.3, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.9
@@ -163,7 +161,6 @@ def _create_fire_effect(
         v.co.y += random.uniform(-0.02, 0.02)
     
     fire_mat = bpy.data.materials.new(f"{name}_FireMat")
-    fire_mat.use_nodes = True
     fire_mat.blend_method = 'BLEND'
     bsdf = fire_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (1.0, 0.4, 0.0, 1.0)

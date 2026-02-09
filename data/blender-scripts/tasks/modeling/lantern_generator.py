@@ -89,7 +89,6 @@ def _create_classic_lantern(size, location, name):
     frame.modifiers["Wireframe"].thickness = size * 0.05
     
     frame_mat = bpy.data.materials.new(f"{name}_FrameMat")
-    frame_mat.use_nodes = True
     bsdf = frame_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.2, 0.18, 0.15, 1.0)
     bsdf.inputs['Metallic'].default_value = 0.8
@@ -106,7 +105,6 @@ def _create_classic_lantern(size, location, name):
     glass.name = f"{name}_Glass"
     
     glass_mat = bpy.data.materials.new(f"{name}_GlassMat")
-    glass_mat.use_nodes = True
     glass_mat.blend_method = 'BLEND'
     bsdf = glass_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.9, 0.85, 0.7, 0.3)
@@ -134,7 +132,6 @@ def _create_paper_lantern(size, location, name):
     bpy.ops.object.shade_smooth()
     
     mat = bpy.data.materials.new(f"{name}_PaperMat")
-    mat.use_nodes = True
     mat.blend_method = 'BLEND'
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.9, 0.3, 0.2, 1.0)
@@ -161,7 +158,6 @@ def _create_modern_lantern(size, location, name):
     body.name = f"{name}_Body"
     
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.1, 0.1, 0.12, 1.0)
     bsdf.inputs['Metallic'].default_value = 0.9

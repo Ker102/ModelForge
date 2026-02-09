@@ -602,7 +602,6 @@ class BlenderMCPServer:
                             bpy.data.worlds.new("World")
 
                         world = bpy.data.worlds[0]
-                        world.use_nodes = True
                         node_tree = world.node_tree
 
                         # Clear existing nodes
@@ -723,7 +722,6 @@ class BlenderMCPServer:
 
                     # Create a new material with the downloaded textures
                     mat = bpy.data.materials.new(name=asset_id)
-                    mat.use_nodes = True
                     nodes = mat.node_tree.nodes
                     links = mat.node_tree.links
 
@@ -949,7 +947,6 @@ class BlenderMCPServer:
                 bpy.data.materials.remove(existing_mat)
 
             new_mat = bpy.data.materials.new(name=new_mat_name)
-            new_mat.use_nodes = True
 
             # Set up the material nodes
             nodes = new_mat.node_tree.nodes

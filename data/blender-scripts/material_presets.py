@@ -18,7 +18,6 @@ def create_wood_material(
 ) -> bpy.types.Material:
     """Create procedural wood material."""
     mat = bpy.data.materials.new(name)
-    mat.use_nodes = True
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
     
@@ -60,7 +59,6 @@ def create_metal_material(
     }
     
     mat = bpy.data.materials.new(name)
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     
     final_color = colors.get(metal_type, color)
@@ -79,7 +77,6 @@ def create_fabric_material(
 ) -> bpy.types.Material:
     """Create fabric/cloth material."""
     mat = bpy.data.materials.new(name)
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     
     bsdf.inputs['Base Color'].default_value = (*color, 1.0)
@@ -98,7 +95,6 @@ def create_plastic_material(
 ) -> bpy.types.Material:
     """Create plastic material."""
     mat = bpy.data.materials.new(name)
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     
     bsdf.inputs['Base Color'].default_value = (*color, 1.0)
@@ -116,7 +112,6 @@ def create_concrete_material(
 ) -> bpy.types.Material:
     """Create concrete material with noise."""
     mat = bpy.data.materials.new(name)
-    mat.use_nodes = True
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
     
@@ -146,7 +141,6 @@ def create_brick_material(
 ) -> bpy.types.Material:
     """Create procedural brick material."""
     mat = bpy.data.materials.new(name)
-    mat.use_nodes = True
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
     
@@ -179,7 +173,6 @@ def create_skin_material(
     }
     
     mat = bpy.data.materials.new(name)
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     
     color = tones.get(tone, tones['MEDIUM'])
@@ -194,7 +187,6 @@ def create_skin_material(
 def create_water_material(name: str = "Water") -> bpy.types.Material:
     """Create water material."""
     mat = bpy.data.materials.new(name)
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     
     bsdf.inputs['Base Color'].default_value = (0.1, 0.4, 0.6, 1.0)

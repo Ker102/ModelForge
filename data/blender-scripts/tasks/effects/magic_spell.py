@@ -51,7 +51,6 @@ def create_magic_projectile(
     
     # Glow material
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*color, 1.0)
     bsdf.inputs['Emission Color'].default_value = (*color, 1.0)
@@ -70,7 +69,6 @@ def create_magic_projectile(
     glow.name = f"{name}_Glow"
     
     glow_mat = bpy.data.materials.new(f"{name}_GlowMat")
-    glow_mat.use_nodes = True
     glow_mat.blend_method = 'BLEND'
     bsdf = glow_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*color, 1.0)
@@ -150,7 +148,6 @@ def create_magic_circle(
     
     # Material
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*color, 1.0)
     bsdf.inputs['Emission Color'].default_value = (*color, 1.0)

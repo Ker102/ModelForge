@@ -12,7 +12,6 @@ import bpy
 
 def enable_compositing() -> bpy.types.NodeTree:
     """Enable compositing and return node tree."""
-    bpy.context.scene.use_nodes = True
     return bpy.context.scene.node_tree
 
 

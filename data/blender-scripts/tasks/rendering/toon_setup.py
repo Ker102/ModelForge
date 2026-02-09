@@ -34,7 +34,6 @@ def setup_toon_shading(
         The created material
     """
     mat = bpy.data.materials.new(name)
-    mat.use_nodes = True
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
     
@@ -156,7 +155,7 @@ def setup_grease_pencil_outline(
 
 def setup_eevee_for_toon() -> None:
     """Configure Eevee settings for toon rendering."""
-    bpy.context.scene.render.engine = 'BLENDER_EEVEE_NEXT'
+    bpy.context.scene.render.engine = 'BLENDER_EEVEE'
     
     eevee = bpy.context.scene.eevee
     eevee.taa_render_samples = 32

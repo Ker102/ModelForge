@@ -62,7 +62,6 @@ def create_helmet(
     
     # Material
     metal_mat = bpy.data.materials.new(f"{name}_MetalMat")
-    metal_mat.use_nodes = True
     bsdf = metal_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.5, 0.5, 0.53, 1.0)
     bsdf.inputs['Metallic'].default_value = 0.95
@@ -78,7 +77,6 @@ def create_helmet(
 def _add_viking_features(helmet, size, location, name, result):
     """Add Viking helmet horns."""
     horn_mat = bpy.data.materials.new(f"{name}_HornMat")
-    horn_mat.use_nodes = True
     bsdf = horn_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.8, 0.75, 0.6, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.7
@@ -117,7 +115,6 @@ def _add_spartan_features(helmet, size, location, name, result):
     bpy.ops.object.transform_apply(scale=True)
     
     crest_mat = bpy.data.materials.new(f"{name}_CrestMat")
-    crest_mat.use_nodes = True
     bsdf = crest_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.8, 0.1, 0.1, 1.0)
     crest.data.materials.append(crest_mat)

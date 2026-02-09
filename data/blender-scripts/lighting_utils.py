@@ -169,7 +169,6 @@ def set_world_hdri(hdri_path: str, strength: float = 1.0, rotation_z: float = 0)
         world = bpy.data.worlds.new("World")
         bpy.context.scene.world = world
     
-    world.use_nodes = True
     nodes = world.node_tree.nodes
     links = world.node_tree.links
     nodes.clear()
@@ -209,7 +208,6 @@ def set_world_color(color: tuple = (0.05, 0.05, 0.05), strength: float = 1.0) ->
         world = bpy.data.worlds.new("World")
         bpy.context.scene.world = world
     
-    world.use_nodes = True
     nodes = world.node_tree.nodes
     links = world.node_tree.links
     nodes.clear()

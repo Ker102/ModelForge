@@ -68,7 +68,6 @@ When using `execute_code`, adhere to these best practices:
     mat = bpy.data.materials.get("MyMaterial")
     if mat is None:
         mat = bpy.data.materials.new(name="MyMaterial")
-        mat.use_nodes = True
         bsdf = mat.node_tree.nodes.get("Principled BSDF")
         bsdf.inputs['Base Color'].default_value = (1, 0, 0, 1) # RGBA
     ```

@@ -118,7 +118,6 @@ def _create_chest_material(
 ) -> bpy.types.Material:
     """Create chest material."""
     mat = bpy.data.materials.new(f"{name}_{part}Mat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     
     if style == 'WOODEN':
@@ -142,7 +141,6 @@ def _create_chest_bands(
     """Create metal bands."""
     bands = []
     band_mat = bpy.data.materials.new(f"{name}_BandMat")
-    band_mat.use_nodes = True
     bsdf = band_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.3, 0.28, 0.25, 1.0)
     bsdf.inputs['Metallic'].default_value = 0.9
@@ -180,7 +178,6 @@ def _create_chest_lock(
     bpy.ops.object.transform_apply(scale=True)
     
     mat = bpy.data.materials.new(f"{name}_LockMat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.7, 0.6, 0.3, 1.0)
     bsdf.inputs['Metallic'].default_value = 0.95
@@ -199,7 +196,6 @@ def _create_treasure_fill(
     items = []
     
     gold_mat = bpy.data.materials.new(f"{name}_GoldMat")
-    gold_mat.use_nodes = True
     bsdf = gold_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (1.0, 0.84, 0.0, 1.0)
     bsdf.inputs['Metallic'].default_value = 1.0

@@ -37,7 +37,6 @@ def setup_hdri_lighting(
         world = bpy.data.worlds.new("World")
         bpy.context.scene.world = world
     
-    world.use_nodes = True
     nodes = world.node_tree.nodes
     links = world.node_tree.links
     
@@ -102,7 +101,6 @@ def setup_gradient_sky(
         world = bpy.data.worlds.new("World")
         bpy.context.scene.world = world
     
-    world.use_nodes = True
     nodes = world.node_tree.nodes
     links = world.node_tree.links
     
@@ -168,7 +166,6 @@ def setup_physical_sky(
         world = bpy.data.worlds.new("World")
         bpy.context.scene.world = world
     
-    world.use_nodes = True
     nodes = world.node_tree.nodes
     links = world.node_tree.links
     
@@ -206,7 +203,6 @@ def set_world_color(color: tuple, strength: float = 1.0) -> None:
         world = bpy.data.worlds.new("World")
         bpy.context.scene.world = world
     
-    world.use_nodes = True
     nodes = world.node_tree.nodes
     links = world.node_tree.links
     

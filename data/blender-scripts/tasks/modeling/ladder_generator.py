@@ -44,20 +44,17 @@ def create_ladder(
     # Materials
     if style == 'WOODEN':
         mat = bpy.data.materials.new(f"{name}_Mat")
-        mat.use_nodes = True
         bsdf = mat.node_tree.nodes.get("Principled BSDF")
         bsdf.inputs['Base Color'].default_value = (0.4, 0.3, 0.15, 1.0)
         bsdf.inputs['Roughness'].default_value = 0.8
     elif style == 'METAL':
         mat = bpy.data.materials.new(f"{name}_Mat")
-        mat.use_nodes = True
         bsdf = mat.node_tree.nodes.get("Principled BSDF")
         bsdf.inputs['Base Color'].default_value = (0.5, 0.5, 0.52, 1.0)
         bsdf.inputs['Metallic'].default_value = 0.9
         bsdf.inputs['Roughness'].default_value = 0.4
     else:  # ROPE
         mat = bpy.data.materials.new(f"{name}_Mat")
-        mat.use_nodes = True
         bsdf = mat.node_tree.nodes.get("Principled BSDF")
         bsdf.inputs['Base Color'].default_value = (0.6, 0.5, 0.35, 1.0)
         bsdf.inputs['Roughness'].default_value = 0.9

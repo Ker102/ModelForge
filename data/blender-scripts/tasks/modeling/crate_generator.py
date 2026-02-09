@@ -57,7 +57,6 @@ def _create_wooden_crate(
     
     # Material
     wood_mat = bpy.data.materials.new(f"{name}_WoodMat")
-    wood_mat.use_nodes = True
     bsdf = wood_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.45, 0.32, 0.18, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.8
@@ -146,7 +145,6 @@ def _create_cardboard_box(
     bpy.ops.object.transform_apply(scale=True)
     
     mat = bpy.data.materials.new(f"{name}_CardboardMat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.6, 0.5, 0.35, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.9
@@ -170,7 +168,6 @@ def _create_metal_crate(
     bpy.ops.object.transform_apply(scale=True)
     
     mat = bpy.data.materials.new(f"{name}_MetalMat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.3, 0.35, 0.4, 1.0)
     bsdf.inputs['Metallic'].default_value = 0.8

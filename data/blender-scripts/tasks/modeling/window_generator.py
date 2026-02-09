@@ -56,7 +56,6 @@ def create_window(
     pane_h = inner_h / panes_y
     
     glass_mat = bpy.data.materials.new(f"{name}_GlassMat")
-    glass_mat.use_nodes = True
     glass_mat.blend_method = 'BLEND'
     bsdf = glass_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.8, 0.9, 1.0, 1.0)
@@ -114,7 +113,6 @@ def _create_window_frame(
     parts = []
     
     frame_mat = bpy.data.materials.new(f"{name}_FrameMat")
-    frame_mat.use_nodes = True
     bsdf = frame_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.95, 0.95, 0.93, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.6

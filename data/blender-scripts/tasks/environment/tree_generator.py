@@ -144,7 +144,6 @@ def _create_trunk(
     
     # Trunk material
     mat = bpy.data.materials.new(f"{name_prefix}_TrunkMat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*config['trunk_color'], 1.0)
     bsdf.inputs['Roughness'].default_value = 0.9
@@ -220,7 +219,6 @@ def _create_crown(
     
     # Foliage material
     mat = bpy.data.materials.new(f"{name_prefix}_FoliageMat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*config['foliage_color'], 1.0)
     bsdf.inputs['Roughness'].default_value = 0.7

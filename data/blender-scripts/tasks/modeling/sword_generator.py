@@ -77,7 +77,6 @@ def create_sword(
     
     # Blade material
     blade_mat = bpy.data.materials.new(f"{name}_BladeMat")
-    blade_mat.use_nodes = True
     bsdf = blade_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.8, 0.82, 0.85, 1.0)
     bsdf.inputs['Metallic'].default_value = 1.0
@@ -96,7 +95,6 @@ def create_sword(
     bpy.ops.object.transform_apply(scale=True)
     
     guard_mat = bpy.data.materials.new(f"{name}_GuardMat")
-    guard_mat.use_nodes = True
     bsdf = guard_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.6, 0.5, 0.2, 1.0)
     bsdf.inputs['Metallic'].default_value = 0.9
@@ -119,7 +117,6 @@ def create_sword(
     handle.name = f"{name}_Handle"
     
     handle_mat = bpy.data.materials.new(f"{name}_HandleMat")
-    handle_mat.use_nodes = True
     bsdf = handle_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.15, 0.08, 0.02, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.8

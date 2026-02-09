@@ -116,7 +116,6 @@ def _create_shield_material(
 ) -> bpy.types.Material:
     """Create shield material."""
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     
     if material_type == 'WOOD':
@@ -149,7 +148,6 @@ def _create_shield_boss(
     bpy.ops.object.transform_apply(scale=True)
     
     mat = bpy.data.materials.new(f"{name}_BossMat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.7, 0.65, 0.4, 1.0)
     bsdf.inputs['Metallic'].default_value = 0.9
@@ -176,7 +174,6 @@ def _create_shield_handle(
     handle.rotation_euler.z = math.radians(90)
     
     mat = bpy.data.materials.new(f"{name}_HandleMat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.15, 0.1, 0.05, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.8

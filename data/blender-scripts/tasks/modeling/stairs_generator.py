@@ -45,7 +45,6 @@ def create_stairs(
     
     # Material
     step_mat = bpy.data.materials.new(f"{name}_Mat")
-    step_mat.use_nodes = True
     bsdf = step_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.4, 0.3, 0.2, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.6
@@ -112,7 +111,6 @@ def _create_stair_railings(
     railing_height = 0.9
     
     rail_mat = bpy.data.materials.new(f"{name}_RailMat")
-    rail_mat.use_nodes = True
     bsdf = rail_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.2, 0.18, 0.15, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.4
@@ -173,7 +171,6 @@ def create_spiral_stairs(
     step_objs = []
     
     step_mat = bpy.data.materials.new(f"{name}_Mat")
-    step_mat.use_nodes = True
     bsdf = step_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.3, 0.3, 0.35, 1.0)
     bsdf.inputs['Metallic'].default_value = 0.8

@@ -53,7 +53,6 @@ def create_candle(
     
     # Wax material
     wax_mat = bpy.data.materials.new(f"{name}_WaxMat")
-    wax_mat.use_nodes = True
     bsdf = wax_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*color, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.5
@@ -74,7 +73,6 @@ def create_candle(
     wick.name = f"{name}_Wick"
     
     wick_mat = bpy.data.materials.new(f"{name}_WickMat")
-    wick_mat.use_nodes = True
     bsdf = wick_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.1, 0.1, 0.1, 1.0)
     wick.data.materials.append(wick_mat)
@@ -123,7 +121,6 @@ def _create_candle_flame(location: tuple, name: str) -> bpy.types.Object:
     
     # Flame material
     mat = bpy.data.materials.new(f"{name}_FlameMat")
-    mat.use_nodes = True
     mat.blend_method = 'BLEND'
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (1.0, 0.6, 0.1, 1.0)
@@ -210,7 +207,6 @@ def create_candle_holder(
     holder.name = name
     
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.6, 0.5, 0.35, 1.0)
     bsdf.inputs['Metallic'].default_value = 0.8

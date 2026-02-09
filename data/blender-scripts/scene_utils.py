@@ -29,7 +29,6 @@ def setup_three_point_lighting():
     add_light('POINT', location=(0, 5, 4), energy=300, name="BackLight")
 
 def set_background_color(color=(0.05, 0.05, 0.05, 1.0)):
-    bpy.context.scene.world.use_nodes = True
     bg = bpy.context.scene.world.node_tree.nodes['Background']
     bg.inputs[0].default_value = color
 

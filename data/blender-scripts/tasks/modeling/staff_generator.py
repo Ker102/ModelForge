@@ -62,7 +62,6 @@ def create_staff(
         shaft.modifiers["Displace"].strength = 0.01
     
     shaft_mat = bpy.data.materials.new(f"{name}_ShaftMat")
-    shaft_mat.use_nodes = True
     bsdf = shaft_mat.node_tree.nodes.get("Principled BSDF")
     
     if style == 'DARK':
@@ -113,7 +112,6 @@ def _create_staff_crystal(
     }
     
     mat = bpy.data.materials.new(f"{name}_CrystalMat")
-    mat.use_nodes = True
     mat.blend_method = 'BLEND'
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     color = colors.get(style, colors['WIZARD'])
@@ -143,7 +141,6 @@ def _create_staff_head(
     head.name = f"{name}_Head"
     
     mat = bpy.data.materials.new(f"{name}_HeadMat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.6, 0.5, 0.3, 1.0)
     bsdf.inputs['Metallic'].default_value = 0.8
@@ -181,7 +178,6 @@ def create_wand(
     wand.name = name
     
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.25, 0.18, 0.1, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.5
@@ -208,7 +204,6 @@ def create_wand(
     tip.name = f"{name}_Tip"
     
     tip_mat = bpy.data.materials.new(f"{name}_TipMat")
-    tip_mat.use_nodes = True
     bsdf = tip_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Emission Color'].default_value = (*core_glow, 1.0)
     bsdf.inputs['Emission Strength'].default_value = 5.0

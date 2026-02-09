@@ -68,7 +68,6 @@ def create_muzzle_flash(
     
     # Emission material
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     nodes = mat.node_tree.nodes
     bsdf = nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*color, 1.0)

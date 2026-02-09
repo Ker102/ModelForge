@@ -32,7 +32,6 @@ def create_glow_material(
         The glowing material
     """
     mat = bpy.data.materials.new(name)
-    mat.use_nodes = True
     nodes = mat.node_tree.nodes
     
     bsdf = nodes.get("Principled BSDF")
@@ -98,7 +97,6 @@ def setup_bloom_compositing(
     Returns:
         Dictionary with compositing nodes
     """
-    bpy.context.scene.use_nodes = True
     tree = bpy.context.scene.node_tree
     nodes = tree.nodes
     links = tree.links

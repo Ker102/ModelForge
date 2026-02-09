@@ -10,7 +10,6 @@ import bpy
 
 def create_material(name="NewMaterial", color=(1.0, 1.0, 1.0, 1.0), metallic=0.0, roughness=0.5):
     mat = bpy.data.materials.new(name=name)
-    mat.use_nodes = True
     nodes = mat.node_tree.nodes
     bsdf = nodes.get("Principled BSDF")
     
@@ -33,7 +32,6 @@ def assign_material(obj, mat):
 
 def create_glass_material(name="Glass", color=(1.0, 1.0, 1.0, 1.0), roughness=0.0, ior=1.45):
     mat = bpy.data.materials.new(name=name)
-    mat.use_nodes = True
     nodes = mat.node_tree.nodes
     nodes.clear()
     
@@ -52,7 +50,6 @@ def create_glass_material(name="Glass", color=(1.0, 1.0, 1.0, 1.0), roughness=0.
 
 def create_emission_material(name="Emission", color=(1.0, 1.0, 1.0, 1.0), strength=1.0):
     mat = bpy.data.materials.new(name=name)
-    mat.use_nodes = True
     nodes = mat.node_tree.nodes
     nodes.clear()
     

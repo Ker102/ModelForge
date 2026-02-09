@@ -54,7 +54,6 @@ def create_torch(
     
     # Handle material
     handle_mat = bpy.data.materials.new(f"{name}_HandleMat")
-    handle_mat.use_nodes = True
     bsdf = handle_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.25, 0.18, 0.1, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.8
@@ -82,7 +81,6 @@ def create_torch(
     
     # Head material (wrapped cloth/oil)
     head_mat = bpy.data.materials.new(f"{name}_HeadMat")
-    head_mat.use_nodes = True
     bsdf = head_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.15, 0.1, 0.05, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.9
@@ -140,7 +138,6 @@ def _create_torch_fire(
     
     # Flame material
     flame_mat = bpy.data.materials.new(f"{name}_FlameMat")
-    flame_mat.use_nodes = True
     flame_mat.blend_method = 'BLEND'
     bsdf = flame_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (1.0, 0.4, 0.0, 1.0)
@@ -179,7 +176,6 @@ def _create_wall_bracket(location: tuple, name: str) -> bpy.types.Object:
     bpy.ops.object.transform_apply(scale=True)
     
     mat = bpy.data.materials.new(f"{name}_BracketMat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.3, 0.25, 0.2, 1.0)
     bsdf.inputs['Metallic'].default_value = 0.8

@@ -145,7 +145,6 @@ def _create_key_material(
     }
     
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     
     color = colors.get(material, colors['BRASS'])
@@ -174,7 +173,6 @@ def create_key_ring(
     ring.name = f"{name}_Ring"
     
     ring_mat = bpy.data.materials.new(f"{name}_RingMat")
-    ring_mat.use_nodes = True
     bsdf = ring_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.5, 0.5, 0.52, 1.0)
     bsdf.inputs['Metallic'].default_value = 0.9

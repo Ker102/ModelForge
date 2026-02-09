@@ -69,7 +69,6 @@ def create_simple_terrain(
     
     # Add terrain material
     terrain_mat = bpy.data.materials.new(name=f"{name}_Material")
-    terrain_mat.use_nodes = True
     bsdf = terrain_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.2, 0.35, 0.1, 1.0)  # Green
     bsdf.inputs['Roughness'].default_value = 0.9
@@ -106,12 +105,10 @@ def create_scatter_object(
         
         # Materials
         foliage_mat = bpy.data.materials.new(name=f"{obj_name}_FoliageMat")
-        foliage_mat.use_nodes = True
         foliage_mat.node_tree.nodes["Principled BSDF"].inputs['Base Color'].default_value = (0.1, 0.4, 0.1, 1.0)
         foliage.data.materials.append(foliage_mat)
         
         trunk_mat = bpy.data.materials.new(name=f"{obj_name}_TrunkMat")
-        trunk_mat.use_nodes = True
         trunk_mat.node_tree.nodes["Principled BSDF"].inputs['Base Color'].default_value = (0.3, 0.2, 0.1, 1.0)
         trunk.data.materials.append(trunk_mat)
         
@@ -135,7 +132,6 @@ def create_scatter_object(
         bpy.ops.object.mode_set(mode='OBJECT')
         
         rock_mat = bpy.data.materials.new(name=f"{obj_name}_Mat")
-        rock_mat.use_nodes = True
         rock_mat.node_tree.nodes["Principled BSDF"].inputs['Base Color'].default_value = (0.4, 0.4, 0.4, 1.0)
         rock_mat.node_tree.nodes["Principled BSDF"].inputs['Roughness'].default_value = 0.9
         rock.data.materials.append(rock_mat)
@@ -147,7 +143,6 @@ def create_scatter_object(
         grass.name = obj_name
         
         grass_mat = bpy.data.materials.new(name=f"{obj_name}_Mat")
-        grass_mat.use_nodes = True
         grass_mat.node_tree.nodes["Principled BSDF"].inputs['Base Color'].default_value = (0.15, 0.5, 0.1, 1.0)
         grass.data.materials.append(grass_mat)
         return grass

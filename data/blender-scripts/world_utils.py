@@ -14,7 +14,6 @@ import math
 def set_background_color(color: tuple = (0.05, 0.05, 0.05)) -> None:
     """Set solid background color."""
     world = _ensure_world()
-    world.use_nodes = True
     nodes = world.node_tree.nodes
     
     bg = nodes.get('Background')
@@ -37,7 +36,6 @@ def set_hdri_background(
         rotation: Z rotation in degrees
     """
     world = _ensure_world()
-    world.use_nodes = True
     nodes = world.node_tree.nodes
     links = world.node_tree.links
     
@@ -88,7 +86,6 @@ def set_sky_texture(
         strength: Sky brightness
     """
     world = _ensure_world()
-    world.use_nodes = True
     nodes = world.node_tree.nodes
     links = world.node_tree.links
     
@@ -129,7 +126,6 @@ def set_gradient_background(
         blend_type: 'LINEAR', 'QUADRATIC', 'EASING'
     """
     world = _ensure_world()
-    world.use_nodes = True
     nodes = world.node_tree.nodes
     links = world.node_tree.links
     

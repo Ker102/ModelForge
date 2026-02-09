@@ -19,7 +19,6 @@ def get_material_nodes(
     Returns:
         Tuple of (nodes, links)
     """
-    material.use_nodes = True
     return material.node_tree.nodes, material.node_tree.links
 
 

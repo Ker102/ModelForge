@@ -46,7 +46,6 @@ def create_apple(
     
     # Material
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*color, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.4
@@ -63,7 +62,6 @@ def create_apple(
     stem.name = f"{name}_Stem"
     
     stem_mat = bpy.data.materials.new(f"{name}_StemMat")
-    stem_mat.use_nodes = True
     bsdf = stem_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.3, 0.2, 0.1, 1.0)
     stem.data.materials.append(stem_mat)
@@ -96,7 +94,6 @@ def create_orange(
     bpy.ops.object.shade_smooth()
     
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (1.0, 0.5, 0.0, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.7
@@ -134,7 +131,6 @@ def create_banana(
     bpy.ops.object.shade_smooth()
     
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (1.0, 0.85, 0.2, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.5
@@ -163,7 +159,6 @@ def create_bread_loaf(
     bpy.ops.object.shade_smooth()
     
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.7, 0.5, 0.3, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.8
@@ -195,7 +190,6 @@ def create_fruit_bowl(
     bpy.ops.object.mode_set(mode='OBJECT')
     
     mat = bpy.data.materials.new(f"{name}_BowlMat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.9, 0.9, 0.85, 1.0)
     bowl.data.materials.append(mat)

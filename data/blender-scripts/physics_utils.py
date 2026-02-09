@@ -77,7 +77,6 @@ def create_ground_plane(
     
     # Add simple material
     mat = bpy.data.materials.new(name=f"{name}_Mat")
-    mat.use_nodes = True
     mat.node_tree.nodes["Principled BSDF"].inputs['Base Color'].default_value = (0.3, 0.3, 0.3, 1.0)
     mat.node_tree.nodes["Principled BSDF"].inputs['Roughness'].default_value = 0.8
     ground.data.materials.append(mat)

@@ -73,13 +73,11 @@ def create_barrel(
     # Material
     if style == 'WOODEN':
         mat = bpy.data.materials.new(f"{name}_WoodMat")
-        mat.use_nodes = True
         bsdf = mat.node_tree.nodes.get("Principled BSDF")
         bsdf.inputs['Base Color'].default_value = (0.4, 0.28, 0.15, 1.0)
         bsdf.inputs['Roughness'].default_value = 0.7
     else:  # METAL
         mat = bpy.data.materials.new(f"{name}_MetalMat")
-        mat.use_nodes = True
         bsdf = mat.node_tree.nodes.get("Principled BSDF")
         bsdf.inputs['Base Color'].default_value = (0.5, 0.5, 0.55, 1.0)
         bsdf.inputs['Metallic'].default_value = 0.9
@@ -110,7 +108,6 @@ def _create_barrel_bands(
     band_height = 0.03
     
     band_mat = bpy.data.materials.new(f"{name}_BandMat")
-    band_mat.use_nodes = True
     bsdf = band_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.3, 0.3, 0.32, 1.0)
     bsdf.inputs['Metallic'].default_value = 0.9

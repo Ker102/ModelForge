@@ -82,7 +82,6 @@ def _create_walls(
     
     # Wall material
     wall_mat = bpy.data.materials.new(f"{name_prefix}_WallMat")
-    wall_mat.use_nodes = True
     bsdf = wall_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*color, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.8
@@ -144,7 +143,6 @@ def _create_floor(
     
     # Floor material
     floor_mat = bpy.data.materials.new(f"{name_prefix}_FloorMat")
-    floor_mat.use_nodes = True
     nodes = floor_mat.node_tree.nodes
     links = floor_mat.node_tree.links
     bsdf = nodes.get("Principled BSDF")
@@ -184,7 +182,6 @@ def _create_ceiling(
     
     # Ceiling material
     ceiling_mat = bpy.data.materials.new(f"{name_prefix}_CeilingMat")
-    ceiling_mat.use_nodes = True
     bsdf = ceiling_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.95, 0.95, 0.95, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.9

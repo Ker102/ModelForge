@@ -55,7 +55,6 @@ def create_mushroom(
             v.co.y *= 1.3
     
     stem_mat = bpy.data.materials.new(f"{name}_StemMat")
-    stem_mat.use_nodes = True
     bsdf = stem_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.9, 0.88, 0.8, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.8
@@ -93,7 +92,6 @@ def create_mushroom(
     cap.name = f"{name}_Cap"
     
     cap_mat = bpy.data.materials.new(f"{name}_CapMat")
-    cap_mat.use_nodes = True
     bsdf = cap_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*cap_color, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.6
@@ -123,7 +121,6 @@ def _create_mushroom_spots(
     """Create white spots on toadstool cap."""
     spots = []
     spot_mat = bpy.data.materials.new(f"{name}_SpotMat")
-    spot_mat.use_nodes = True
     bsdf = spot_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.95, 0.95, 0.9, 1.0)
     

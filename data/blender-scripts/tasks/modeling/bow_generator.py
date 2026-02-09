@@ -79,7 +79,6 @@ def create_bow(
     
     # Material
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.4, 0.28, 0.15, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.6
@@ -118,7 +117,6 @@ def _create_bowstring(
     string.location = location
     
     mat = bpy.data.materials.new(f"{name}_StringMat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.8, 0.75, 0.6, 1.0)
     string.data.materials.append(mat)
@@ -146,7 +144,6 @@ def create_arrow(
     bpy.ops.object.transform_apply(rotation=True)
     
     shaft_mat = bpy.data.materials.new(f"{name}_ShaftMat")
-    shaft_mat.use_nodes = True
     bsdf = shaft_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.5, 0.4, 0.25, 1.0)
     shaft.data.materials.append(shaft_mat)
@@ -165,7 +162,6 @@ def create_arrow(
     head.rotation_euler.y = math.radians(90)
     
     head_mat = bpy.data.materials.new(f"{name}_HeadMat")
-    head_mat.use_nodes = True
     bsdf = head_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.5, 0.5, 0.55, 1.0)
     bsdf.inputs['Metallic'].default_value = 0.9

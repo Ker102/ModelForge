@@ -55,7 +55,6 @@ def create_signpost(
     post.name = f"{name}_Post"
     
     post_mat = bpy.data.materials.new(f"{name}_PostMat")
-    post_mat.use_nodes = True
     bsdf = post_mat.node_tree.nodes.get("Principled BSDF")
     
     if style == 'METAL':
@@ -71,7 +70,6 @@ def create_signpost(
     # === SIGNS ===
     signs = []
     sign_mat = bpy.data.materials.new(f"{name}_SignMat")
-    sign_mat.use_nodes = True
     bsdf = sign_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.5, 0.4, 0.25, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.7

@@ -64,7 +64,6 @@ def _create_water_material(
 ) -> bpy.types.Material:
     """Create water shader material."""
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
     

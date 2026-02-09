@@ -83,7 +83,6 @@ def create_spark_emitter(
     
     # Spark material
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*color, 1.0)
     bsdf.inputs['Emission Color'].default_value = (*color, 1.0)

@@ -170,7 +170,6 @@ def create_product_lighting(
     
     # Backdrop material
     backdrop_mat = bpy.data.materials.new(name=f"{name_prefix}_BackdropMat")
-    backdrop_mat.use_nodes = True
     bsdf = backdrop_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*backdrop_color, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.8
@@ -182,7 +181,6 @@ def create_product_lighting(
     if world is None:
         world = bpy.data.worlds.new("World")
         bpy.context.scene.world = world
-    world.use_nodes = True
     bg = world.node_tree.nodes.get("Background")
     if bg:
         bg.inputs['Color'].default_value = (*backdrop_color, 1.0)

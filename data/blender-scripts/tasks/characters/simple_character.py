@@ -245,7 +245,6 @@ def create_simple_character(
     
     # Create simple material
     mat = bpy.data.materials.new(f"{name}_Material")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.8, 0.6, 0.5, 1.0)  # Skin tone
     bsdf.inputs['Roughness'].default_value = 0.6
@@ -297,7 +296,6 @@ def add_face_features(
         
         # Eye material (white with black pupil effect)
         mat = bpy.data.materials.new(f"EyeMat_{side}")
-        mat.use_nodes = True
         bsdf = mat.node_tree.nodes.get("Principled BSDF")
         bsdf.inputs['Base Color'].default_value = (0.1, 0.1, 0.1, 1.0)  # Dark pupil
         eye.data.materials.append(mat)
@@ -315,7 +313,6 @@ def add_face_features(
         bpy.ops.object.transform_apply(scale=True)
         
         mat = bpy.data.materials.new("MouthMat")
-        mat.use_nodes = True
         bsdf = mat.node_tree.nodes.get("Principled BSDF")
         bsdf.inputs['Base Color'].default_value = (0.3, 0.1, 0.1, 1.0)
         mouth.data.materials.append(mat)

@@ -50,7 +50,6 @@ def setup_id_mask_compositing(pass_index: int = 1) -> dict:
     Returns:
         Dictionary with compositor nodes
     """
-    bpy.context.scene.use_nodes = True
     tree = bpy.context.scene.node_tree
     nodes = tree.nodes
     links = tree.links
@@ -83,7 +82,6 @@ def setup_id_mask_compositing(pass_index: int = 1) -> dict:
 def create_holdout_material(name: str = "HoldoutMat") -> bpy.types.Material:
     """Create holdout material for masking."""
     mat = bpy.data.materials.new(name)
-    mat.use_nodes = True
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
     
@@ -113,7 +111,6 @@ def add_cryptomatte_setup() -> dict:
     view_layer.use_pass_cryptomatte_asset = True
     
     # Add cryptomatte node in compositor
-    bpy.context.scene.use_nodes = True
     tree = bpy.context.scene.node_tree
     nodes = tree.nodes
     

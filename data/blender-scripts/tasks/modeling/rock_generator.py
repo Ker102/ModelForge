@@ -66,7 +66,6 @@ def create_rock(
     
     # Material
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     
     gray = random.uniform(0.2, 0.5)

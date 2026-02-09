@@ -97,7 +97,6 @@ def create_potion(
     
     # Glass material
     glass_mat = bpy.data.materials.new(f"{name}_GlassMat")
-    glass_mat.use_nodes = True
     glass_mat.blend_method = 'BLEND'
     bsdf = glass_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.95, 0.95, 1.0, 1.0)
@@ -148,7 +147,6 @@ def _create_potion_liquid(
     liquid.name = f"{name}_Liquid"
     
     mat = bpy.data.materials.new(f"{name}_LiquidMat")
-    mat.use_nodes = True
     mat.blend_method = 'BLEND'
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*color, 1.0)
@@ -181,7 +179,6 @@ def _create_potion_cork(
     cork.name = f"{name}_Cork"
     
     mat = bpy.data.materials.new(f"{name}_CorkMat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.55, 0.45, 0.3, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.9

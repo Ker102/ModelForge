@@ -104,7 +104,6 @@ def create_bottle(
     
     # Glass material
     glass_mat = bpy.data.materials.new(f"{name}_GlassMat")
-    glass_mat.use_nodes = True
     glass_mat.blend_method = 'BLEND'
     bsdf = glass_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*glass_color, 1.0)
@@ -142,7 +141,6 @@ def _create_bottle_cap(
         cap.name = f"{name}_Cork"
         
         mat = bpy.data.materials.new(f"{name}_CorkMat")
-        mat.use_nodes = True
         bsdf = mat.node_tree.nodes.get("Principled BSDF")
         bsdf.inputs['Base Color'].default_value = (0.6, 0.5, 0.35, 1.0)
         bsdf.inputs['Roughness'].default_value = 0.9
@@ -158,7 +156,6 @@ def _create_bottle_cap(
         cap.name = f"{name}_Cap"
         
         mat = bpy.data.materials.new(f"{name}_CapMat")
-        mat.use_nodes = True
         bsdf = mat.node_tree.nodes.get("Principled BSDF")
         bsdf.inputs['Base Color'].default_value = (0.7, 0.7, 0.75, 1.0)
         bsdf.inputs['Metallic'].default_value = 0.9

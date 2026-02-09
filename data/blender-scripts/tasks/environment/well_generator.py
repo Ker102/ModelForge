@@ -52,7 +52,6 @@ def create_well(
     wall.modifiers["Solidify"].thickness = -0.1
     
     wall_mat = bpy.data.materials.new(f"{name}_StoneMat")
-    wall_mat.use_nodes = True
     bsdf = wall_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.4, 0.38, 0.35, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.9
@@ -79,7 +78,6 @@ def _create_well_roof(radius, height, location, name):
     post_height = 1.2
     
     wood_mat = bpy.data.materials.new(f"{name}_WoodMat")
-    wood_mat.use_nodes = True
     bsdf = wood_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.35, 0.25, 0.12, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.8
@@ -124,7 +122,6 @@ def _create_well_roof(radius, height, location, name):
     roof.rotation_euler.z = 0.785
     
     roof_mat = bpy.data.materials.new(f"{name}_RoofMat")
-    roof_mat.use_nodes = True
     bsdf = roof_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.25, 0.18, 0.1, 1.0)
     roof.data.materials.append(roof_mat)
@@ -150,7 +147,6 @@ def _create_well_bucket(radius, height, location, name):
     bucket.modifiers["Solidify"].thickness = -0.008
     
     bucket_mat = bpy.data.materials.new(f"{name}_BucketMat")
-    bucket_mat.use_nodes = True
     bsdf = bucket_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.4, 0.35, 0.25, 1.0)
     bucket.data.materials.append(bucket_mat)

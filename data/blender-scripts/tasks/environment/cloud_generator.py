@@ -67,7 +67,6 @@ def _create_cloud_material(
 ) -> bpy.types.Material:
     """Create volumetric cloud material."""
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
     
@@ -210,7 +209,6 @@ def create_stylized_cloud(
     
     # Simple white material
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*color, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.9

@@ -43,7 +43,6 @@ def create_grass_blade(
     
     # Material
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.15, 0.4, 0.08, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.8
@@ -156,7 +155,6 @@ def create_flower(
     
     # Material
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*color, 1.0)
     flower.data.materials.append(mat)

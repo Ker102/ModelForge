@@ -48,7 +48,6 @@ def create_axe(
     handle.name = f"{name}_Handle"
     
     handle_mat = bpy.data.materials.new(f"{name}_HandleMat")
-    handle_mat.use_nodes = True
     bsdf = handle_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.3, 0.2, 0.1, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.8
@@ -80,7 +79,6 @@ def create_axe(
     }
     
     metal_mat = bpy.data.materials.new(f"{name}_MetalMat")
-    metal_mat.use_nodes = True
     bsdf = metal_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*metal_colors.get(material_type, metal_colors['IRON']), 1.0)
     bsdf.inputs['Metallic'].default_value = 0.9

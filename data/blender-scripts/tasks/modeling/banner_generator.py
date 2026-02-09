@@ -70,7 +70,6 @@ def create_banner(
     
     # Cloth material
     cloth_mat = bpy.data.materials.new(f"{name}_ClothMat")
-    cloth_mat.use_nodes = True
     bsdf = cloth_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*color, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.8
@@ -99,7 +98,6 @@ def create_banner(
             pole.rotation_euler.x = math.radians(15)
         
         pole_mat = bpy.data.materials.new(f"{name}_PoleMat")
-        pole_mat.use_nodes = True
         bsdf = pole_mat.node_tree.nodes.get("Principled BSDF")
         bsdf.inputs['Base Color'].default_value = (0.3, 0.2, 0.1, 1.0)
         bsdf.inputs['Roughness'].default_value = 0.7

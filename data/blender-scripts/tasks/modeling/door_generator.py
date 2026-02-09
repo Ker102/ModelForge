@@ -92,7 +92,6 @@ def create_door(
         
         # Glass material
         glass_mat = bpy.data.materials.new(f"{name}_GlassMat")
-        glass_mat.use_nodes = True
         bsdf = glass_mat.node_tree.nodes.get("Principled BSDF")
         bsdf.inputs['Transmission Weight'].default_value = 0.9
         bsdf.inputs['Roughness'].default_value = 0.05
@@ -102,7 +101,6 @@ def create_door(
     
     # === DOOR MATERIAL ===
     door_mat = bpy.data.materials.new(f"{name}_Mat")
-    door_mat.use_nodes = True
     bsdf = door_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.35, 0.25, 0.15, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.6
@@ -133,7 +131,6 @@ def _create_door_frame(
     frame_parts = []
     
     frame_mat = bpy.data.materials.new(f"{name}_FrameMat")
-    frame_mat.use_nodes = True
     bsdf = frame_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.9, 0.9, 0.88, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.7
@@ -192,7 +189,6 @@ def _create_door_handle(
     handle.rotation_euler.x = math.radians(90)
     
     handle_mat = bpy.data.materials.new(f"{name}_HandleMat")
-    handle_mat.use_nodes = True
     bsdf = handle_mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.6, 0.55, 0.4, 1.0)
     bsdf.inputs['Metallic'].default_value = 0.9

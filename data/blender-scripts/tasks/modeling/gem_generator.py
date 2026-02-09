@@ -79,7 +79,6 @@ def create_gem(
     
     # Glass material with color
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     mat.blend_method = 'BLEND'
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*color, 1.0)
@@ -131,7 +130,6 @@ def create_crystal(
     
     # Material
     mat = bpy.data.materials.new(f"{name}_Mat")
-    mat.use_nodes = True
     mat.blend_method = 'BLEND'
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*color, 1.0)

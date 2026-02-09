@@ -51,7 +51,6 @@ def create_portal(
     inner.name = f"{name}_Inner"
     
     inner_mat = bpy.data.materials.new(f"{name}_InnerMat")
-    inner_mat.use_nodes = True
     inner_mat.blend_method = 'BLEND'
     nodes = inner_mat.node_tree.nodes
     bsdf = nodes.get("Principled BSDF")
@@ -77,7 +76,6 @@ def create_portal(
         
         # Ring material
         ring_mat = bpy.data.materials.new(f"{name}_RingMat_{i}")
-        ring_mat.use_nodes = True
         nodes = ring_mat.node_tree.nodes
         bsdf = nodes.get("Principled BSDF")
         
@@ -109,7 +107,6 @@ def create_portal(
     outer.name = f"{name}_Outer"
     
     outer_mat = bpy.data.materials.new(f"{name}_OuterMat")
-    outer_mat.use_nodes = True
     nodes = outer_mat.node_tree.nodes
     bsdf = nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (*color, 1.0)

@@ -71,7 +71,7 @@ def set_render_engine(engine: str = 'CYCLES') -> None:
     Set render engine.
     
     Args:
-        engine: 'CYCLES', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'
+        engine: 'CYCLES', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'
     
     Example:
         >>> set_render_engine('CYCLES')

@@ -33,7 +33,6 @@ def create_pbr_material(
         The created material
     """
     mat = bpy.data.materials.new(name)
-    mat.use_nodes = True
     nodes = mat.node_tree.nodes
     
     bsdf = nodes.get("Principled BSDF")
@@ -56,7 +55,6 @@ def create_glass_material(
 ) -> bpy.types.Material:
     """Create glass/transparent material."""
     mat = bpy.data.materials.new(name)
-    mat.use_nodes = True
     nodes = mat.node_tree.nodes
     
     bsdf = nodes.get("Principled BSDF")
@@ -148,7 +146,6 @@ def create_procedural_noise_material(
 ) -> bpy.types.Material:
     """Create material with procedural noise texture."""
     mat = bpy.data.materials.new(name)
-    mat.use_nodes = True
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
     
@@ -178,7 +175,6 @@ def create_gradient_material(
 ) -> bpy.types.Material:
     """Create gradient material."""
     mat = bpy.data.materials.new(name)
-    mat.use_nodes = True
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
     
