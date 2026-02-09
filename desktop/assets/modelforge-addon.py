@@ -1802,6 +1802,15 @@ class MODELFORGE_PT_Panel(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
 
+        # Sync scene property from actual server state (survives File → New)
+        actually_running = (
+            hasattr(bpy.types, "blendermcp_server")
+            and bpy.types.blendermcp_server is not None
+            and getattr(bpy.types.blendermcp_server, "running", False)
+        )
+        if scene.blendermcp_server_running != actually_running:
+            scene.blendermcp_server_running = actually_running
+
         # Header with status
         box = layout.box()
         row = box.row()
@@ -1893,6 +1902,18 @@ class MODELFORGE_OT_StopServer(bpy.types.Operator):
 
         return {'FINISHED'}
 
+@bpy.app.handlers.persistent
+def _sync_server_status(_dummy=None):
+    """Re-sync blendermcp_server_running after file load (File → New / Open)"""
+    actually_running = (
+        hasattr(bpy.types, "blendermcp_server")
+        and bpy.types.blendermcp_server is not None
+        and getattr(bpy.types.blendermcp_server, "running", False)
+    )
+    for scene in bpy.data.scenes:
+        scene.blendermcp_server_running = actually_running
+
+
 # Registration functions
 def register():
     bpy.types.Scene.blendermcp_port = IntProperty(
@@ -1955,6 +1976,9 @@ def register():
     bpy.utils.register_class(MODELFORGE_OT_StartServer)
     bpy.utils.register_class(MODELFORGE_OT_StopServer)
 
+    # Re-sync server status after File → New / File → Open
+    bpy.app.handlers.load_post.append(_sync_server_status)
+
     print("ModelForge Blender addon registered")
 
 def unregister():
@@ -1969,6 +1993,10 @@ def unregister():
             bpy.utils.unregister_class(cls)
         except RuntimeError:
             pass
+
+    # Remove load_post handler
+    if _sync_server_status in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(_sync_server_status)
 
     props = [
         "blendermcp_port", "blendermcp_server_running", "blendermcp_use_polyhaven",

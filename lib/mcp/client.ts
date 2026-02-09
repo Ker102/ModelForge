@@ -127,8 +127,49 @@ export async function checkMcpConnection() {
     const socket = net.createConnection(
       { host: config.host, port: config.port },
       () => {
-        socket.end()
-        resolve({ connected: true })
+        // TCP connected — now verify the Blender addon is actually responding
+        // by sending a lightweight MCP command and checking for a valid JSON response
+        const probe = JSON.stringify({
+          id: randomUUID(),
+          type: "get_all_object_info",
+          params: {},
+        })
+
+        const chunks: Buffer[] = []
+        const timeout = setTimeout(() => {
+          socket.destroy()
+          resolve({ connected: false, error: "Blender addon did not respond to probe" })
+        }, Math.min(5_000, config.timeoutMs))
+
+        socket.on("data", (chunk: Buffer) => {
+          chunks.push(chunk)
+          const raw = Buffer.concat(chunks).toString("utf8")
+          if (raw.trim().endsWith("}")) {
+            clearTimeout(timeout)
+            socket.end()
+            try {
+              const parsed = JSON.parse(raw)
+              // Valid MCP response from the addon
+              if (parsed.status || parsed.result !== undefined) {
+                resolve({ connected: true })
+              } else {
+                resolve({ connected: false, error: "Unexpected response from port" })
+              }
+            } catch {
+              resolve({ connected: false, error: "Non-JSON response — not the Blender addon" })
+            }
+          }
+        })
+
+        socket.once("error", (error) => {
+          clearTimeout(timeout)
+          resolve({
+            connected: false,
+            error: error instanceof Error ? error.message : String(error),
+          })
+        })
+
+        socket.write(`${probe}\n`)
       }
     )
 
