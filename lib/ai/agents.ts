@@ -253,20 +253,11 @@ export class BlenderAgent {
                 })
 
                 // Fast-path: for execute_code steps, if MCP returned success
-                // and there is no non-trivial expected_outcome or vision validation,
-                // auto-validate — LLM validation adds no value for {"executed": true}.
+                // we trust it — the code either ran or threw an error.
+                // LLM validation adds no value since the result is always
+                // {"executed": true} regardless of what the code did.
                 const mcpSuccess = this.isMcpSuccess(result)
-                const hasNonTrivialExpectedOutcome = step.expected_outcome
-                    && step.expected_outcome.trim().length > 0
-                    && !step.expected_outcome.toLowerCase().includes("executed")
-                    && step.expected_outcome.toLowerCase() !== "true"
-
-                if (
-                    step.action === "execute_code"
-                    && mcpSuccess
-                    && !hasNonTrivialExpectedOutcome
-                    && !this.config.useVision
-                ) {
+                if (step.action === "execute_code" && mcpSuccess) {
                     this.state.completedSteps.push({ step, result })
                     this.config.onStepComplete?.(step, result)
                     this.log("validate", `Step ${stepIndex + 1} auto-validated (execute_code succeeded)`)

@@ -151,7 +151,7 @@ export class PlanExecutor {
               throw codeGenError
             }
 
-            params = { ...params, code: generatedCode }
+            params = { code: generatedCode }
 
             logs.push({
               timestamp: new Date().toISOString(),
