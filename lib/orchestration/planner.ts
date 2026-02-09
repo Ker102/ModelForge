@@ -31,7 +31,10 @@ export class BlenderPlanner {
     const agent = createBlenderAgent({
       maxRetries: this.maxRetries,
       useRAG: true,
-      ragSource: "blender-docs", // Default source
+      ragSource: "blender-docs",
+      allowPolyHaven: options.allowPolyHavenAssets,
+      allowSketchfab: options.allowSketchfabAssets,
+      allowHyper3d: options.allowHyper3dAssets,
     })
 
     // 2. Retrieve conversation memory context if enabled

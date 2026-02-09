@@ -44,6 +44,10 @@ export interface AgentConfig {
     useVision: boolean
     /** Max visual validation iterations per step */
     maxVisionIterations: number
+    /** Tool availability flags */
+    allowPolyHaven?: boolean
+    allowSketchfab?: boolean
+    allowHyper3d?: boolean
     onLog?: (log: AgentLog) => void
     onStepComplete?: (step: PlanStep, result: unknown) => void
     /** Callback to capture viewport screenshot */
@@ -75,6 +79,25 @@ const MCP_TOOLS = [
     "download_sketchfab_model",
 ]
 
+const SKETCHFAB_TOOL_NAMES = new Set([
+    "get_sketchfab_status",
+    "search_sketchfab_models",
+    "download_sketchfab_model",
+])
+
+const POLYHAVEN_TOOL_NAMES = new Set([
+    "get_polyhaven_status",
+    "search_polyhaven_assets",
+    "download_polyhaven_asset",
+])
+
+const HYPER3D_TOOL_NAMES = new Set([
+    "get_hyper3d_status",
+    "create_rodin_job",
+    "poll_rodin_job_status",
+    "import_generated_asset",
+])
+
 // ============================================================================
 // Agent Class
 // ============================================================================
@@ -93,6 +116,9 @@ export class BlenderAgent {
             ragSource: config.ragSource ?? "blender-docs",
             useVision: config.useVision ?? false,
             maxVisionIterations: config.maxVisionIterations ?? 3,
+            allowPolyHaven: config.allowPolyHaven,
+            allowSketchfab: config.allowSketchfab,
+            allowHyper3d: config.allowHyper3d,
             onLog: config.onLog,
             onStepComplete: config.onStepComplete,
             onCaptureViewport: config.onCaptureViewport,
@@ -115,6 +141,18 @@ export class BlenderAgent {
         const log: AgentLog = { timestamp: new Date(), type, message, data }
         this.state.logs.push(log)
         this.config.onLog?.(log)
+    }
+
+    /**
+     * Get the list of tools available based on config flags
+     */
+    private getAvailableTools(): string[] {
+        return MCP_TOOLS.filter((tool) => {
+            if (this.config.allowSketchfab === false && SKETCHFAB_TOOL_NAMES.has(tool)) return false
+            if (this.config.allowPolyHaven === false && POLYHAVEN_TOOL_NAMES.has(tool)) return false
+            if (this.config.allowHyper3d === false && HYPER3D_TOOL_NAMES.has(tool)) return false
+            return true
+        })
     }
 
     /**
@@ -178,7 +216,7 @@ export class BlenderAgent {
 
         const { plan, reasoning, rawResponse } = await generatePlan({
             request,
-            tools: MCP_TOOLS,
+            tools: this.getAvailableTools(),
             context,
             sceneState: JSON.stringify(this.state.sceneState ?? {}),
         })
