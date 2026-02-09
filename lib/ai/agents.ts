@@ -67,6 +67,7 @@ const MCP_TOOLS = [
     "get_viewport_screenshot",
     "execute_code",
     "get_polyhaven_status",
+    "get_polyhaven_categories",
     "search_polyhaven_assets",
     "download_polyhaven_asset",
     "set_texture",
@@ -87,6 +88,7 @@ const SKETCHFAB_TOOL_NAMES = new Set([
 
 const POLYHAVEN_TOOL_NAMES = new Set([
     "get_polyhaven_status",
+    "get_polyhaven_categories",
     "search_polyhaven_assets",
     "download_polyhaven_asset",
 ])

@@ -8,6 +8,7 @@ const CATEGORY_GROUPS: Record<string, string[]> = {
   camera: ["execute_code"],
   assets: [
     "get_polyhaven_status",
+    "get_polyhaven_categories",
     "search_polyhaven_assets",
     "download_polyhaven_asset",
     "set_texture",
@@ -52,6 +53,7 @@ const SKETCHFAB_TOOLS = new Set([
 
 const POLYHAVEN_TOOLS = new Set([
   "get_polyhaven_status",
+  "get_polyhaven_categories",
   "search_polyhaven_assets",
   "download_polyhaven_asset",
 ])

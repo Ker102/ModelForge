@@ -44,6 +44,13 @@ export const TOOL_REGISTRY: ToolMetadata[] = [
     parameters: "(no parameters)",
   },
   {
+    name: "get_polyhaven_categories",
+    description:
+      "List available categories for a PolyHaven asset type. Call before search_polyhaven_assets to discover valid category filters.",
+    category: "assets",
+    parameters: "asset_type: string ('hdris'|'textures'|'models'|'all')",
+  },
+  {
     name: "search_polyhaven_assets",
     description:
       "Search the PolyHaven catalog for HDRIs, textures, or models using optional type and category filters.",
@@ -76,7 +83,7 @@ export const TOOL_REGISTRY: ToolMetadata[] = [
     description:
       "Submit a Hyper3D Rodin generation job using text prompts or images. Returns identifiers for polling.",
     category: "assets",
-    parameters: "prompt: string, (other params depend on Rodin mode)",
+    parameters: "text_prompt?: string (text description for generation), images?: array (image data), bbox_condition?: object",
   },
   {
     name: "poll_rodin_job_status",
