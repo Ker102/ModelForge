@@ -302,6 +302,10 @@ Auth migration complete. Current priorities:
 - [x] Electron desktop app (dev mode working)
 - [x] AI chat with Gemini (streaming + orchestration)
 - [x] Vector embeddings for project memory (pgvector)
+- [x] Two-phase orchestration (plan → code gen → execute → validate)
+- [x] Blender 5.x API compatibility (all code/prompts updated)
+- [x] RAG re-ingestion with new embedding model (113 docs, gte-modernbert-base)
+- [x] Full TypeScript build passes clean
 - [ ] Test end-to-end Blender MCP scene generation
 - [ ] Deploy to production
 - [ ] Set up production database
