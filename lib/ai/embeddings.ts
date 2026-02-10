@@ -1,15 +1,13 @@
-/**
- * Embeddings Module
- * 
- * Provides embedding generation using Together.ai M2-BERT-Retrieval-32k
- * - 768-dimensional vectors
- * - 32k token context window
- * - Optimized for retrieval tasks
- */
+// Embeddings Module
+//
+// Provides embedding generation using Together.ai GTE-ModernBERT-base
+// - 768-dimensional vectors
+// - 8192 token context window
+// - Optimized for retrieval tasks
 
 import OpenAI from "openai"
 
-const EMBEDDING_MODEL = "togethercomputer/m2-bert-80M-32k-retrieval"
+const EMBEDDING_MODEL = "Alibaba-NLP/gte-modernbert-base"
 const EMBEDDING_DIMENSIONS = 768
 const MAX_BATCH_SIZE = 32
 

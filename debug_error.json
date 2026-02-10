@@ -1,18 +1,42 @@
 {
-  "message": "\nInvalid `prisma.$queryRaw()` invocation:\n\n\nRaw query failed. Code: `42601`. Message: `ERROR: type modifiers must be simple constants or identifiers`",
-  "code": "P2010",
-  "meta": {
-    "code": "42601",
-    "message": "ERROR: type modifiers must be simple constants or identifiers"
-  },
-  "stack": "PrismaClientKnownRequestError: \nInvalid `prisma.$queryRaw()` invocation:\n\n\nRaw query failed. Code: `42601`. Message: `ERROR: type modifiers must be simple constants or identifiers`\n    at $n.handleRequestError (C:\\Users\\krist\\Desktop\\Cursor-Projects\\Projects\\modelforge\\ModelForge\\node_modules\\@prisma\\client\\runtime\\library.js:121:7315)\n    at $n.handleAndLogRequestError (C:\\Users\\krist\\Desktop\\Cursor-Projects\\Projects\\modelforge\\ModelForge\\node_modules\\@prisma\\client\\runtime\\library.js:121:6623)\n    at $n.request (C:\\Users\\krist\\Desktop\\Cursor-Projects\\Projects\\modelforge\\ModelForge\\node_modules\\@prisma\\client\\runtime\\library.js:121:6307)\n    at async l (C:\\Users\\krist\\Desktop\\Cursor-Projects\\Projects\\modelforge\\ModelForge\\node_modules\\@prisma\\client\\runtime\\library.js:130:9633)\n    at async addDocuments (C:\\Users\\krist\\Desktop\\Cursor-Projects\\Projects\\modelforge\\ModelForge\\lib\\ai\\vectorstore.ts:58:24)\n    at async ingest (C:\\Users\\krist\\Desktop\\Cursor-Projects\\Projects\\modelforge\\ModelForge\\scripts\\ingest-blender-docs.ts:66:21)",
+  "message": "400 Unable to access non-serverless model togethercomputer/m2-bert-80M-32k-retrieval. Please visit https://api.together.ai/models/togethercomputer/m2-bert-80M-32k-retrieval to create and start a new dedicated endpoint for the model.",
+  "code": "model_not_available",
+  "stack": "Error: 400 Unable to access non-serverless model togethercomputer/m2-bert-80M-32k-retrieval. Please visit https://api.together.ai/models/togethercomputer/m2-bert-80M-32k-retrieval to create and start a new dedicated endpoint for the model.\n    at Function.generate (/media/krist/CrucialX9/cursor-projects/projects/project02/BlenderAI/node_modules/openai/src/error.ts:72:14)\n    at OpenAI.makeStatusError (/media/krist/CrucialX9/cursor-projects/projects/project02/BlenderAI/node_modules/openai/src/core.ts:462:21)\n    at OpenAI.makeRequest (/media/krist/CrucialX9/cursor-projects/projects/project02/BlenderAI/node_modules/openai/src/core.ts:526:24)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async embedTexts (/media/krist/CrucialX9/cursor-projects/projects/project02/BlenderAI/lib/ai/embeddings.ts:51:26)\n    at async addDocuments (/media/krist/CrucialX9/cursor-projects/projects/project02/BlenderAI/lib/ai/vectorstore.ts:51:22)\n    at async ingest (/media/krist/CrucialX9/cursor-projects/projects/project02/BlenderAI/scripts/ingest-blender-docs.ts:114:25)",
   "error": {
-    "name": "PrismaClientKnownRequestError",
-    "code": "P2010",
-    "clientVersion": "5.22.0",
-    "meta": {
-      "code": "42601",
-      "message": "ERROR: type modifiers must be simple constants or identifiers"
-    }
+    "status": 400,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "9cbca10fc8337122-TLL",
+      "connection": "keep-alive",
+      "content-length": "400",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Tue, 10 Feb 2026 15:27:13 GMT",
+      "etag": "W/\"190-oVQ8W47NePIU7/SEdtJPLNSlchs\"",
+      "retry-after": "2",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=15552000; includeSubDomains",
+      "vary": "Accept-Encoding",
+      "x-amzn-trace-id": "7d8f5a65-17d2-4eb8-a397-02a6e560a3e9-noamzn",
+      "x-api-received": "2026-02-10T15:27:12.131Z",
+      "x-ratelimit": "false",
+      "x-ratelimit-limit": "50",
+      "x-ratelimit-limit-tokens": "0",
+      "x-ratelimit-remaining": "99",
+      "x-ratelimit-remaining-tokens": "0",
+      "x-ratelimit-reset": "2",
+      "x-request-id": "oWpzAYx-4msxKE-9cbca10fc8337122"
+    },
+    "request_id": "oWpzAYx-4msxKE-9cbca10fc8337122",
+    "error": {
+      "message": "Unable to access non-serverless model togethercomputer/m2-bert-80M-32k-retrieval. Please visit https://api.together.ai/models/togethercomputer/m2-bert-80M-32k-retrieval to create and start a new dedicated endpoint for the model.",
+      "type": "invalid_request_error",
+      "param": null,
+      "code": "model_not_available"
+    },
+    "code": "model_not_available",
+    "param": null,
+    "type": "invalid_request_error"
   }
 }

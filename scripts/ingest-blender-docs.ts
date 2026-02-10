@@ -1,13 +1,9 @@
-/**
- * Ingestion Script for Blender Documentation and Scripts
- * 
- * Reads Python scripts from data/blender-scripts/, extracts metadata,
- * generates embeddings, and stores them in the Neon pgvector store.
- * 
- * Processes both:
- * - Root utility scripts (data/blender-scripts/*.py)
- * - Task-based scripts (data/blender-scripts/tasks/**/*.py)
- */
+// Ingestion Script for Blender Documentation and Scripts
+//
+// Reads Python scripts from data/blender-scripts/, extracts metadata,
+// generates embeddings, and stores them in the Neon pgvector store.
+//
+// Processes both root utility scripts and task-based scripts.
 
 import fs from 'fs';
 import path from 'path';
