@@ -11,7 +11,7 @@ import { join } from 'path';
 /**
  * Path to the markdown source file (single source of truth)
  */
-export const SYSTEM_PROMPT_SOURCE = join(__dirname, 'blender-agent-system.md');
+export const SYSTEM_PROMPT_SOURCE = join(process.cwd(), 'lib', 'orchestration', 'prompts', 'blender-agent-system.md');
 
 // Cache the loaded prompt content
 let cachedPrompt: string | null = null;

@@ -194,28 +194,33 @@ function buildExecutedCommandsFromPlan(
   plan: ExecutionPlan,
   execution: ExecutionResult
 ): ExecutedCommand[] {
-  const completedMap = new Map<number, { step: PlanStep; result: unknown }>()
+  // Build lookup maps using action string as key (steps don't have stepNumber)
+  const completedMap = new Map<string, { step: Record<string, unknown>; result: unknown }>()
   for (const entry of execution.completedSteps) {
-    completedMap.set(entry.step.stepNumber, entry)
+    completedMap.set(entry.step.action, entry as { step: Record<string, unknown>; result: unknown })
   }
 
-  const failedMap = new Map<number, string>()
+  const failedMap = new Map<string, string>()
   for (const entry of execution.failedSteps) {
-    failedMap.set(entry.step.stepNumber, entry.error)
+    failedMap.set(entry.step.action, entry.error)
   }
 
   const commands: ExecutedCommand[] = []
   let failureEncountered = false
 
   for (const step of plan.steps) {
-    const completed = completedMap.get(step.stepNumber)
-    const failedError = failedMap.get(step.stepNumber)
+    const stepAny = step as unknown as Record<string, unknown>
+    const stepDesc = (stepAny.expectedOutcome as string)
+      || (stepAny.expected_outcome as string)
+      || step.rationale
+    const completed = completedMap.get(step.action)
+    const failedError = failedMap.get(step.action)
 
     if (completed) {
       commands.push({
         id: createStubId(),
         tool: step.action,
-        description: step.expectedOutcome || step.rationale,
+        description: stepDesc,
         status: "executed",
         confidence: 0.65,
         arguments: step.parameters ?? {},
@@ -229,7 +234,7 @@ function buildExecutedCommandsFromPlan(
       commands.push({
         id: createStubId(),
         tool: step.action,
-        description: step.expectedOutcome || step.rationale,
+        description: stepDesc,
         status: "failed",
         confidence: 0.65,
         arguments: step.parameters ?? {},
@@ -244,7 +249,7 @@ function buildExecutedCommandsFromPlan(
       commands.push({
         id: createStubId(),
         tool: step.action,
-        description: step.expectedOutcome || step.rationale,
+        description: stepDesc,
         status: "failed",
         confidence: 0.4,
         arguments: step.parameters ?? {},

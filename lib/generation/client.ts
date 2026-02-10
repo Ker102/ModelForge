@@ -9,16 +9,26 @@ import Replicate from "replicate";
  * - Microsoft TRELLIS: State-of-the-art for hard-surface/geometric
  */
 
-// Fail fast in production if API token is missing
-if (!process.env.REPLICATE_API_TOKEN) {
-    if (process.env.NODE_ENV === 'production') {
-        throw new Error("REPLICATE_API_TOKEN is required in production. 3D generation cannot proceed.");
-    }
+// Warn at startup if API token is missing (don't throw at module evaluation to avoid build failures)
+if (typeof process !== 'undefined' && !process.env.REPLICATE_API_TOKEN && process.env.NODE_ENV !== 'production') {
     console.warn("REPLICATE_API_TOKEN is not set. 3D generation features will fail.");
 }
 
+let _replicate: Replicate | null = null;
+
+export function getReplicate(): Replicate {
+    if (!_replicate) {
+        if (!process.env.REPLICATE_API_TOKEN) {
+            throw new Error("REPLICATE_API_TOKEN is required. 3D generation cannot proceed.");
+        }
+        _replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
+    }
+    return _replicate;
+}
+
+/** @deprecated Use getReplicate() instead */
 export const replicate = new Replicate({
-    auth: process.env.REPLICATE_API_TOKEN,
+    auth: process.env.REPLICATE_API_TOKEN || "placeholder",
 });
 
 // Model Identifiers on Replicate

@@ -2,17 +2,6 @@
 
 import { useState, useEffect } from "react"
 
-// Type declaration for the modelforge API exposed by Electron preload
-declare global {
-    interface Window {
-        modelforge?: {
-            getAddonPath: () => Promise<{ path: string; exists: boolean }>
-            openAddonFolder: () => Promise<{ opened: boolean; path: string }>
-            getAppInfo: () => Promise<{ platform: string; isDev: boolean }>
-        }
-    }
-}
-
 interface SetupStep {
     step: number
     title: string

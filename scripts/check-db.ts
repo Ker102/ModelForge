@@ -11,8 +11,8 @@ async function checkExtensions() {
         } else {
             console.log("❌ pgvector extension is NOT ENABLED.")
         }
-    } catch (error) {
-        console.error("❌ Error checking extensions:", error.message)
+    } catch (error: unknown) {
+        console.error("❌ Error checking extensions:", error instanceof Error ? error.message : error)
     } finally {
         await prisma.$disconnect()
     }

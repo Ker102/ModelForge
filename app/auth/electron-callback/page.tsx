@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Loader2, CheckCircle, XCircle } from "lucide-react"
 
@@ -14,7 +14,7 @@ const ELECTRON_CALLBACK_PORT = 45678
  * to Electron's local HTTP callback server to pass them back.
  * This is more reliable than custom protocol handlers on Linux.
  */
-export default function ElectronCallbackPage() {
+function ElectronCallbackContent() {
     const searchParams = useSearchParams()
     const [status, setStatus] = useState<"loading" | "success" | "error">("loading")
     const [message, setMessage] = useState("Processing authentication...")
@@ -136,5 +136,17 @@ export default function ElectronCallbackPage() {
                 </div>
             </div>
         </div>
+    )
+}
+
+export default function ElectronCallbackPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+            </div>
+        }>
+            <ElectronCallbackContent />
+        </Suspense>
     )
 }

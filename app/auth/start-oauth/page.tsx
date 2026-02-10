@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Loader2 } from "lucide-react"
@@ -12,7 +12,7 @@ import { Loader2 } from "lucide-react"
  * It uses Supabase's signInWithOAuth which properly sets up PKCE and state parameters.
  * The callback goes to a server-side API route that can exchange the code.
  */
-export default function StartOAuthPage() {
+function StartOAuthContent() {
     const searchParams = useSearchParams()
     const [error, setError] = useState<string | null>(null)
 
@@ -69,5 +69,17 @@ export default function StartOAuthPage() {
                 )}
             </div>
         </div>
+    )
+}
+
+export default function StartOAuthPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+                <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+            </div>
+        }>
+            <StartOAuthContent />
+        </Suspense>
     )
 }

@@ -26,8 +26,8 @@ async function testRAG() {
                 console.log(`${i + 1}. [${res.similarity.toFixed(4)}] ${res.metadata?.title || 'No Title'}`)
                 // console.log(`   Content snippet: ${res.content.substring(0, 100)}...`)
             })
-        } catch (error) {
-            console.error(`❌ Search failed for "${query}":`, error.message)
+        } catch (error: unknown) {
+            console.error(`❌ Search failed for "${query}":`, error instanceof Error ? error.message : error)
         }
     }
 }

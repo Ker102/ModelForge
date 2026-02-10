@@ -147,7 +147,7 @@ export class PlanExecutor {
                 constraints: step.expected_outcome,
               })
             } catch (codeGenError) {
-              processLogger.error(`Code generation failed for step ${i + 1}: ${description.substring(0, 100)}`, codeGenError)
+              console.error(`Code generation failed for step ${i + 1}: ${description.substring(0, 100)}`, codeGenError)
               throw codeGenError
             }
 

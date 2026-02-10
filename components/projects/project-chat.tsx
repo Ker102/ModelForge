@@ -624,7 +624,7 @@ async function handleSend(e: React.FormEvent) {
               if (eventType.startsWith("agent:")) {
                 const agentEvent: AgentStreamEvent | null =
                   event && typeof event === "object" && "type" in event && typeof event.type === "string" && event.type.startsWith("agent:")
-                    ? (event as AgentStreamEvent)
+                    ? (event as unknown as AgentStreamEvent)
                     : null
                 if (!agentEvent) break
                 if (agentEvent.type === "agent:planning_start") {
@@ -1075,7 +1075,7 @@ async function handleSend(e: React.FormEvent) {
                               <strong>{entry.logType ?? entry.tool}</strong>
                               {entry.detail && <span className="ml-1">— {entry.detail}</span>}
                               {entry.error && <span className="ml-1 text-destructive">⚠ {entry.error}</span>}
-                              {entry.result && (
+                              {entry.result != null && (
                                 <details className="mt-0.5">
                                   <summary className="cursor-pointer text-primary">result</summary>
                                   <pre className="whitespace-pre-wrap break-words max-h-24 overflow-y-auto bg-background/50 rounded p-1">
