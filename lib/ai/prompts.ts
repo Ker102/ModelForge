@@ -147,6 +147,28 @@ MATERIAL COLORS — CRITICAL:
   • Stone gray: (0.45, 0.43, 0.4)      • Brick red: (0.6, 0.18, 0.1)
   • Earth blue-green: (0.1, 0.45, 0.65) • Pure red: (0.8, 0.05, 0.02)
 
+PROCEDURAL TEXTURES — BEST PRACTICES:
+- Use ShaderNodeTexNoise for organic surfaces (dirt, rust, wood grain, clouds).
+- Use ShaderNodeTexVoronoi for cell patterns (stone tiles, scales, cracks).
+- ALWAYS use ShaderNodeValToRGB (Color Ramp) to remap noise to meaningful colors.
+- Use ShaderNodeBump to add surface detail without extra geometry.
+- ShaderNodeMixRGB is REMOVED in Blender 4.0+. Use ShaderNodeMix instead:
+  mix = nodes.new('ShaderNodeMix')
+  mix.data_type = 'RGBA'
+  mix.inputs[6].default_value = color_a  # A input
+  mix.inputs[7].default_value = color_b  # B input
+  # Output: mix.outputs[2] (Result Color)
+- For worn/weathered materials, use noise-driven Color Ramp as a mask to blend
+  between clean and damaged material properties (color, roughness, bump).
+- Use ShaderNodeTexCoord → ShaderNodeMapping → Texture for full control over UV scaling.
+
+SCENE GROUNDING — CRITICAL:
+- ALWAYS add a floor plane unless the scene is explicitly set in space/void.
+  Objects floating in blank space look unprofessional. Use bpy.ops.mesh.primitive_plane_add().
+- Use real-world scale: 1 Blender unit = 1 meter. Door = 2.1m, table = 0.75m, chair = 0.45m.
+- Place objects WITH spatial relationships (on surfaces, next to each other, at correct heights).
+- For product/showcase scenes, add a pedestal (cylinder, height 0.5-0.8m) under objects.
+
 {context}`
 
 // ============================================================================

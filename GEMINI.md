@@ -99,7 +99,7 @@ npm run test:user        # Create test user
 | AI Orchestration layer | ✅ Complete | Planner, Executor, Prompts |
 | **Serverless DB Migration** | ✅ Complete | Neon pgvector compatibility |
 | **AI Engineering Upgrade** | ✅ Complete | LangChain, Agents, RAG implemented |
-| **Script Library Expansion** | ✅ Complete | **118 scripts** (51 utility + 67 tasks) |
+| **Script Library Expansion** | ✅ Complete | **120 scripts** (53 utility + 67 tasks) |
 | **RAG Pipeline Ingestion** | ✅ Complete | Recursive ingestion of all scripts |
 | **Viewport Screenshot Analysis** | ✅ Complete | Gemini Vision feedback loop |
 | **Conversation Memory** | ✅ Complete | Vector embeddings for context-aware responses |
@@ -125,6 +125,20 @@ npm run test:user        # Create test user
 ---
 
 ## 📝 Session Log
+
+### 2026-02-16 (Firecrawl Scraping + API Compatibility)
+- **Scraped Sources** (via Firecrawl):
+  - Blender official best practices docs
+  - Blender tips & tricks docs
+  - CGWire shader guide (procedural materials via Python)
+  - Blender 5.0 Python API release notes (all breaking changes)
+  - Blender 4.0 Python API release notes
+  - Stack Exchange shader node examples
+- **New RAG Scripts** (2 new, total 120):
+  - `api_version_compatibility.py` — Blender 5.0/4.0 breaking changes reference
+  - `procedural_shader_recipes.py` — Noise, voronoi, gradient, worn-metal materials
+- **Prompt Updates**: Added procedural shader and scene grounding guidance to `CODE_GENERATION_PROMPT`
+- **Re-ingested**: 120 scripts into pgvector (materials:6, lighting:5, camera:2, scene:3, utility:1)
 
 ### 2026-02-16 (Professional Knowledge Enhancement)
 - **New RAG Scripts** (5 new, total 118):
