@@ -1,7 +1,7 @@
 # GEMINI.md - ModelForge Project Rules & Progress Tracker
 
-> **Last Updated:** 2026-01-13
-> **Status:** Active Development
+> **Last Updated:** 2026-02-16
+> **Status:** Active Development — End-to-end orchestration working, RAG + validation bugs fixed
 
 ---
 
@@ -13,14 +13,14 @@
 | Layer | Technologies |
 |-------|-------------|
 | **Frontend** | Next.js 16, React 19, TypeScript 5.6, Tailwind CSS 3.4 |
-| **Backend** | Node.js 24+, PostgreSQL 14+ with pgvector |
+| **Backend** | Node.js 24+, PostgreSQL 14+ with pgvector (Neon serverless) |
 | **ORM** | Prisma 5.20 |
-| **Auth** | NextAuth.js v5 (Credentials + Google OAuth) |
+| **Auth** | Supabase Auth (NextAuth fully removed) |
 | **UI** | shadcn/ui, Radix UI, Lucide Icons |
 | **Desktop** | Electron |
-| **AI** | Google Gemini 3 Pro (Preview) |
-| **RAG** | Neon pgvector + Together.ai M2-BERT (768d) |
-| **Payments** | Stripe |
+| **AI** | Google Gemini 2.5 Pro via @langchain/google-genai |
+| **RAG** | Neon pgvector + Together.ai gte-modernbert-base (768d) |
+| **Payments** | Stripe (Free/$12 Starter/$29 Pro) |
 
 ### Core Features
 - 🤖 **AI Orchestration**: ReAct-style planner with per-step validation
@@ -95,7 +95,7 @@ npm run test:user        # Create test user
 | Task | Status | Notes |
 |------|-----------|-------|
 | Initial project setup | ✅ Complete | Next.js 16 + all integrations |
-| Authentication system | ✅ Complete | NextAuth v5 with Google OAuth |
+| Authentication system | ✅ Complete | Supabase Auth (NextAuth removed) |
 | AI Orchestration layer | ✅ Complete | Planner, Executor, Prompts |
 | **Serverless DB Migration** | ✅ Complete | Neon pgvector compatibility |
 | **AI Engineering Upgrade** | ✅ Complete | LangChain, Agents, RAG implemented |
@@ -103,6 +103,10 @@ npm run test:user        # Create test user
 | **RAG Pipeline Ingestion** | ✅ Complete | Recursive ingestion of all scripts |
 | **Viewport Screenshot Analysis** | ✅ Complete | Gemini Vision feedback loop |
 | **Conversation Memory** | ✅ Complete | Vector embeddings for context-aware responses |
+| **RAG in Code Generation** | ✅ Complete | Reference scripts injected before each code gen step |
+| **LLM Scene Completeness Check** | ✅ Complete | Gemini verifies final scene matches user request |
+| **Validation Hardening** | ✅ Complete | Auto-validate read-only commands, robust content parsing |
+| **End-to-End Testing** | 🔄 In Progress | 2/3 tests passed, castle needs re-test after fix |
 
 ### Roadmap
 - [x] Gemini-backed conversational planning
@@ -111,11 +115,54 @@ npm run test:user        # Create test user
 - [x] RAG Pipeline (100+ scripts)
 - [x] **Viewport screenshot analysis**
 - [x] **Conversation memory with vector embeddings**
+- [x] **RAG integrated into code generation phase**
+- [x] **LLM scene completeness validation**
+- [ ] Stress testing with complex prompts
 - [ ] Production desktop app packaging
 
 ---
 
 ## 📝 Session Log
+
+### 2026-02-16 (RAG Fix + Validation Hardening + End-to-End Testing)
+- **Critical RAG Bug Fixed**: Vector store data ingested under source label `"blender-scripts"` but ALL queries used `"blender-docs"` → RAG always returned 0 results. Fixed in 4 files:
+  - `lib/ai/agents.ts` — default `ragSource` → `"blender-scripts"`
+  - `lib/ai/rag.ts` — default `source` → `"blender-scripts"`
+  - `lib/orchestration/planner.ts` — explicit `ragSource` → `"blender-scripts"`
+  - `lib/orchestration/executor.ts` — `source` → `"blender-scripts"`
+- **RAG Added to Code Generation Phase**:
+  - `executor.ts` now calls `similaritySearch()` before each `generateCode()` call
+  - Retrieved scripts injected as `## Reference Blender Python Scripts` in context
+  - Logged as `rag_retrieval` entries in execution log
+- **LLM Scene Completeness Check Added**:
+  - New `llmSceneCompletenessCheck()` method in `executor.ts`
+  - Uses Gemini (temp 0.1) to verify final scene objects/materials/positions match user request
+  - Returns `{ complete: boolean, issues: string[] }` — non-fatal on error
+  - Integrated into `auditScene()` after structural checks
+  - Now logs results as `llm_completeness_check` entries
+- **Gemini Response Content Parsing Hardened**:
+  - `response.content` from Gemini can be string OR array of content parts
+  - Added `extractContent()` helper in `lib/ai/chains.ts`
+  - Fixed ALL 5 call sites that used unsafe `response.content as string` cast
+  - Also fixed in `executor.ts` `llmSceneCompletenessCheck()`
+- **Validation Cascade Failure Fixed**:
+  - `get_scene_info` was sent to LLM validation → Gemini returned unparseable response → all steps skipped
+  - Expanded auto-validation to all read-only MCP commands: `get_scene_info`, `get_object_info`, `get_all_object_info`, `get_viewport_screenshot`, `get_polyhaven_status`, `get_polyhaven_categories`, `search_polyhaven_assets`, `download_polyhaven_asset`, `set_texture`
+  - These now auto-validate on `isMcpSuccess()` like `execute_code` does
+- **Files Modified**:
+  - `lib/ai/chains.ts` — Added `extractContent()`, fixed all `response.content` casts
+  - `lib/ai/agents.ts` — Expanded auto-validation set, fixed RAG source default
+  - `lib/ai/rag.ts` — Fixed default source filter
+  - `lib/orchestration/executor.ts` — RAG retrieval, LLM completeness check, logging, source filter fix
+  - `lib/orchestration/planner.ts` — Fixed ragSource
+- **Test Results**:
+  - ✅ Red metallic sphere + green pedestal — 4 steps, 0 retries, correct
+  - ✅ Edit scene: add floor + orbiting spheres — preserved existing objects, RAG returned 5 sources/step
+  - ❌ Medieval castle — failed due to validation cascade (now fixed, needs re-test)
+- **Immediate Next Steps**:
+  1. Re-test castle prompt (fix is hot-reloaded)
+  2. Try spiral staircase (procedural), three-point lighting (edit), car scene (car audit)
+  3. Continue iterating on code gen quality
 
 ### 2026-02-05 (WIP - Electron OAuth Session Persistence)
 - **Electron OAuth Flow Debugging** (IN PROGRESS):

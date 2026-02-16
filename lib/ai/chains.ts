@@ -10,6 +10,20 @@ import { formatToolListForPrompt } from "@/lib/orchestration/tool-filter"
 import { z } from "zod"
 
 // ============================================================================
+// Helpers
+// ============================================================================
+
+/** Safely extract string content from a Gemini AIMessage response */
+function extractContent(response: { content: unknown }): string {
+    const raw = response.content
+    if (typeof raw === "string") return raw
+    if (Array.isArray(raw)) {
+        return raw.map(part => (typeof part === "string" ? part : (part as Record<string, unknown>).text ?? "")).join("")
+    }
+    return String(raw ?? "")
+}
+
+// ============================================================================
 // Output Schemas
 // ============================================================================
 
@@ -83,7 +97,7 @@ export async function generatePlan(options: {
     })
 
     const response = await model.invoke(formattedPrompt)
-    const content = response.content as string
+    const content = extractContent(response)
 
     // Extract reasoning (everything before the JSON block)
     // Find the outermost JSON object by matching braces
@@ -153,7 +167,7 @@ export async function validateStep(options: {
     })
 
     const response = await model.invoke(formattedPrompt)
-    const content = response.content as string
+    const content = extractContent(response)
 
     const jsonMatch = content.match(/\{[\s\S]*\}/)
     if (!jsonMatch) {
@@ -194,7 +208,7 @@ export async function generateRecovery(options: {
     })
 
     const response = await model.invoke(formattedPrompt)
-    const content = response.content as string
+    const content = extractContent(response)
 
     const jsonMatch = content.match(/\{[\s\S]*\}/)
     if (!jsonMatch) {
@@ -242,7 +256,7 @@ export async function generateCode(options: {
     })
 
     const response = await model.invoke(formattedPrompt)
-    let code = response.content as string
+    let code = extractContent(response)
 
     // Extract code from markdown code blocks if present
     const codeBlockMatch = code.match(/```python\n([\s\S]*?)```/)

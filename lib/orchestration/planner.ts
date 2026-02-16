@@ -31,7 +31,7 @@ export class BlenderPlanner {
     const agent = createBlenderAgent({
       maxRetries: this.maxRetries,
       useRAG: true,
-      ragSource: "blender-docs",
+      ragSource: "blender-scripts",
       allowPolyHaven: options.allowPolyHavenAssets,
       allowSketchfab: options.allowSketchfabAssets,
       allowHyper3d: options.allowHyper3dAssets,

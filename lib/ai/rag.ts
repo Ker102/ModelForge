@@ -100,7 +100,7 @@ export async function generateBlenderCode(
     // Search for relevant Blender API documentation
     const sources = await similaritySearch(request, {
         limit: options.topK ?? 8,
-        source: options.source ?? "blender-docs",
+        source: options.source ?? "blender-scripts",
         minSimilarity: options.minSimilarity ?? 0.4,
     })
 

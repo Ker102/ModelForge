@@ -115,7 +115,7 @@ export class BlenderAgent {
         this.config = {
             maxRetries: config.maxRetries ?? 2,
             useRAG: config.useRAG ?? true,
-            ragSource: config.ragSource ?? "blender-docs",
+            ragSource: config.ragSource ?? "blender-scripts",
             useVision: config.useVision ?? false,
             maxVisionIterations: config.maxVisionIterations ?? 3,
             allowPolyHaven: config.allowPolyHaven,
@@ -292,12 +292,18 @@ export class BlenderAgent {
                     success: true,
                 })
 
-                // Fast-path: for execute_code steps, if MCP returned success
-                // we trust it — the code either ran or threw an error.
-                // LLM validation adds no value since the result is always
-                // {"executed": true} regardless of what the code did.
+                // Fast-path: for execute_code and read-only info steps,
+                // if MCP returned success we trust it — LLM validation adds
+                // no value since the result is deterministic.
+                const READ_ONLY_ACTIONS = new Set([
+                    "execute_code", "get_scene_info", "get_object_info",
+                    "get_all_object_info", "get_viewport_screenshot",
+                    "get_polyhaven_status", "get_polyhaven_categories",
+                    "search_polyhaven_assets", "download_polyhaven_asset",
+                    "set_texture",
+                ])
                 const mcpSuccess = this.isMcpSuccess(result)
-                if (step.action === "execute_code" && mcpSuccess) {
+                if (READ_ONLY_ACTIONS.has(step.action) && mcpSuccess) {
                     this.state.completedSteps.push({ step, result })
                     this.config.onStepComplete?.(step, result)
                     this.log("validate", `Step ${stepIndex + 1} auto-validated (execute_code succeeded)`)

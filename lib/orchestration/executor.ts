@@ -2,6 +2,9 @@ import { randomUUID } from "crypto"
 
 import { createBlenderAgent, type AgentLog } from "@/lib/ai/agents"
 import { type Plan, type PlanStep, generateCode } from "@/lib/ai/chains"
+import { similaritySearch } from "@/lib/ai/vectorstore"
+import { formatContextFromSources } from "@/lib/ai/rag"
+import { createGeminiModel } from "@/lib/ai"
 import { type LlmProviderSpec } from "@/lib/llm"
 import { createMcpClient, getViewportScreenshot, type McpCommand } from "@/lib/mcp"
 import { ExecutionLogEntry, ExecutionPlan, PlanAnalysis, AgentStreamEvent } from "./types"
@@ -137,11 +140,34 @@ export class PlanExecutor {
               description,
             })
 
+            // Retrieve RAG context from ingested Blender scripts
+            let ragContext = ""
+            try {
+              const ragSources = await similaritySearch(description, {
+                limit: 5,
+                source: "blender-scripts",
+                minSimilarity: 0.4,
+              })
+              if (ragSources.length > 0) {
+                ragContext = formatContextFromSources(ragSources)
+                logs.push({
+                  timestamp: new Date().toISOString(),
+                  tool: "rag_retrieval",
+                  parameters: { query: description.substring(0, 100) },
+                  result: { sourcesRetrieved: ragSources.length, sources: ragSources.map(s => s.source) },
+                  logType: "reasoning",
+                  detail: `Retrieved ${ragSources.length} RAG sources for code generation`,
+                })
+              }
+            } catch (ragError) {
+              console.warn("RAG retrieval for code gen failed (non-fatal):", ragError)
+            }
+
             let generatedCode: string
             try {
               generatedCode = await generateCode({
                 request: description,
-                context: `This is one step in a larger plan for: "${userRequest}". Generate code for ONLY the described task, not the entire plan.`,
+                context: `This is one step in a larger plan for: "${userRequest}". Generate code for ONLY the described task, not the entire plan.${ragContext ? `\n\n## Reference Blender Python Scripts\n${ragContext}` : ""}`,
                 applyMaterials: true,
                 namingPrefix: "ModelForge_",
                 constraints: step.expected_outcome,
@@ -205,7 +231,7 @@ export class PlanExecutor {
           parameters: {},
           result: finalState,
         })
-        const audit = await this.auditScene(client, finalState, userRequest, analysis)
+        const audit = await this.auditScene(client, finalState, userRequest, analysis, logs)
 
         const agentState = agent.getState()
 
@@ -253,7 +279,8 @@ export class PlanExecutor {
     client: ReturnType<typeof createMcpClient>,
     finalState: unknown,
     userRequest: string,
-    analysis?: PlanAnalysis
+    analysis?: PlanAnalysis,
+    logs?: ExecutionLogEntry[]
   ): Promise<{ success: boolean; reason?: string }> {
     const resultRecord =
       finalState && typeof finalState === "object"
@@ -324,6 +351,115 @@ export class PlanExecutor {
       const carAudit = this.auditCarScene(meshObjects)
       if (!carAudit.success) {
         return carAudit
+      }
+    }
+
+    // LLM-based scene completeness check
+    try {
+      const completenessCheck = await this.llmSceneCompletenessCheck(
+        userRequest,
+        objects,
+        resultRecord
+      )
+      logs?.push({
+        timestamp: new Date().toISOString(),
+        tool: "llm_completeness_check",
+        parameters: { userRequest: userRequest.substring(0, 100) },
+        result: completenessCheck,
+        logType: "reasoning",
+        detail: completenessCheck.success
+          ? "LLM completeness check passed"
+          : `LLM completeness check failed: ${completenessCheck.reason}`,
+      })
+      if (!completenessCheck.success) {
+        return completenessCheck
+      }
+    } catch (llmCheckError) {
+      // Non-fatal — log and continue if LLM check fails
+      console.warn("LLM scene completeness check failed (non-fatal):", llmCheckError)
+      logs?.push({
+        timestamp: new Date().toISOString(),
+        tool: "llm_completeness_check",
+        parameters: { userRequest: userRequest.substring(0, 100) },
+        error: String(llmCheckError),
+        logType: "reasoning",
+        detail: "LLM completeness check threw an error (non-fatal)",
+      })
+    }
+
+    return { success: true }
+  }
+
+  /**
+   * Use the LLM to verify the final scene matches the user's original request.
+   * Checks for missing objects, missing materials, and placement issues.
+   */
+  private async llmSceneCompletenessCheck(
+    userRequest: string,
+    objects: Array<Record<string, unknown>>,
+    sceneResult?: Record<string, unknown>
+  ): Promise<{ success: boolean; reason?: string }> {
+    const model = createGeminiModel({ temperature: 0.1, maxOutputTokens: 1024 })
+
+    const objectSummary = objects.map(obj => {
+      const name = (obj.name as string) ?? "unknown"
+      const type = (obj.type as string) ?? "unknown"
+      const location = Array.isArray(obj.location)
+        ? `(${(obj.location as number[]).map(v => v.toFixed(2)).join(", ")})`
+        : "unknown"
+      return `  - ${name} [${type}] @ ${location}`
+    }).join("\n")
+
+    const materialsCount = typeof sceneResult?.materials_count === "number"
+      ? sceneResult.materials_count
+      : "unknown"
+
+    const prompt = `You are a Blender scene quality auditor. A user requested the following scene:
+
+"${userRequest}"
+
+The scene now contains these objects:
+${objectSummary}
+
+Total materials in scene: ${materialsCount}
+
+Evaluate whether the scene fulfills the user's request. Consider:
+1. Are all requested objects present (by name or type)?
+2. Are materials likely assigned (material count should be > 2 for scenes with colored objects)?
+3. Are object positions reasonable (not all at origin, correct relative placement)?
+
+Respond with ONLY valid JSON — no markdown, no explanation:
+{
+  "complete": true or false,
+  "issues": ["list of specific issues if incomplete, empty array if complete"]
+}
+
+Be lenient — minor naming differences are fine. Only flag clearly missing or misplaced objects.`
+
+    const response = await model.invoke(prompt)
+    const rawContent = response.content
+    const text = typeof rawContent === "string"
+      ? rawContent.trim()
+      : Array.isArray(rawContent)
+        ? rawContent.map(part => (typeof part === "string" ? part : (part as Record<string, unknown>).text ?? "")).join("").trim()
+        : String(rawContent ?? "")
+
+    if (!text) {
+      return { success: true } // Empty response — don't block
+    }
+
+    // Parse LLM response
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) {
+      return { success: true } // Can't parse — don't block
+    }
+
+    const result = JSON.parse(jsonMatch[0]) as { complete: boolean; issues?: string[] }
+
+    if (result.complete === false && Array.isArray(result.issues) && result.issues.length > 0) {
+      return {
+        success: false,
+        reason: `Scene completeness check: ${result.issues.join("; ")}`,
       }
     }
 
