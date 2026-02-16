@@ -1,7 +1,7 @@
 # GEMINI.md - ModelForge Project Rules & Progress Tracker
 
-> **Last Updated:** 2026-02-16
-> **Status:** Active Development — End-to-end orchestration working, RAG + validation bugs fixed
+> **Last Updated:** 2026-02-17
+> **Status:** Active Development — 124 RAG scripts, NotebookLM knowledge integration complete
 
 ---
 
@@ -25,7 +25,7 @@
 ### Core Features
 - 🤖 **AI Orchestration**: ReAct-style planner with per-step validation
 - 🔌 **Blender MCP Integration**: Socket bridge for executing Python in Blender
-- 📚 **Hybrid RAG Pipeline**: Context-aware generation using 113+ professional Blender scripts
+- 📚 **Hybrid RAG Pipeline**: Context-aware generation using 124 professional Blender scripts
 - 🌐 **Web Dashboard**: Project management, auth, conversation history
 - 🖥️ **Desktop App**: Electron wrapper with native MCP connectivity
 
@@ -38,7 +38,7 @@ ModelForge/
 ├── app/                    # Next.js app directory
 ├── components/            # React components
 ├── data/
-│   └── blender-scripts/   # Library of 113+ Python scripts
+│   └── blender-scripts/   # Library of 124 Python scripts
 │       ├── tasks/        # Task-specific generators
 │       └── *.py          # Utility modules
 ├── lib/                   # Utility libraries
@@ -99,7 +99,7 @@ npm run test:user        # Create test user
 | AI Orchestration layer | ✅ Complete | Planner, Executor, Prompts |
 | **Serverless DB Migration** | ✅ Complete | Neon pgvector compatibility |
 | **AI Engineering Upgrade** | ✅ Complete | LangChain, Agents, RAG implemented |
-| **Script Library Expansion** | ✅ Complete | **120 scripts** (53 utility + 67 tasks) |
+| **Script Library Expansion** | ✅ Complete | **124 scripts** (53 utility + 67 tasks + 4 NotebookLM) |
 | **RAG Pipeline Ingestion** | ✅ Complete | Recursive ingestion of all scripts |
 | **Viewport Screenshot Analysis** | ✅ Complete | Gemini Vision feedback loop |
 | **Conversation Memory** | ✅ Complete | Vector embeddings for context-aware responses |
@@ -108,6 +108,7 @@ npm run test:user        # Create test user
 | **Validation Hardening** | ✅ Complete | Auto-validate read-only commands, robust content parsing |
 | **End-to-End Testing** | ✅ Complete | 3/3 stress tests passed (castle, solar system, edit) |
 | **Orchestration Hardening** | ✅ Complete | Boolean solver, viewport shading, null safety fixes |
+| **NotebookLM Knowledge Enhancement** | ✅ Complete | 4 new scripts, 18 API compat categories, 6 prompt sections |
 
 ### Roadmap
 - [x] Gemini-backed conversational planning
@@ -119,12 +120,28 @@ npm run test:user        # Create test user
 - [x] **RAG integrated into code generation phase**
 - [x] **LLM scene completeness validation**
 - [x] **Stress testing with complex prompts (3/3 passed)**
+- [x] **NotebookLM knowledge extraction + RAG enhancement**
 - [ ] Material/color quality enhancement
 - [ ] Production desktop app packaging
 
 ---
 
 ## 📝 Session Log
+
+### 2026-02-17 (NotebookLM Knowledge Enhancement)
+- **NotebookLM MCP Integration**:
+  - Installed `notebooklm-mcp-cli` v0.3.2, authenticated with Google
+  - Queried "Mastering Blender Automation" notebook (89 sources)
+  - Extracted ~36KB of expert knowledge across 5 deep queries
+- **Scraped 15 Blender Docs** (via Firecrawl → `data/notebooklm-sources/`, ~268KB)
+- **New RAG Scripts** (4 new, total 124):
+  - `blender_api_pitfalls.py` — 15 common API pitfalls with solutions
+  - `professional_materials.py` — PBR metals, glass, SSS, thin film recipes
+  - `render_settings.py` — Cycles/EEVEE config, AgX color management
+  - `volumetric_effects.py` — Atmosphere, fog, god rays, HDRI setup
+- **Updated `api_version_compatibility.py`**: 8 → 18 Blender 5.0 breaking change categories
+- **Enhanced `CODE_GENERATION_PROMPT`**: 6 new sections (factory pattern, mesh validation, light units, PBR materials, render/color management, volumetrics)
+- **Re-ingested**: 124 scripts into pgvector (37 categories)
 
 ### 2026-02-16 (Firecrawl Scraping + API Compatibility)
 - **Scraped Sources** (via Firecrawl):
