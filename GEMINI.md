@@ -99,7 +99,7 @@ npm run test:user        # Create test user
 | AI Orchestration layer | ✅ Complete | Planner, Executor, Prompts |
 | **Serverless DB Migration** | ✅ Complete | Neon pgvector compatibility |
 | **AI Engineering Upgrade** | ✅ Complete | LangChain, Agents, RAG implemented |
-| **Script Library Expansion** | ✅ Complete | **113 scripts** (46 utility + 67 tasks) |
+| **Script Library Expansion** | ✅ Complete | **118 scripts** (51 utility + 67 tasks) |
 | **RAG Pipeline Ingestion** | ✅ Complete | Recursive ingestion of all scripts |
 | **Viewport Screenshot Analysis** | ✅ Complete | Gemini Vision feedback loop |
 | **Conversation Memory** | ✅ Complete | Vector embeddings for context-aware responses |
@@ -125,6 +125,16 @@ npm run test:user        # Create test user
 ---
 
 ## 📝 Session Log
+
+### 2026-02-16 (Professional Knowledge Enhancement)
+- **New RAG Scripts** (5 new, total 118):
+  - `vibrant_color_palettes.py` — 60+ saturated RGB constants for nature/space/metals/neon
+  - `emission_materials.py` — Best practices for emissive materials (sun/neon/fire/screen)
+  - `lighting_recipes.py` — Professional lighting: 3-point, studio, outdoor, sunset, dramatic, HDRI
+  - `camera_composition.py` — Focal lengths, DOF, Track To, turntable, render settings
+  - `scene_composition.py` — Real-world scale refs, floor planes, backdrops, pedestals, layouts
+- **Prompt Update**: Added `MATERIAL COLORS — CRITICAL` to `CODE_GENERATION_PROMPT`
+- **Re-ingested**: 118 scripts into pgvector (materials:5, lighting:5, camera:2, scene:3)
 
 ### 2026-02-16 (Orchestration Debugging + Stress Testing)
 - **Viewport Material Preview**: Added automatic viewport switch to Material Preview after execution so materials are visible
