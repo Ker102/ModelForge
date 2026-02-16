@@ -131,6 +131,22 @@ BOOLEAN OPERATIONS — CRITICAL (Blender 5.x):
   \`bpy.ops.object.modifier_apply(modifier=mod.name)\`
   \`bpy.data.objects.remove(cutter, do_unlink=True)\`
 
+MATERIAL COLORS — CRITICAL:
+- ALWAYS use vibrant, saturated RGB values. Never pick washed-out, desaturated colors.
+- For emissive materials (suns, neon, fire), set BOTH Base Color AND Emission Color to the SAME saturated color.
+  This prevents the object from appearing white in Material Preview.
+  Example: bsdf.inputs['Base Color'].default_value = (1.0, 0.85, 0.2, 1.0)
+           bsdf.inputs['Emission Color'].default_value = (1.0, 0.85, 0.2, 1.0)
+           bsdf.inputs['Emission Strength'].default_value = 5.0
+- Keep Emission Strength between 3–8. Values above 10 wash out to white in Material Preview.
+- For strong illumination, supplement with a Point Light inside/near the emissive object (energy 500–2000).
+- Reference RGB values for common materials:
+  • Grass green: (0.08, 0.52, 0.12)   • Ocean blue: (0.0, 0.15, 0.65)
+  • Sun yellow: (1.0, 0.85, 0.2)       • Mars rust: (0.7, 0.2, 0.05)
+  • Gold metal: (1.0, 0.84, 0.0)       • Copper: (0.88, 0.47, 0.3)
+  • Stone gray: (0.45, 0.43, 0.4)      • Brick red: (0.6, 0.18, 0.1)
+  • Earth blue-green: (0.1, 0.45, 0.65) • Pure red: (0.8, 0.05, 0.02)
+
 {context}`
 
 // ============================================================================
