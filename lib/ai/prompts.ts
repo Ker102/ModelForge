@@ -41,6 +41,7 @@ PLANNING PRINCIPLES:
 6. Every finished scene needs at least one light source and a camera unless the user explicitly says otherwise.
 7. Use descriptive object names (e.g., "Castle_Tower_Left") so downstream steps can reference them.
 8. Prefer fewer, well-described execute_code steps over many tiny ones — each one has overhead.
+9. NEVER plan boolean operations for simple architectural details (doors, windows, arches). Instead, describe them as separate geometry placed at the surface. Booleans are fragile and often destroy meshes.
 
 CRITICAL RULES FOR execute_code STEPS:
 - NEVER put Python code in the parameters.
@@ -119,6 +120,17 @@ AVOID:
 - Accessing \`bpy.context.active_object\` after deleting objects — it may be None or stale.
 - Use \`bpy.data.objects.remove(obj, do_unlink=True)\` to delete, then re-fetch references.
 
+BOOLEAN OPERATIONS — CRITICAL (Blender 5.x):
+- The ONLY valid solvers are: 'EXACT', 'FLOAT', 'MANIFOLD'. 
+- NEVER use 'FAST' — it does NOT exist and will crash.
+- Always use solver='EXACT' for reliable results: \`bool_mod.solver = 'EXACT'\`
+- PREFER avoiding boolean operations entirely for low-poly/simple models.
+  Instead of boolean cuts for doors/windows, use separate geometry placed at the wall surface,
+  or use inset/extrude approaches. Booleans are fragile and can destroy the target mesh.
+- If you must use a boolean, always clean up the cutter object after applying:
+  \`bpy.ops.object.modifier_apply(modifier=mod.name)\`
+  \`bpy.data.objects.remove(cutter, do_unlink=True)\`
+
 {context}`
 
 // ============================================================================
@@ -129,12 +141,12 @@ AVOID:
  * Planning prompt template
  */
 export const planningPrompt = ChatPromptTemplate.fromMessages([
-    SystemMessagePromptTemplate.fromTemplate(PLANNING_SYSTEM_PROMPT + `
+  SystemMessagePromptTemplate.fromTemplate(PLANNING_SYSTEM_PROMPT + `
 
 Available tools: {tools}
 
 {context}`),
-    HumanMessagePromptTemplate.fromTemplate(`Create a step-by-step plan for: {request}
+  HumanMessagePromptTemplate.fromTemplate(`Create a step-by-step plan for: {request}
 
 Current scene state: {sceneState}
 
@@ -159,8 +171,8 @@ REMINDER: For execute_code steps, set parameters to {{"description": "detailed d
  * Code generation prompt template
  */
 export const codeGenerationPrompt = ChatPromptTemplate.fromMessages([
-    SystemMessagePromptTemplate.fromTemplate(CODE_GENERATION_PROMPT),
-    HumanMessagePromptTemplate.fromTemplate(`Generate Blender Python code for ONLY this specific task: {request}
+  SystemMessagePromptTemplate.fromTemplate(CODE_GENERATION_PROMPT),
+  HumanMessagePromptTemplate.fromTemplate(`Generate Blender Python code for ONLY this specific task: {request}
 
 IMPORTANT: Generate code for ONLY the task described above. Do NOT create the entire scene — other steps handle the rest.
 
@@ -174,8 +186,8 @@ Requirements:
  * Validation prompt template
  */
 export const validationPrompt = ChatPromptTemplate.fromMessages([
-    SystemMessagePromptTemplate.fromTemplate(VALIDATION_SYSTEM_PROMPT),
-    HumanMessagePromptTemplate.fromTemplate(`Step: {stepDescription}
+  SystemMessagePromptTemplate.fromTemplate(VALIDATION_SYSTEM_PROMPT),
+  HumanMessagePromptTemplate.fromTemplate(`Step: {stepDescription}
 Expected outcome: {expectedOutcome}
 Actual result: {actualResult}
 
@@ -186,7 +198,7 @@ Validate this step and respond with JSON.`),
  * Recovery prompt template
  */
 export const recoveryPrompt = ChatPromptTemplate.fromMessages([
-    SystemMessagePromptTemplate.fromTemplate(`You are helping recover from a failed Blender MCP operation.
+  SystemMessagePromptTemplate.fromTemplate(`You are helping recover from a failed Blender MCP operation.
 Analyze the error and suggest a fix.
 
 CRITICAL RULES:
@@ -198,7 +210,7 @@ CRITICAL RULES:
   • set_texture: object_name, texture_id
 - If a tool keeps failing and cannot be fixed, suggest "skip" to move on.
 - If the error mentions "unexpected keyword argument", you are using wrong parameter names — check above.`),
-    HumanMessagePromptTemplate.fromTemplate(`Failed step: {stepDescription}
+  HumanMessagePromptTemplate.fromTemplate(`Failed step: {stepDescription}
 Error: {error}
 Scene state: {sceneState}
 

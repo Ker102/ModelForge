@@ -106,7 +106,8 @@ npm run test:user        # Create test user
 | **RAG in Code Generation** | ✅ Complete | Reference scripts injected before each code gen step |
 | **LLM Scene Completeness Check** | ✅ Complete | Gemini verifies final scene matches user request |
 | **Validation Hardening** | ✅ Complete | Auto-validate read-only commands, robust content parsing |
-| **End-to-End Testing** | 🔄 In Progress | 2/3 tests passed, castle needs re-test after fix |
+| **End-to-End Testing** | ✅ Complete | 3/3 stress tests passed (castle, solar system, edit) |
+| **Orchestration Hardening** | ✅ Complete | Boolean solver, viewport shading, null safety fixes |
 
 ### Roadmap
 - [x] Gemini-backed conversational planning
@@ -117,12 +118,27 @@ npm run test:user        # Create test user
 - [x] **Conversation memory with vector embeddings**
 - [x] **RAG integrated into code generation phase**
 - [x] **LLM scene completeness validation**
-- [ ] Stress testing with complex prompts
+- [x] **Stress testing with complex prompts (3/3 passed)**
+- [ ] Material/color quality enhancement
 - [ ] Production desktop app packaging
 
 ---
 
 ## 📝 Session Log
+
+### 2026-02-16 (Orchestration Debugging + Stress Testing)
+- **Viewport Material Preview**: Added automatic viewport switch to Material Preview after execution so materials are visible
+- **Boolean Solver Fix**: Added Blender 5.x boolean guidance to `CODE_GENERATION_PROMPT` — `FAST` solver doesn't exist, only `EXACT`/`FLOAT`/`MANIFOLD`
+- **Planning Rule #9**: "NEVER plan boolean operations for simple architectural details" — use separate geometry instead
+- **LLM Completeness Check**: Made lenient for merged/joined objects; wrapped in try-catch for null safety
+- **Gemini Model Alignment**: Updated all model references to `gemini-2.5-pro`, added `GEMINI_MODEL` env var
+- **Removed Outdated Files**: Deleted `Orchesrecommendations.md`, `orchesproblems.md`, removed `auditCarScene` heuristic
+- **Files Modified**: `lib/orchestration/executor.ts`, `lib/ai/prompts.ts`, `lib/gemini.ts`, `lib/stripe.ts`, `.env`
+- **Stress Test Results**:
+  - ✅ Castle (creation): 5 steps, 0 retries, 7 objects, 5 materials
+  - ✅ Solar System (creation): 5 steps, 0 retries, 6 objects, 7 materials
+  - ✅ Solar System Edit (scene editing): 4 steps, 0 retries, 18 objects, 9 materials
+- **Remaining**: Material color quality is too muted — needs enhanced RAG scripts for vibrant colors
 
 ### 2026-02-16 (RAG Fix + Validation Hardening + End-to-End Testing)
 - **Critical RAG Bug Fixed**: Vector store data ingested under source label `"blender-scripts"` but ALL queries used `"blender-docs"` → RAG always returned 0 results. Fixed in 4 files:

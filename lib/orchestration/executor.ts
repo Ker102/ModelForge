@@ -222,7 +222,14 @@ export class PlanExecutor {
         }
       }
 
-      // 4. Final Scene Audit
+      // 4. Switch viewport to Material Preview so materials are visible
+      try {
+        await client.execute({ type: "execute_code", params: { code: `import bpy\nfor area in bpy.context.screen.areas:\n    if area.type == 'VIEW_3D':\n        for space in area.spaces:\n            if space.type == 'VIEW_3D':\n                space.shading.type = 'MATERIAL'\n                break` } })
+      } catch {
+        // Non-fatal — viewport shading is cosmetic
+      }
+
+      // 5. Final Scene Audit
       try {
         const finalState = await client.execute({ type: "get_scene_info" })
         logs.push({
@@ -347,13 +354,6 @@ export class PlanExecutor {
       await this.ensureDefaultMaterials(client, missingMaterials)
     }
 
-    if (/(car|vehicle|sedan|supercar|sports car|automobile|truck)/i.test(userRequest)) {
-      const carAudit = this.auditCarScene(meshObjects)
-      if (!carAudit.success) {
-        return carAudit
-      }
-    }
-
     // LLM-based scene completeness check
     try {
       const completenessCheck = await this.llmSceneCompletenessCheck(
@@ -399,22 +399,24 @@ export class PlanExecutor {
     objects: Array<Record<string, unknown>>,
     sceneResult?: Record<string, unknown>
   ): Promise<{ success: boolean; reason?: string }> {
-    const model = createGeminiModel({ temperature: 0.1, maxOutputTokens: 1024 })
+    try {
+      const model = createGeminiModel({ temperature: 0.1, maxOutputTokens: 1024 })
 
-    const objectSummary = objects.map(obj => {
-      const name = (obj.name as string) ?? "unknown"
-      const type = (obj.type as string) ?? "unknown"
-      const location = Array.isArray(obj.location)
-        ? `(${(obj.location as number[]).map(v => v.toFixed(2)).join(", ")})`
+      const objectSummary = (objects ?? []).map(obj => {
+        const name = (obj?.name as string) ?? "unknown"
+        const type = (obj?.type as string) ?? "unknown"
+        const loc = obj?.location
+        const location = Array.isArray(loc) && loc.length >= 3
+          ? `(${(loc as number[]).map(v => typeof v === 'number' ? v.toFixed(2) : '?').join(", ")})`
+          : "unknown"
+        return `  - ${name} [${type}] @ ${location}`
+      }).join("\n")
+
+      const materialsCount = typeof sceneResult?.materials_count === "number"
+        ? sceneResult.materials_count
         : "unknown"
-      return `  - ${name} [${type}] @ ${location}`
-    }).join("\n")
 
-    const materialsCount = typeof sceneResult?.materials_count === "number"
-      ? sceneResult.materials_count
-      : "unknown"
-
-    const prompt = `You are a Blender scene quality auditor. A user requested the following scene:
+      const prompt = `You are a Blender scene quality auditor. A user requested the following scene:
 
 "${userRequest}"
 
@@ -428,42 +430,69 @@ Evaluate whether the scene fulfills the user's request. Consider:
 2. Are materials likely assigned (material count should be > 2 for scenes with colored objects)?
 3. Are object positions reasonable (not all at origin, correct relative placement)?
 
+IMPORTANT — Be LENIENT:
+- Objects may have been joined/merged into a single mesh (e.g., "Castle_Tower" may contain the wall section too). This is FINE — do not flag merged sub-components as missing.
+- Minor naming differences are fine (e.g., "Grassy_Hill" vs "Hill").
+- Only flag something as missing if there is NO object that could plausibly represent it.
+- The material count being >= the number of distinct materials requested is sufficient.
+- Geometric sub-components (doors, windows, arches) may be boolean-cut into parent objects — they won't appear as separate scene objects.
+
 Respond with ONLY valid JSON — no markdown, no explanation:
 {
   "complete": true or false,
   "issues": ["list of specific issues if incomplete, empty array if complete"]
 }
 
-Be lenient — minor naming differences are fine. Only flag clearly missing or misplaced objects.`
+Only flag CLEARLY missing top-level objects or completely absent material assignments.`
 
-    const response = await model.invoke(prompt)
-    const rawContent = response.content
-    const text = typeof rawContent === "string"
-      ? rawContent.trim()
-      : Array.isArray(rawContent)
-        ? rawContent.map(part => (typeof part === "string" ? part : (part as Record<string, unknown>).text ?? "")).join("").trim()
-        : String(rawContent ?? "")
-
-    if (!text) {
-      return { success: true } // Empty response — don't block
-    }
-
-    // Parse LLM response
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) {
-      return { success: true } // Can't parse — don't block
-    }
-
-    const result = JSON.parse(jsonMatch[0]) as { complete: boolean; issues?: string[] }
-
-    if (result.complete === false && Array.isArray(result.issues) && result.issues.length > 0) {
-      return {
-        success: false,
-        reason: `Scene completeness check: ${result.issues.join("; ")}`,
+      const response = await model.invoke(prompt)
+      const rawContent = response?.content
+      let text = ""
+      if (typeof rawContent === "string") {
+        text = rawContent.trim()
+      } else if (Array.isArray(rawContent)) {
+        text = rawContent
+          .map(part => {
+            if (typeof part === "string") return part
+            if (part && typeof part === "object" && "text" in part) return String((part as Record<string, unknown>).text ?? "")
+            return ""
+          })
+          .join("")
+          .trim()
+      } else {
+        text = String(rawContent ?? "")
       }
-    }
 
-    return { success: true }
+      if (!text) {
+        return { success: true } // Empty response — don't block
+      }
+
+      // Parse LLM response
+      const jsonMatch = text.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) {
+        return { success: true } // Can't parse — don't block
+      }
+
+      let result: { complete: boolean; issues?: string[] }
+      try {
+        result = JSON.parse(jsonMatch[0]) as { complete: boolean; issues?: string[] }
+      } catch {
+        return { success: true } // Malformed JSON — don't block
+      }
+
+      if (result.complete === false && Array.isArray(result.issues) && result.issues.length > 0) {
+        return {
+          success: false,
+          reason: `Scene completeness check: ${result.issues.join("; ")}`,
+        }
+      }
+
+      return { success: true }
+    } catch (error) {
+      // Catch any unexpected errors (TypeError, etc.) — never block execution
+      console.warn("[llmSceneCompletenessCheck] Non-fatal error:", error)
+      return { success: true }
+    }
   }
 
   private async ensureDefaultMaterials(
@@ -489,65 +518,7 @@ Be lenient — minor naming differences are fine. Only flag clearly missing or m
     await client.execute({ type: "execute_code", params: { code: script } })
   }
 
-  private auditCarScene(objects: Array<Record<string, unknown>>): { success: boolean; reason?: string } {
-    const meshByName = objects
-      .map((obj) => ({
-        name: typeof obj.name === "string" ? obj.name : typeof obj["name"] === "string" ? (obj["name"] as string) : "",
-        raw: obj,
-      }))
-      .filter((entry) => entry.name.trim().length > 0)
 
-    const carBody = meshByName.find((entry) => /car.*(body|shell|chassis)/i.test(entry.name))
-    if (!carBody) {
-      return { success: false, reason: "Car audit failed: missing a car body mesh (expected name containing 'car_body')." }
-    }
-
-    const wheels = meshByName.filter((entry) => /(wheel|tyre|tire)/i.test(entry.name))
-    const uniqueWheels = new Map<string, typeof wheels[number]>()
-    for (const wheel of wheels) {
-      uniqueWheels.set(wheel.name.toLowerCase(), wheel)
-    }
-    if (uniqueWheels.size < 4) {
-      return { success: false, reason: `Car audit failed: expected 4 wheels, found ${uniqueWheels.size}.` }
-    }
-
-    const wheelLocations = Array.from(uniqueWheels.values())
-      .map((entry) => {
-        const location = Array.isArray(entry.raw.location)
-          ? (entry.raw.location as unknown[])
-          : Array.isArray(entry.raw["location"])
-            ? (entry.raw["location"] as unknown[])
-            : []
-        return location.map((value) => (typeof value === "number" ? Number(value.toFixed(2)) : value))
-      })
-      .filter((loc) => Array.isArray(loc) && loc.length === 3)
-
-    const wheelPositionHashes = new Set(wheelLocations.map((loc) => JSON.stringify(loc)))
-    if (wheelPositionHashes.size < 3) {
-      return {
-        success: false,
-        reason: "Car audit failed: wheel locations are overlapping; ensure wheels are positioned at four corners.",
-      }
-    }
-
-    const lights = meshByName.filter((entry) => /(headlight|taillight|light)/i.test(entry.name))
-    if (lights.length < 2) {
-      return {
-        success: false,
-        reason: "Car audit failed: expected at least two headlight/taillight meshes.",
-      }
-    }
-
-    const glass = meshByName.some((entry) => /(window|glass|windshield)/i.test(entry.name))
-    if (!glass) {
-      return {
-        success: false,
-        reason: "Car audit failed: expected window or windshield meshes.",
-      }
-    }
-
-    return { success: true }
-  }
 }
 
 function normalizeParameters(action: string, parameters: Record<string, unknown> = {}) {

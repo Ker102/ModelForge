@@ -18,7 +18,7 @@ export const PRICING_TIERS = {
     limits: {
       maxProjects: 1,
       dailyRequests: 5,
-      modelAccess: 'gemini-2.0-flash'
+      modelAccess: 'gemini-2.5-pro'
     }
   },
   STARTER: {

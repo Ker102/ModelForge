@@ -1,7 +1,7 @@
 import { buildSystemPrompt } from "@/lib/orchestration/prompts"
 
 const GEMINI_API_ENDPOINT = "https://generativelanguage.googleapis.com/v1"
-const DEFAULT_MODEL = "gemini-2.0-flash"
+const DEFAULT_MODEL = "gemini-2.5-pro"
 
 export interface GeminiMessage {
   role: "user" | "assistant"
