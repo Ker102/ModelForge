@@ -97,6 +97,76 @@ import bpy
 # This shouldn't affect most code, but be aware of precision differences.
 
 
+# --- 9. Render Passes Renamed (5.0) ---
+# OLD: 'DiffCol'  → NEW: 'Diffuse Color'
+# OLD: 'IndexMA'  → NEW: 'Material Index'
+# OLD: 'Z'        → NEW: 'Depth'
+# render.render() now accepts frame_start and frame_end arguments.
+
+
+# --- 10. BGL Module REMOVED (5.0) ---
+# The deprecated bgl module is FULLY REMOVED in 5.0.
+# Image.bindcode is removed. Use gpu.texture.from_image(image) instead.
+# Creating shaders from GLSL source strings is removed.
+# Use the gpu module for all GPU operations.
+
+
+# --- 11. Action / Animation API Changes (5.0) ---
+# action.fcurves, action.groups, action.id_root → REMOVED
+# Access FCurves via Channelbags: channelbag.fcurves
+# Bone.hide now only affects edit bone visibility.
+#   For Object/Pose mode, use PoseBone.hide
+# Bone.select, select_head, select_tail → REMOVED
+#   Use EditBone properties or PoseBone.select
+# INSERTKEY_XYZ_TO_RGB flag fully removed.
+
+
+# --- 12. UV Selection Changes (5.0) ---
+# UV selection is now shared between UV maps.
+# REMOVED: MeshUVLoopLayer.vertex_selection, edge_selection
+# REMOVED: bmesh.types.BMLoopUV.select, select_edge
+# ADDED:   uv_select_vert, uv_select_edge, uv_select_face attributes
+# UV pin property no longer auto-creates attribute — use _ensure() functions.
+
+
+# --- 13. Paint & Sculpt Property Renames (5.0) ---
+# brush.sculpt_tool → brush.sculpt_brush_type
+# curve_preset → curve_distance_falloff_preset
+# unified_paint_settings moved from tool settings to mode-specific Paint structs.
+# Radial symmetry moved from scene tool settings to mesh.radial_symmetry
+# REMOVED: brush.use_custom_icon, brush.icon_filepath
+
+
+# --- 14. File Output Node Changes (5.0) ---
+# Compositor File Output node:
+#   REMOVED: file_slots, layer_slots, base_path
+#   ADDED:   directory, file_name, file_output_items
+
+
+# --- 15. Import/Export Changes (5.0) ---
+# Alembic: Scene.alembic_export REMOVED → use bpy.ops.wm.alembic_export
+# USD Import: import_subdiv → import_subdivision
+#             attr_import_mode → property_import_mode
+# USD Export: export_textures REMOVED (use export_textures_mode)
+#             visible_objects_only REMOVED
+
+
+# --- 16. Dictionary Property Access REMOVED (5.0) ---
+# Properties defined via bpy.props are NO LONGER accessible via dict syntax.
+# OLD: bpy.context.scene['cycles']     → FAILS in 5.0
+# NEW: bpy.context.scene.cycles        → Use attribute access
+# del obj['prop'] → obj.property_unset('prop')
+
+
+# --- 17. Sky Texture Changes (5.0) ---
+# REMOVED inputs: sun_direction, turbidity, ground_albedo
+
+
+# --- 18. UI/Theme Changes (5.0) ---
+# RADIAL_MENU layout type → renamed to PIE_MENU
+# RNA_ADD icon REMOVED
+# Removed theme properties: navigation_bar, execution_buts, tab_active, etc.
+
 # =============================================================================
 # BLENDER 4.0 BREAKING CHANGES
 # =============================================================================

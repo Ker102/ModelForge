@@ -112,6 +112,54 @@ BLENDER 5.x API — CRITICAL:
   bsdf.inputs['Emission Color'].default_value = (R, G, B, 1.0)
   bsdf.inputs['Emission Strength'].default_value = 5.0
 
+FACTORY PATTERN — PREFER bpy.data OVER bpy.ops:
+- bpy.ops operators FAIL in headless/background mode because they rely on UI context.
+- ALWAYS use bpy.data (Factory Pattern) for creating objects and lights:
+  mesh = bpy.data.meshes.new("Name_Mesh")
+  obj = bpy.data.objects.new("Name", mesh)
+  bpy.context.scene.collection.objects.link(obj)
+- For lights:
+  light_data = bpy.data.lights.new(name="Key", type='AREA')
+  light_data.energy = 500
+  light_data.color = (1, 1, 1)  # 3-tuple RGB only, NOT 4-tuple RGBA!
+  light_obj = bpy.data.objects.new(name="Key", object_data=light_data)
+  bpy.context.collection.objects.link(light_obj)
+- Use bpy.ops ONLY for primitives when quick placement is acceptable (e.g. floor planes).
+
+MESH SAFETY — ALWAYS VALIDATE:
+- After mesh.from_pydata(verts, edges, faces), ALWAYS call:
+  mesh.validate(verbose=True)    # Prevents crashes from invalid geometry
+  mesh.update(calc_edges=True)   # Recalculates internal edge data
+- For NumPy foreach_set: ALWAYS .flatten() the array before passing to Blender.
+
+LIGHT UNITS — CRITICAL:
+- Point, Spot, Area lights: energy in WATTS (e.g., 500W for key light)
+- Sun lights: energy in WATTS/m² — use 3-10 W/m² for typical scenes. NEVER set sun to 1000!
+- Light color is 3-tuple RGB: light.color = (1.0, 0.0, 0.0). NOT 4-tuple RGBA!
+- For soft shadows, increase area light size: light_data.size = 2.0
+
+PBR MATERIALS — CORRECT SOCKET NAMES (4.0/5.0):
+- METALLIC materials: Metallic=1.0, Base Color = specular color (Gold: 1.0, 0.766, 0.336)
+- DIELECTRIC materials: Metallic=0.0, Base Color = diffuse color
+- GLASS: bsdf.inputs['Transmission Weight'].default_value = 1.0 (NOT 'Transmission')
+  IOR: Glass=1.5, Water=1.33, Diamond=2.42
+- SSS (skin/wax/marble): bsdf.inputs['Subsurface Weight'].default_value = 1.0
+  "Subsurface Color" is REMOVED — Base Color drives SSS color directly.
+- THIN FILM (soap bubbles): bsdf.inputs['Thin Film Thickness'].default_value = 500.0
+
+RENDER & COLOR MANAGEMENT:
+- Use AgX color management (Blender 4.0+ default, better than Filmic):
+  scene.view_settings.view_transform = 'AgX'
+  scene.view_settings.look = 'High Contrast'
+- EEVEE engine ID in 5.0: 'BLENDER_EEVEE' (not 'BLENDER_EEVEE_NEXT')
+- Shadow catchers: floor_obj.is_shadow_catcher = True (Cycles only)
+
+VOLUMETRIC EFFECTS:
+- For atmosphere/god rays, create a cube with Principled Volume shader.
+- CRITICAL: Connect to VOLUME output, NOT Surface output!
+  links.new(vol_node.outputs['Volume'], output.inputs['Volume'])
+- Keep density very low: 0.001-0.005 for atmosphere, 0.02-0.05 for fog.
+
 AVOID:
 - Calling \`mat.use_nodes = True\` — deprecated in Blender 5.x, node tree is auto-created.
 - Using deprecated \`bpy.context.scene.objects.link()\` — use \`bpy.context.collection.objects.link()\` if needed.
@@ -119,6 +167,7 @@ AVOID:
 - Calling \`bpy.ops\` operators that require specific UI context without overriding context.
 - Accessing \`bpy.context.active_object\` after deleting objects — it may be None or stale.
 - Use \`bpy.data.objects.remove(obj, do_unlink=True)\` to delete, then re-fetch references.
+- dict-style property access on API objects (removed in 5.0): scene['cycles'] → use scene.cycles
 
 BOOLEAN OPERATIONS — CRITICAL (Blender 5.x):
 - The ONLY valid solvers are: 'EXACT', 'FLOAT', 'MANIFOLD'. 
