@@ -1,0 +1,304 @@
+{
+    "prompts": [
+        {
+            "id": 1,
+            "category": "materials",
+            "prompt": "Create a brushed aluminum material with subtle anisotropic scratches",
+            "difficulty": "intermediate"
+        },
+        {
+            "id": 2,
+            "category": "materials",
+            "prompt": "Create a frosted glass material with IOR 1.5 and medium roughness",
+            "difficulty": "basic"
+        },
+        {
+            "id": 3,
+            "category": "materials",
+            "prompt": "Create procedural rust material that blends orange-brown patches using voronoi noise on a dark metal base",
+            "difficulty": "advanced"
+        },
+        {
+            "id": 4,
+            "category": "displacement",
+            "prompt": "Create a raked zen garden sand floor with wave displacement for parallel rake lines",
+            "difficulty": "advanced"
+        },
+        {
+            "id": 5,
+            "category": "displacement",
+            "prompt": "Create a rocky terrain plane with noise-based displacement visible in the viewport",
+            "difficulty": "intermediate"
+        },
+        {
+            "id": 6,
+            "category": "lighting",
+            "prompt": "Set up three-point lighting with key, fill, and rim lights using physical units (watts)",
+            "difficulty": "intermediate"
+        },
+        {
+            "id": 7,
+            "category": "lighting",
+            "prompt": "Create a warm sunset lighting setup with an orange sun light at low angle",
+            "difficulty": "basic"
+        },
+        {
+            "id": 8,
+            "category": "lighting",
+            "prompt": "Add volumetric fog to the scene with a Volume Scatter world shader",
+            "difficulty": "intermediate"
+        },
+        {
+            "id": 9,
+            "category": "modeling",
+            "prompt": "Create a wooden treasure chest with hinged lid, iron bands, and lock",
+            "difficulty": "advanced"
+        },
+        {
+            "id": 10,
+            "category": "modeling",
+            "prompt": "Create a low-poly tree with a cylinder trunk and icosphere canopy",
+            "difficulty": "basic"
+        },
+        {
+            "id": 11,
+            "category": "modeling",
+            "prompt": "Create a spiral staircase with 20 steps wrapping around a central pole",
+            "difficulty": "advanced"
+        },
+        {
+            "id": 12,
+            "category": "modeling",
+            "prompt": "Create a medieval stone wall with an arched doorway",
+            "difficulty": "intermediate"
+        },
+        {
+            "id": 13,
+            "category": "scene",
+            "prompt": "Set up a product showcase pedestal with a circular base, backdrop curve, and area light",
+            "difficulty": "intermediate"
+        },
+        {
+            "id": 14,
+            "category": "scene",
+            "prompt": "Create a simple outdoor scene with a ground plane, sky dome, and sun light",
+            "difficulty": "basic"
+        },
+        {
+            "id": 15,
+            "category": "render",
+            "prompt": "Configure Cycles render settings: 256 samples, denoising on, AgX color management with Medium High Contrast look",
+            "difficulty": "intermediate"
+        },
+        {
+            "id": 16,
+            "category": "render",
+            "prompt": "Set up EEVEE render with bloom, ambient occlusion, and screen-space reflections enabled",
+            "difficulty": "intermediate"
+        },
+        {
+            "id": 17,
+            "category": "animation",
+            "prompt": "Create a turntable camera animation: camera orbits object at 4m distance over 120 frames",
+            "difficulty": "intermediate"
+        },
+        {
+            "id": 18,
+            "category": "materials",
+            "prompt": "Create PBR gold material with Metallic=1.0, correct base color for gold, and low roughness",
+            "difficulty": "basic"
+        },
+        {
+            "id": 19,
+            "category": "materials",
+            "prompt": "Create an emissive neon sign material with bright green emission color and strength 8.0",
+            "difficulty": "basic"
+        },
+        {
+            "id": 20,
+            "category": "modeling",
+            "prompt": "Create a wine bottle with glass material and a cork stopper",
+            "difficulty": "intermediate"
+        },
+        {
+            "id": 21,
+            "category": "scene",
+            "prompt": "Create a Japanese garden: raked sand floor, three asymmetric stones, red torii gate, warm area light, subtle mist",
+            "difficulty": "advanced"
+        },
+        {
+            "id": 22,
+            "category": "displacement",
+            "prompt": "Create water surface with concentric ring ripple displacement",
+            "difficulty": "intermediate"
+        },
+        {
+            "id": 23,
+            "category": "scene",
+            "prompt": "Build a solar system with sun (emissive), 4 planets at different orbits, and orbit ring indicators",
+            "difficulty": "advanced"
+        },
+        {
+            "id": 24,
+            "category": "modeling",
+            "prompt": "Create a bookshelf with 3 shelves and 5 randomly sized books on each shelf",
+            "difficulty": "intermediate"
+        },
+        {
+            "id": 25,
+            "category": "materials",
+            "prompt": "Create subsurface scattering skin material with warm undertone and correct Subsurface Weight",
+            "difficulty": "intermediate"
+        },
+        {
+            "id": 26,
+            "category": "camera",
+            "prompt": "Set up a camera with 85mm focal length, f/2.8 depth of field, focused on origin",
+            "difficulty": "intermediate"
+        },
+        {
+            "id": 27,
+            "category": "modeling",
+            "prompt": "Create a medieval castle with 4 corner towers, walls, a gate with portcullis, and battlements",
+            "difficulty": "advanced"
+        },
+        {
+            "id": 28,
+            "category": "materials",
+            "prompt": "Create thin film iridescent soap bubble material using Thin Film Thickness and IOR",
+            "difficulty": "advanced"
+        },
+        {
+            "id": 29,
+            "category": "scene",
+            "prompt": "Create a desk scene: table, monitor, keyboard, mouse, and desk lamp with warm light",
+            "difficulty": "advanced"
+        },
+        {
+            "id": 30,
+            "category": "render",
+            "prompt": "Set render resolution to 1920x1080, set output format to PNG with 16-bit color depth",
+            "difficulty": "basic"
+        },
+        {
+            "id": 31,
+            "category": "modeling",
+            "prompt": "Create a low-poly mountain range using displaced planes with noise texture",
+            "difficulty": "intermediate"
+        },
+        {
+            "id": 32,
+            "category": "lighting",
+            "prompt": "Create dramatic rim lighting: single strong backlight with slight blue tint",
+            "difficulty": "basic"
+        },
+        {
+            "id": 33,
+            "category": "materials",
+            "prompt": "Create worn wood material with procedural grain using wave texture on color and roughness",
+            "difficulty": "advanced"
+        },
+        {
+            "id": 34,
+            "category": "scene",
+            "prompt": "Create an underwater scene: blue-green world, caustic light, scattered coral rocks, fish shapes",
+            "difficulty": "advanced"
+        },
+        {
+            "id": 35,
+            "category": "modeling",
+            "prompt": "Create a chess pawn piece using a profile curve and spin/lathe technique",
+            "difficulty": "intermediate"
+        },
+        {
+            "id": 36,
+            "category": "materials",
+            "prompt": "Create a diamond material with IOR 2.42, zero roughness, and full transmission",
+            "difficulty": "basic"
+        },
+        {
+            "id": 37,
+            "category": "displacement",
+            "prompt": "Add wave-pattern displacement to an existing plane using Subdivision Surface + Displace modifiers",
+            "difficulty": "intermediate"
+        },
+        {
+            "id": 38,
+            "category": "scene",
+            "prompt": "Create a forest clearing: ground plane with grass particles, 10 tree trunks, fog volume",
+            "difficulty": "advanced"
+        },
+        {
+            "id": 39,
+            "category": "modeling",
+            "prompt": "Create a simple robot character: box body, cylinder arms and legs, sphere head with emissive eyes",
+            "difficulty": "intermediate"
+        },
+        {
+            "id": 40,
+            "category": "render",
+            "prompt": "Switch to Cycles render engine with GPU compute device and set tile size to 256",
+            "difficulty": "basic"
+        },
+        {
+            "id": 41,
+            "category": "materials",
+            "prompt": "Create a marble material with SSS, cool blue-white base color, and low roughness",
+            "difficulty": "intermediate"
+        },
+        {
+            "id": 42,
+            "category": "scene",
+            "prompt": "Build a city block: 5 buildings of different heights, road plane, street lights",
+            "difficulty": "advanced"
+        },
+        {
+            "id": 43,
+            "category": "animation",
+            "prompt": "Animate an object bouncing: keyframe Z location at frames 1, 15, 30 with ease-in-out interpolation",
+            "difficulty": "basic"
+        },
+        {
+            "id": 44,
+            "category": "modeling",
+            "prompt": "Create a sword with tapered blade, crossguard, wrapped handle, and pommel sphere",
+            "difficulty": "intermediate"
+        },
+        {
+            "id": 45,
+            "category": "materials",
+            "prompt": "Create car paint material: two-tone metallic with clearcoat (Coat Weight = 1.0)",
+            "difficulty": "advanced"
+        },
+        {
+            "id": 46,
+            "category": "lighting",
+            "prompt": "Set up studio lighting: large overhead softbox area light plus two side fill lights",
+            "difficulty": "intermediate"
+        },
+        {
+            "id": 47,
+            "category": "scene",
+            "prompt": "Create a space scene: starfield background, planet with atmosphere ring, orbiting satellite",
+            "difficulty": "advanced"
+        },
+        {
+            "id": 48,
+            "category": "modeling",
+            "prompt": "Create a coffee mug with handle using cylinder + torus for handle attachment",
+            "difficulty": "intermediate"
+        },
+        {
+            "id": 49,
+            "category": "materials",
+            "prompt": "Create frosted ice material combining transmission, subsurface, and high roughness",
+            "difficulty": "advanced"
+        },
+        {
+            "id": 50,
+            "category": "scene",
+            "prompt": "Create a campfire scene: log pile, orange emissive fire planes, warm point light, ground plane",
+            "difficulty": "intermediate"
+        }
+    ]
+}

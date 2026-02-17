@@ -1,7 +1,7 @@
 # GEMINI.md - ModelForge Project Rules & Progress Tracker
 
 > **Last Updated:** 2026-02-17
-> **Status:** Active Development — 124 RAG scripts, NotebookLM knowledge integration complete
+> **Status:** Active Development — 125 RAG scripts, fine-tuning pipeline ready
 
 ---
 
@@ -25,7 +25,7 @@
 ### Core Features
 - 🤖 **AI Orchestration**: ReAct-style planner with per-step validation
 - 🔌 **Blender MCP Integration**: Socket bridge for executing Python in Blender
-- 📚 **Hybrid RAG Pipeline**: Context-aware generation using 124 professional Blender scripts
+- 📚 **Hybrid RAG Pipeline**: Context-aware generation using 125 professional Blender scripts
 - 🌐 **Web Dashboard**: Project management, auth, conversation history
 - 🖥️ **Desktop App**: Electron wrapper with native MCP connectivity
 
@@ -99,7 +99,7 @@ npm run test:user        # Create test user
 | AI Orchestration layer | ✅ Complete | Planner, Executor, Prompts |
 | **Serverless DB Migration** | ✅ Complete | Neon pgvector compatibility |
 | **AI Engineering Upgrade** | ✅ Complete | LangChain, Agents, RAG implemented |
-| **Script Library Expansion** | ✅ Complete | **124 scripts** (53 utility + 67 tasks + 4 NotebookLM) |
+| **Script Library Expansion** | ✅ Complete | **125 scripts** (54 utility + 67 tasks + 4 NotebookLM) |
 | **RAG Pipeline Ingestion** | ✅ Complete | Recursive ingestion of all scripts |
 | **Viewport Screenshot Analysis** | ✅ Complete | Gemini Vision feedback loop |
 | **Conversation Memory** | ✅ Complete | Vector embeddings for context-aware responses |
@@ -121,12 +121,26 @@ npm run test:user        # Create test user
 - [x] **LLM scene completeness validation**
 - [x] **Stress testing with complex prompts (3/3 passed)**
 - [x] **NotebookLM knowledge extraction + RAG enhancement**
+- [x] **Fine-tuning pipeline (269 training pairs, QLoRA, eval framework)**
 - [ ] Material/color quality enhancement
 - [ ] Production desktop app packaging
 
 ---
 
 ## 📝 Session Log
+
+### 2026-02-17 (Fine-Tuning Pipeline + Displacement Textures)
+- **Training Data Pipeline**:
+  - Created `scripts/generate-training-data.ts` — parses 125 RAG scripts into instruction→output pairs
+  - Generated 269 training pairs (125 full-script + 144 function-level) in `training/training_data.jsonl`
+  - Created `training/eval_prompts.json` — 50 held-out test prompts across all categories
+  - Created `training/train_blender_codegen.py` — QLoRA (4-bit NF4) training script for Azure A100
+  - Target model: Qwen3-8B, method: QLoRA, focus: Blender code generation only
+- **New RAG Script**: `displacement_textures.py` (raked sand, water ripples, rocky terrain, modifier-based displacement)
+- **Zen Garden Stress Test**: 7/7 steps, 0 failures, LLM completeness check passed
+  - Scene: raked sand floor, 3 asymmetric stones, red torii gate, warm area lighting
+  - Gap found: sand lacked wave/raked texture → fixed with new displacement script
+- **Re-ingested**: 125 scripts into pgvector
 
 ### 2026-02-17 (NotebookLM Knowledge Enhancement)
 - **NotebookLM MCP Integration**:
