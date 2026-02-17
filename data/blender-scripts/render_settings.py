@@ -44,7 +44,7 @@ def setup_cycles_production(samples=256, preview_samples=64):
     # Color Management — AgX is the standard in Blender 4.0+
     # AgX provides better highlight rolloff than Filmic
     scene.view_settings.view_transform = 'AgX'
-    scene.view_settings.look = 'High Contrast'
+    scene.view_settings.look = 'AgX - High Contrast'
 
     # Film
     scene.render.film_transparent = False
@@ -84,7 +84,7 @@ def setup_eevee_production():
 
     # Color Management
     scene.view_settings.view_transform = 'AgX'
-    scene.view_settings.look = 'High Contrast'
+    scene.view_settings.look = 'AgX - High Contrast'
 
     return scene
 
@@ -117,18 +117,23 @@ def create_shadow_catcher_plane(size=10):
 # Filmic: Legacy, good for photorealistic scenes (3.x default)
 # Standard: Linear, no tone mapping (for compositing/data passes)
 
-def set_color_management_agx(look='High Contrast'):
-    """Set AgX color management (recommended for Blender 4.0+)."""
+def set_color_management_agx(look='AgX - High Contrast'):
+    """Set AgX color management with specified look.
+    
+    Valid looks: 'None', 'AgX - Very Low Contrast', 'AgX - Low Contrast',
+    'AgX - Medium Low Contrast', 'AgX - Base Contrast', 'AgX - Medium High Contrast',
+    'AgX - High Contrast', 'AgX - Very High Contrast'
+    """
     scene = bpy.context.scene
     scene.view_settings.view_transform = 'AgX'
-    scene.view_settings.look = look  # 'None', 'High Contrast', 'Medium Contrast'
+    scene.view_settings.look = look
     scene.display_settings.display_device = 'sRGB'
 
 def set_color_management_filmic():
     """Set Filmic color management (legacy, still useful)."""
     scene = bpy.context.scene
     scene.view_settings.view_transform = 'Filmic'
-    scene.view_settings.look = 'High Contrast'
+    scene.view_settings.look = 'None'  # Filmic doesn't use AgX looks
 
 def set_color_management_standard():
     """Set Standard (linear) — for compositing and data passes."""

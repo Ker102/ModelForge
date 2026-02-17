@@ -150,7 +150,7 @@ PBR MATERIALS — CORRECT SOCKET NAMES (4.0/5.0):
 RENDER & COLOR MANAGEMENT:
 - Use AgX color management (Blender 4.0+ default, better than Filmic):
   scene.view_settings.view_transform = 'AgX'
-  scene.view_settings.look = 'High Contrast'
+  scene.view_settings.look = 'AgX - High Contrast'  # Valid: 'None', 'AgX - Very Low Contrast', 'AgX - Low Contrast', 'AgX - Medium Low Contrast', 'AgX - Base Contrast', 'AgX - Medium High Contrast', 'AgX - High Contrast', 'AgX - Very High Contrast'
 - EEVEE engine ID in 5.0: 'BLENDER_EEVEE' (not 'BLENDER_EEVEE_NEXT')
 - Shadow catchers: floor_obj.is_shadow_catcher = True (Cycles only)
 
