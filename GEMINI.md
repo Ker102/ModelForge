@@ -1,7 +1,7 @@
 # GEMINI.md - ModelForge Project Rules & Progress Tracker
 
 > **Last Updated:** 2026-02-17
-> **Status:** Active Development — 127 RAG scripts, fine-tuning pipeline ready
+> **Status:** Active Development — 127 RAG scripts, 3D pipeline strategy defined
 
 ---
 
@@ -110,6 +110,8 @@ npm run test:user        # Create test user
 | **Orchestration Hardening** | ✅ Complete | Boolean solver, viewport shading, null safety fixes |
 | **NotebookLM Knowledge Enhancement** | ✅ Complete | 4 new scripts, 18 API compat categories, 6 prompt sections |
 | **Visual Feedback Loop** | ✅ Complete | Post-execution viewport vision with auto-correction |
+| **3D Pipeline Strategy** | ✅ Complete | Multi-strategy plan: procedural + neural (open-source) + hybrid |
+| **NotebookLM Pipeline Research** | ✅ Complete | Deep research on retopology, Rigify, animation, PBR textures |
 
 ### Roadmap
 - [x] Gemini-backed conversational planning
@@ -124,12 +126,42 @@ npm run test:user        # Create test user
 - [x] **NotebookLM knowledge extraction + RAG enhancement**
 - [x] **Fine-tuning pipeline (269 training pairs, QLoRA, eval framework)**
 - [x] **Visual feedback loop (viewport vision → auto-correct)**
+- [x] **3D pipeline strategy (competitors, techniques, 7-phase plan)**
+- [ ] Phase 1: RAG scripts (retopology, rigging, animation, UV, export)
+- [ ] Phase 2: Open-source neural 3D models (Hunyuan 3D, Shap-E, InstantMesh on Azure ML)
+- [ ] Phase 3: Hybrid pipeline (neural gen → Blender post-processing)
+- [ ] Phase 4: AI strategy router (auto-select procedural vs neural vs hybrid)
+- [ ] Phase 5: Credit system + production export pipeline
 - [ ] Material/color quality enhancement
 - [ ] Production desktop app packaging
 
 ---
 
 ## 📝 Session Log
+
+### 2026-02-17 (3D Pipeline Strategy + NotebookLM Deep Research)
+- **Comprehensive 3D Pipeline Strategy**:
+  - Scraped 15+ sources: top3d.ai leaderboard, Rodin CTO interview, Proc3D paper (arXiv), Tripo API docs
+  - Identified 3 approaches: Neural (diffusion), Procedural (our code-gen), Hybrid (neural + Blender)
+  - Proc3D paper validates our approach: 89% compile rate (GPT-4o), 98% (fine-tuned LLaMA-3), 400x faster edits
+  - Rodin CLAY architecture: 3D-native latent diffusion, admits output is "not game-ready" — our advantage
+  - Created `docs/3d-pipeline-strategy.md` — competitor analysis, pipeline coverage matrix, revenue model
+- **NotebookLM Deep Research** (notebook: ModelForge 3D Pipeline Research):
+  - Rigify auto-rigging: 61 sources found, 28 imported, comprehensive deep report
+  - Key APIs: `rigify.generate.generate_rig()`, `parent_set(type='ARMATURE_AUTO')`
+  - Retopology: `voxel_remesh()` + `quadriflow_remesh()` (single-line APIs)
+  - Animation: keyframe insertion, F-curve channelbag (Blender 5.0), NLA composition
+  - Created `docs/research-pipeline-techniques.md` — all technique code snippets
+- **7-Phase Implementation Plan Defined**:
+  - Phase 1: RAG scripts (retopology, rigging, animation, UV, textures, export)
+  - Phase 2: Open-source neural 3D models (Hunyuan 3D, Shap-E, InstantMesh) on Azure ML
+  - Phase 3: Hybrid pipeline — neural → Blender post-processing (THE differentiator)
+  - Phase 4: Self-hosting inference on Azure ML
+  - Phase 5: Production game-dev workflow compliance (FBX/glTF/USD)
+  - Phase 6: AI strategy router (procedural vs neural vs hybrid)
+  - Phase 7: Credit system + tier pricing
+- **Key Decision**: Use open-source models (Hunyuan 3D, Shap-E, Spark, InstantMesh) we can fine-tune — NOT competitor APIs (Tripo, Meshy)
+- **Files Created**: `docs/3d-pipeline-strategy.md`, `docs/research-pipeline-techniques.md`
 
 ### 2026-02-17 (Visual Feedback Loop + Photorealism RAG)
 - **Visual Feedback Loop Wired into Executor**:
