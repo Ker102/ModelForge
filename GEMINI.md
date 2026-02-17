@@ -1,7 +1,7 @@
 # GEMINI.md - ModelForge Project Rules & Progress Tracker
 
 > **Last Updated:** 2026-02-17
-> **Status:** Active Development — 125 RAG scripts, fine-tuning pipeline ready
+> **Status:** Active Development — 127 RAG scripts, fine-tuning pipeline ready
 
 ---
 
@@ -25,7 +25,7 @@
 ### Core Features
 - 🤖 **AI Orchestration**: ReAct-style planner with per-step validation
 - 🔌 **Blender MCP Integration**: Socket bridge for executing Python in Blender
-- 📚 **Hybrid RAG Pipeline**: Context-aware generation using 125 professional Blender scripts
+- 📚 **Hybrid RAG Pipeline**: Context-aware generation using 127 professional Blender scripts
 - 🌐 **Web Dashboard**: Project management, auth, conversation history
 - 🖥️ **Desktop App**: Electron wrapper with native MCP connectivity
 
@@ -99,7 +99,7 @@ npm run test:user        # Create test user
 | AI Orchestration layer | ✅ Complete | Planner, Executor, Prompts |
 | **Serverless DB Migration** | ✅ Complete | Neon pgvector compatibility |
 | **AI Engineering Upgrade** | ✅ Complete | LangChain, Agents, RAG implemented |
-| **Script Library Expansion** | ✅ Complete | **125 scripts** (54 utility + 67 tasks + 4 NotebookLM) |
+| **Script Library Expansion** | ✅ Complete | **127 scripts** (56 utility + 67 tasks + 4 NotebookLM) |
 | **RAG Pipeline Ingestion** | ✅ Complete | Recursive ingestion of all scripts |
 | **Viewport Screenshot Analysis** | ✅ Complete | Gemini Vision feedback loop |
 | **Conversation Memory** | ✅ Complete | Vector embeddings for context-aware responses |

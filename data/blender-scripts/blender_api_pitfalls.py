@@ -277,3 +277,48 @@ def apply_modifier_CORRECT(obj, modifier_name):
     """CORRECT — Use temp_override for operator context."""
     with bpy.context.temp_override(object=obj):
         bpy.ops.object.modifier_apply(modifier=modifier_name)
+
+
+# =============================================================================
+# PITFALL 16: bpy.data.textures vs Shader Node Inputs
+# =============================================================================
+# Problem: bpy.data.textures (modifier textures) use PROPERTIES like .noise_scale.
+#          Shader nodes (ShaderNodeTexNoise etc.) use INPUTS like inputs['Scale'].
+#          These are TWO COMPLETELY DIFFERENT APIs for textures.
+# Error: AttributeError: 'NoiseTexture' object has no attribute 'noise_scale'
+
+def set_noise_scale_WRONG(noise_node):
+    """INCORRECT — noise_scale is a bpy.data.textures property, not a shader node."""
+    noise_node.noise_scale = 5.0  # AttributeError!
+
+def set_noise_scale_CORRECT(noise_node):
+    """CORRECT — Shader nodes use inputs['Scale'].default_value."""
+    noise_node.inputs['Scale'].default_value = 5.0  # Correct for shader nodes
+
+def set_modifier_texture_scale_CORRECT():
+    """CORRECT — bpy.data.textures use .noise_scale property directly."""
+    tex = bpy.data.textures.new(name="MyNoise", type='NOISE')
+    tex.noise_scale = 0.5  # Correct for bpy.data.textures (modifier textures)
+
+
+# =============================================================================
+# PITFALL 17: Camera X Rotation Direction
+# =============================================================================
+# Problem: Camera Euler X rotation is often set incorrectly when aiming up or down.
+#          X=90° (radians: pi/2) = perfectly horizontal, looking straight ahead.
+#          X < 90° = looking DOWN. X > 90° = looking UP.
+# Solution: Use math.radians() and remember: >90° = up, <90° = down.
+
+import math
+
+def set_camera_looking_slightly_up(camera_obj):
+    """CORRECT — X=95° means looking 5° above horizontal."""
+    camera_obj.rotation_euler = (math.radians(95), 0, 0)
+
+def set_camera_looking_slightly_down(camera_obj):
+    """CORRECT — X=80° means looking 10° below horizontal."""
+    camera_obj.rotation_euler = (math.radians(80), 0, 0)
+
+def set_camera_looking_horizontal(camera_obj):
+    """CORRECT — X=90° = perfectly horizontal."""
+    camera_obj.rotation_euler = (math.radians(90), 0, 0)
