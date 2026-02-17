@@ -109,6 +109,7 @@ npm run test:user        # Create test user
 | **End-to-End Testing** | ✅ Complete | 3/3 stress tests passed (castle, solar system, edit) |
 | **Orchestration Hardening** | ✅ Complete | Boolean solver, viewport shading, null safety fixes |
 | **NotebookLM Knowledge Enhancement** | ✅ Complete | 4 new scripts, 18 API compat categories, 6 prompt sections |
+| **Visual Feedback Loop** | ✅ Complete | Post-execution viewport vision with auto-correction |
 
 ### Roadmap
 - [x] Gemini-backed conversational planning
@@ -122,12 +123,25 @@ npm run test:user        # Create test user
 - [x] **Stress testing with complex prompts (3/3 passed)**
 - [x] **NotebookLM knowledge extraction + RAG enhancement**
 - [x] **Fine-tuning pipeline (269 training pairs, QLoRA, eval framework)**
+- [x] **Visual feedback loop (viewport vision → auto-correct)**
 - [ ] Material/color quality enhancement
 - [ ] Production desktop app packaging
 
 ---
 
 ## 📝 Session Log
+
+### 2026-02-17 (Visual Feedback Loop + Photorealism RAG)
+- **Visual Feedback Loop Wired into Executor**:
+  - Imported `suggestImprovements` from `lib/ai/vision.ts` into `executor.ts`
+  - Inserted 140-line correction loop between viewport switch (step 4) and audit (step 5)
+  - Captures viewport screenshot → Gemini Vision analyzes → generates correction code for high-priority issues
+  - Max 2 iterations, non-fatal, enabled by default (`enableVisualFeedback: true`)
+  - Added `AgentVisualAnalysis` and `AgentVisualCorrection` stream event types to `types.ts`
+  - Enabled flag in `app/api/ai/chat/route.ts`
+- **New RAG Scripts**: `hdri_lighting.py`, `photorealistic_materials.py`, `interior_rooms.py`
+- **Pitfall Updates**: #16 (noise_scale vs shader node inputs), #17 (camera X rotation)
+- **Re-ingested**: 128 scripts, 286 training pairs
 
 ### 2026-02-17 (Fine-Tuning Pipeline + Displacement Textures)
 - **Training Data Pipeline**:

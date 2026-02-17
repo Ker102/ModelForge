@@ -96,6 +96,8 @@ interface AgentVision extends AgentEventBase { type: "agent:vision"; stepIndex?:
 interface AgentAudit extends AgentEventBase { type: "agent:audit"; success: boolean; reason?: string }
 interface AgentComplete extends AgentEventBase { type: "agent:complete"; success: boolean; completedCount: number; failedCount: number }
 interface AgentCodeGeneration extends AgentEventBase { type: "agent:code_generation"; stepIndex: number; description: string }
+interface AgentVisualAnalysis extends AgentEventBase { type: "agent:visual_analysis"; iteration: number; description: string }
+interface AgentVisualCorrection extends AgentEventBase { type: "agent:visual_correction"; iteration: number; description: string; issues: string[] }
 
 /**
  * Real-time stream event types sent during agent execution
@@ -113,6 +115,8 @@ export type AgentStreamEvent =
   | AgentAudit
   | AgentComplete
   | AgentCodeGeneration
+  | AgentVisualAnalysis
+  | AgentVisualCorrection
 
 export interface PlanningMetadata {
   planSummary: string

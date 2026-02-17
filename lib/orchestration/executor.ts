@@ -7,6 +7,7 @@ import { formatContextFromSources } from "@/lib/ai/rag"
 import { createGeminiModel } from "@/lib/ai"
 import { type LlmProviderSpec } from "@/lib/llm"
 import { createMcpClient, getViewportScreenshot, type McpCommand } from "@/lib/mcp"
+import { suggestImprovements } from "@/lib/ai/vision"
 import { ExecutionLogEntry, ExecutionPlan, PlanAnalysis, AgentStreamEvent } from "./types"
 
 export interface ExecutionResult {
@@ -227,6 +228,146 @@ export class PlanExecutor {
         await client.execute({ type: "execute_code", params: { code: `import bpy\nfor area in bpy.context.screen.areas:\n    if area.type == 'VIEW_3D':\n        for space in area.spaces:\n            if space.type == 'VIEW_3D':\n                space.shading.type = 'MATERIAL'\n                break` } })
       } catch {
         // Non-fatal — viewport shading is cosmetic
+      }
+
+      // 4b. Visual Feedback Loop — capture viewport, analyze, and correct
+      const maxVisualIter = options.maxVisualIterations ?? 2
+      if (options.enableVisualFeedback !== false) {
+        try {
+          for (let vIter = 0; vIter < maxVisualIter; vIter++) {
+            // Capture viewport screenshot via the existing MCP client
+            const screenshotResult = await client.execute({
+              type: "get_viewport_screenshot",
+              params: { width: 1920, height: 1080, format: "png" },
+            })
+
+            const screenshotData = screenshotResult?.result as Record<string, unknown> | undefined
+            const imageBase64 = screenshotData?.image as string | undefined
+            if (!imageBase64) {
+              logs.push({
+                timestamp: new Date().toISOString(),
+                tool: "visual_feedback",
+                parameters: { iteration: vIter + 1 },
+                error: "No screenshot data received from Blender MCP",
+                logType: "vision",
+                detail: "Viewport screenshot capture failed — skipping visual feedback",
+              })
+              break
+            }
+
+            options.onStreamEvent?.({
+              type: "agent:visual_analysis",
+              timestamp: new Date().toISOString(),
+              iteration: vIter + 1,
+              description: `Analyzing viewport (iteration ${vIter + 1}/${maxVisualIter})...`,
+            } as AgentStreamEvent)
+
+            // Ask Gemini Vision to analyze the scene against the user request
+            const visionResult = await suggestImprovements(imageBase64, userRequest)
+
+            logs.push({
+              timestamp: new Date().toISOString(),
+              tool: "visual_analysis",
+              parameters: { iteration: vIter + 1, userRequest: userRequest.substring(0, 100) },
+              result: {
+                currentState: visionResult.currentState,
+                missingElements: visionResult.missingElements,
+                improvementCount: visionResult.improvements.length,
+                highPriorityCount: visionResult.improvements.filter(i => i.priority === "high").length,
+              },
+              logType: "vision",
+              detail: `Vision analysis: ${visionResult.improvements.length} improvements suggested (${visionResult.improvements.filter(i => i.priority === "high").length} high priority)`,
+            })
+
+            // Only correct if there are high-priority issues
+            const highPriority = visionResult.improvements.filter(i => i.priority === "high")
+            if (highPriority.length === 0) {
+              logs.push({
+                timestamp: new Date().toISOString(),
+                tool: "visual_feedback",
+                parameters: { iteration: vIter + 1 },
+                result: { action: "pass", reason: "No high-priority issues detected" },
+                logType: "vision",
+                detail: "Visual check passed — no high-priority corrections needed",
+              })
+              break // Scene looks good, proceed to audit
+            }
+
+            // Generate correction code based on vision feedback
+            const correctionDescription = highPriority
+              .map(hp => `FIX: ${hp.action} (Reason: ${hp.rationale})`)
+              .join("\n")
+
+            options.onStreamEvent?.({
+              type: "agent:visual_correction",
+              timestamp: new Date().toISOString(),
+              iteration: vIter + 1,
+              description: `Correcting ${highPriority.length} visual issues...`,
+              issues: highPriority.map(hp => hp.action),
+            } as AgentStreamEvent)
+
+            // Retrieve RAG context for correction
+            let correctionRagContext = ""
+            try {
+              const ragSources = await similaritySearch(correctionDescription, {
+                limit: 3,
+                source: "blender-scripts",
+                minSimilarity: 0.4,
+              })
+              if (ragSources.length > 0) {
+                correctionRagContext = formatContextFromSources(ragSources)
+              }
+            } catch { /* Non-fatal */ }
+
+            try {
+              const correctionCode = await generateCode({
+                request: correctionDescription,
+                context: `VISUAL CORRECTION: The scene for "${userRequest}" was analyzed by vision and these issues were found. Generate Python code to FIX these specific issues ONLY. Do NOT recreate the entire scene — only adjust existing objects.\n\nCurrent scene state: ${visionResult.currentState}\nMissing elements: ${visionResult.missingElements.join(", ") || "none"}${correctionRagContext ? `\n\n## Reference Scripts\n${correctionRagContext}` : ""}`,
+                applyMaterials: false,
+                namingPrefix: "ModelForge_Fix_",
+              })
+
+              // Execute the correction
+              const correctionResult = await client.execute({
+                type: "execute_code",
+                params: { code: correctionCode },
+              })
+
+              logs.push({
+                timestamp: new Date().toISOString(),
+                tool: "visual_correction",
+                parameters: {
+                  iteration: vIter + 1,
+                  issueCount: highPriority.length,
+                  issues: highPriority.map(hp => hp.action),
+                },
+                result: correctionResult,
+                logType: "vision",
+                detail: `Applied visual correction (${highPriority.length} issues) — iteration ${vIter + 1}`,
+              })
+            } catch (correctionError) {
+              logs.push({
+                timestamp: new Date().toISOString(),
+                tool: "visual_correction",
+                parameters: { iteration: vIter + 1 },
+                error: correctionError instanceof Error ? correctionError.message : String(correctionError),
+                logType: "vision",
+                detail: "Visual correction code generation/execution failed (non-fatal)",
+              })
+              break // Don't retry if correction itself fails
+            }
+          }
+        } catch (visionError) {
+          // Entire visual feedback loop is non-fatal
+          logs.push({
+            timestamp: new Date().toISOString(),
+            tool: "visual_feedback",
+            parameters: {},
+            error: visionError instanceof Error ? visionError.message : String(visionError),
+            logType: "vision",
+            detail: "Visual feedback loop failed (non-fatal) — proceeding to scene audit",
+          })
+        }
       }
 
       // 5. Final Scene Audit

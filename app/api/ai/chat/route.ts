@@ -525,6 +525,7 @@ export async function POST(req: Request) {
                 message,
                 {
                   ...assetConfig,
+                  enableVisualFeedback: true,
                   onStreamEvent: (event) => send(event),
                 },
                 planResult.analysis,
@@ -550,21 +551,21 @@ export async function POST(req: Request) {
                 planningMetadata.executionSuccess = false
               }
             } else if (planResult) {
-            const previousLogs = executionLogs
-            planningMetadata = {
-              planSummary: "Plan generation failed",
-              planSteps: [],
-              rawPlan: planResult.rawResponse,
-              retries: planResult.retries ?? 0,
-              executionSuccess: false,
-              errors: planResult.errors,
-              fallbackUsed: false,
-              executionLog: previousLogs,
-              sceneSnapshot: sceneSnapshotResult.summary,
-              analysis: planResult.analysis,
-              researchSummary: researchContext?.promptContext,
-              researchSources: researchContext?.sources,
-            }
+              const previousLogs = executionLogs
+              planningMetadata = {
+                planSummary: "Plan generation failed",
+                planSteps: [],
+                rawPlan: planResult.rawResponse,
+                retries: planResult.retries ?? 0,
+                executionSuccess: false,
+                errors: planResult.errors,
+                fallbackUsed: false,
+                executionLog: previousLogs,
+                sceneSnapshot: sceneSnapshotResult.summary,
+                analysis: planResult.analysis,
+                researchSummary: researchContext?.promptContext,
+                researchSources: researchContext?.sources,
+              }
               executedCommands = []
             } else {
               throw new Error("Planner returned no result")
