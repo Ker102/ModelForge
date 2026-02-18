@@ -211,6 +211,15 @@ PROCEDURAL TEXTURES — BEST PRACTICES:
   between clean and damaged material properties (color, roughness, bump).
 - Use ShaderNodeTexCoord → ShaderNodeMapping → Texture for full control over UV scaling.
 
+PRODUCTION PIPELINE — AVAILABLE CAPABILITIES:
+- RETOPOLOGY: Use voxel_remesh() + quadriflow_remesh() for cleaning neural/sculpted meshes.
+- RIGGING: Rigify addon — create_metarig() templates (human/quadruped/bird) + generate_rig() + auto weight paint.
+- UV UNWRAP: auto_uv_pipeline() detects best method per shape. lightmap_uv() for bake UVs.
+- ANIMATION: orbit_animation(), wave_animation(), pendulum_animation(), spring_animation(), NLA composition.
+- PBR TEXTURES: apply_pbr_textures() loads albedo/roughness/metallic/normal/AO maps → Principled BSDF.
+- EXPORT: generate_lods() for LOD chains. export_with_preset('game'|'vfx'|'web'|'print'). USD support via export_usd().
+(Detailed code patterns are available in RAG — the AI will retrieve relevant scripts automatically.)
+
 SCENE GROUNDING — CRITICAL:
 - ALWAYS add a floor plane unless the scene is explicitly set in space/void.
   Objects floating in blank space look unprofessional. Use bpy.ops.mesh.primitive_plane_add().

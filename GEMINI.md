@@ -1,7 +1,7 @@
 # GEMINI.md - ModelForge Project Rules & Progress Tracker
 
-> **Last Updated:** 2026-02-17
-> **Status:** Active Development — 127 RAG scripts, 3D pipeline strategy defined
+> **Last Updated:** 2026-02-18
+> **Status:** Active Development — 134 RAG scripts, Phase 1 pipeline complete
 
 ---
 
@@ -25,7 +25,7 @@
 ### Core Features
 - 🤖 **AI Orchestration**: ReAct-style planner with per-step validation
 - 🔌 **Blender MCP Integration**: Socket bridge for executing Python in Blender
-- 📚 **Hybrid RAG Pipeline**: Context-aware generation using 127 professional Blender scripts
+- 📚 **Hybrid RAG Pipeline**: Context-aware generation using 134 professional Blender scripts
 - 🌐 **Web Dashboard**: Project management, auth, conversation history
 - 🖥️ **Desktop App**: Electron wrapper with native MCP connectivity
 
@@ -38,7 +38,7 @@ ModelForge/
 ├── app/                    # Next.js app directory
 ├── components/            # React components
 ├── data/
-│   └── blender-scripts/   # Library of 124 Python scripts
+│   └── blender-scripts/   # Library of 134 Python scripts
 │       ├── tasks/        # Task-specific generators
 │       └── *.py          # Utility modules
 ├── lib/                   # Utility libraries
@@ -99,7 +99,7 @@ npm run test:user        # Create test user
 | AI Orchestration layer | ✅ Complete | Planner, Executor, Prompts |
 | **Serverless DB Migration** | ✅ Complete | Neon pgvector compatibility |
 | **AI Engineering Upgrade** | ✅ Complete | LangChain, Agents, RAG implemented |
-| **Script Library Expansion** | ✅ Complete | **127 scripts** (56 utility + 67 tasks + 4 NotebookLM) |
+| **Script Library Expansion** | ✅ Complete | **134 scripts** (62 utility + 67 tasks + 4 NotebookLM + 1 research) |
 | **RAG Pipeline Ingestion** | ✅ Complete | Recursive ingestion of all scripts |
 | **Viewport Screenshot Analysis** | ✅ Complete | Gemini Vision feedback loop |
 | **Conversation Memory** | ✅ Complete | Vector embeddings for context-aware responses |
@@ -112,6 +112,7 @@ npm run test:user        # Create test user
 | **Visual Feedback Loop** | ✅ Complete | Post-execution viewport vision with auto-correction |
 | **3D Pipeline Strategy** | ✅ Complete | Multi-strategy plan: procedural + neural (open-source) + hybrid |
 | **NotebookLM Pipeline Research** | ✅ Complete | Deep research on retopology, Rigify, animation, PBR textures |
+| **Phase 1: Production Pipeline RAG** | ✅ Complete | 6 new scripts: retopology, rigging, UV, animation, PBR, export |
 
 ### Roadmap
 - [x] Gemini-backed conversational planning
@@ -127,7 +128,7 @@ npm run test:user        # Create test user
 - [x] **Fine-tuning pipeline (269 training pairs, QLoRA, eval framework)**
 - [x] **Visual feedback loop (viewport vision → auto-correct)**
 - [x] **3D pipeline strategy (competitors, techniques, 7-phase plan)**
-- [ ] Phase 1: RAG scripts (retopology, rigging, animation, UV, export)
+- [x] **Phase 1: RAG scripts (retopology, rigging, animation, UV, PBR, export)**
 - [ ] Phase 2: Open-source neural 3D models (Hunyuan 3D, Shap-E, InstantMesh on Azure ML)
 - [ ] Phase 3: Hybrid pipeline (neural gen → Blender post-processing)
 - [ ] Phase 4: AI strategy router (auto-select procedural vs neural vs hybrid)
@@ -138,6 +139,19 @@ npm run test:user        # Create test user
 ---
 
 ## 📝 Session Log
+
+### 2026-02-18 (Phase 1: Production Pipeline RAG Scripts)
+- **6 New RAG Scripts Created** (total: 134):
+  - `auto_retopology.py` — Voxel remesh, Quadriflow, decimation, mesh repair, full pipeline
+  - `auto_rigify.py` — Rigify metarig templates, rig generation, auto weight painting, bone config
+  - `auto_uv_unwrap.py` — Shape-based auto UV, lightmap UVs, texel density, batch UV, bake UVs
+  - `procedural_animation.py` — Orbit, wave, pendulum, spring, dolly zoom, NLA composition
+  - `pbr_texture_loader.py` — PBR texture loading, folder auto-discovery, displacement, baking
+  - `model_export.py` — LOD generation, format presets (Game/VFX/Web/Print), USD, validation
+- **Prompt Update**: Added PRODUCTION PIPELINE section to `CODE_GENERATION_PROMPT` with hints for all 6 capabilities
+- **Re-ingested**: 134 scripts into pgvector (new categories: topology:1, export:1; expanded: rigging:4, animation:10, materials:7, uv:2)
+- **Files Created**: 6 scripts in `data/blender-scripts/`
+- **Files Modified**: `lib/ai/prompts.ts`
 
 ### 2026-02-17 (3D Pipeline Strategy + NotebookLM Deep Research)
 - **Comprehensive 3D Pipeline Strategy**:
