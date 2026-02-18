@@ -115,6 +115,7 @@ npm run test:user        # Create test user
 | **Phase 1: Production Pipeline RAG** | ✅ Complete | 6 new scripts: retopology, rigging, UV, animation, PBR, export |
 | **Phase 2: Neural 3D Layer** | ✅ Complete | 5 providers (Hunyuan Shape/Paint/Part, TRELLIS 2, YVO3D) + hybrid pipeline |
 | **Phase 4: AI Strategy Router** | ✅ Complete | Keyword + LLM classification, user override, integrated into chat pipeline |
+| **Phase 3: Guided Workflow System** | ✅ Complete | WorkflowAdvisor, per-step UI, workflow-step API, mock neural server |
 
 ### Roadmap
 - [x] Gemini-backed conversational planning
@@ -134,6 +135,7 @@ npm run test:user        # Create test user
 - [x] **Phase 2: Self-hosted neural 3D layer (Hunyuan Shape/Paint/Part, TRELLIS 2, YVO3D, hybrid pipeline)**
 - [ ] Phase 3: Deploy neural models (Azure ML/HF Inference Endpoints)
 - [x] **Phase 4: AI strategy router (auto-select procedural vs neural vs hybrid)**
+- [x] **Phase 3: Guided workflow system (per-step tool recommendations, human-in-the-loop)**
 - [ ] Phase 5: Credit system + production export pipeline
 - [ ] Material/color quality enhancement
 - [ ] Production desktop app packaging
@@ -141,6 +143,25 @@ npm run test:user        # Create test user
 ---
 
 ## 📝 Session Log
+
+### 2026-02-18 (Phase 3: Guided Workflow System)
+- **New Module `lib/orchestration/workflow-types.ts`** — `WorkflowStep`, `WorkflowProposal`, `WorkflowStepAction`, `WorkflowStepStatus`, `WorkflowStepResult` types
+- **New Module `lib/orchestration/workflow-advisor.ts`** — Two-phase workflow generation:
+  - LLM analysis: Gemini generates per-step tool recommendations (neural/blender_agent/manual) with reasoning
+  - Static fallback: deterministic category→tool mapping for 8 categories (geometry, topology, UV, texturing, rigging, animation, lighting, export)
+- **New API `app/api/ai/workflow-step/route.ts`** — Per-step execution endpoint:
+  - Neural step executor (neural client → MCP import)
+  - Blender agent executor (focused sub-plan → executor)
+  - Skip/manual_done actions
+- **New UI `components/projects/workflow-panel.tsx`** — Step cards with:
+  - Execute/Manual/Skip action buttons
+  - Category-colored borders, tool recommendation badges
+  - Progress bar, blocked step indicators, pro tips
+- **Chat Route Integration**: Neural/hybrid strategies → `WorkflowProposal` instead of auto-execution; procedural unchanged
+- **New Stream Events**: `AgentWorkflowProposal`, `AgentWorkflowStepUpdate` in `types.ts`
+- **project-chat.tsx**: Handles `agent:workflow_proposal` event, renders `WorkflowPanel` for last assistant message
+- **Mock Neural Server**: `scripts/mock-neural-server.ts` — returns valid minimal GLB cube, 1s delay
+- **TypeScript**: `tsc --noEmit` passed with 0 errors
 
 ### 2026-02-18 (Phase 4: AI Strategy Router)
 - **New Module `lib/orchestration/strategy-router.ts`** — Two-phase request classifier:

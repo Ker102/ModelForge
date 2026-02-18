@@ -11,6 +11,8 @@ import type { UsageSummary } from "@/lib/usage"
 import type { PlanningMetadata, PlanStep, AgentStreamEvent } from "@/lib/orchestration/types"
 import { parsePlanningMetadata } from "@/lib/orchestration/plan-utils"
 import { ImagePlus, X } from "lucide-react"
+import { WorkflowPanel } from "@/components/projects/workflow-panel"
+import type { WorkflowProposal } from "@/lib/orchestration/workflow-types"
 
 interface CommandStub {
   id: string
@@ -118,6 +120,7 @@ export function ProjectChat({
   const [localReady, setLocalReady] = useState<boolean>(localProviderConfigured)
   const [agentEvents, setAgentEvents] = useState<AgentStreamEvent[]>([])
   const [agentActive, setAgentActive] = useState(false)
+  const [activeWorkflow, setActiveWorkflow] = useState<WorkflowProposal | null>(null)
   const [mcpConnected, setMcpConnected] = useState<boolean | null>(null)
   const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024
   const MAX_ATTACHMENTS = 4
@@ -251,155 +254,155 @@ export function ProjectChat({
     return history.some((item) => item.id === conversationId)
   }, [conversationId, history])
 
-function handleLoadConversation(conversation: ConversationHistoryItem) {
-  setConversationId(conversation.id)
-  setMessages(conversation.messages.map((msg) => ({ ...msg })))
-  setError(null)
-  setInput("")
-  setIsSending(false)
-  setAttachments([])
-  setAgentEvents([])
-  setAgentActive(false)
-}
-
-const handleAttachmentButton = () => {
-  fileInputRef.current?.click()
-}
-
-const readFileAsDataUrl = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = () => reject(reader.error)
-    reader.readAsDataURL(file)
-  })
-
-const handleFileInputChange = async (event: ChangeEvent<HTMLInputElement>) => {
-  const files = event.target.files
-  if (!files || files.length === 0) {
-    return
-  }
-
-  const remainingSlots = MAX_ATTACHMENTS - attachments.length
-  if (remainingSlots <= 0) {
-    setError(`You can attach up to ${MAX_ATTACHMENTS} images per message.`)
-    event.target.value = ""
-    return
-  }
-
-  const selectedFiles = Array.from(files).slice(0, remainingSlots)
-  const newAttachments: PendingAttachment[] = []
-
-  for (const file of selectedFiles) {
-    if (!file.type.startsWith("image/")) {
-      setError("Only image files are supported right now.")
-      continue
-    }
-    if (file.size > MAX_ATTACHMENT_SIZE) {
-      setError("Images must be 5MB or smaller.")
-      continue
-    }
-
-    try {
-      const dataUrl = await readFileAsDataUrl(file)
-      const base64 = dataUrl.split(",")[1] ?? ""
-      newAttachments.push({
-        id: crypto.randomUUID(),
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        dataUrl,
-        base64,
-      })
-    } catch (fileError) {
-      console.error(fileError)
-      setError("Failed to read one of the files. Please try again.")
-    }
-  }
-
-  if (newAttachments.length > 0) {
-    setAttachments((prev) => [...prev, ...newAttachments])
+  function handleLoadConversation(conversation: ConversationHistoryItem) {
+    setConversationId(conversation.id)
+    setMessages(conversation.messages.map((msg) => ({ ...msg })))
     setError(null)
+    setInput("")
+    setIsSending(false)
+    setAttachments([])
+    setAgentEvents([])
+    setAgentActive(false)
   }
 
-  event.target.value = ""
-}
-
-const handleRemoveAttachment = (id: string) => {
-  setAttachments((prev) => prev.filter((attachment) => attachment.id !== id))
-}
-
-const handleProviderChange = (event: ChangeEvent<HTMLSelectElement>) => {
-  const value = event.target.value
-  if (value === "configure") {
-    router.push("/dashboard/settings#local-llm")
-    return
+  const handleAttachmentButton = () => {
+    fileInputRef.current?.click()
   }
-  if (!value) {
-    return
-  }
-  if (value === localProvider.provider) {
-    return
-  }
-  router.push(`/dashboard/settings?localProvider=${value}#local-llm`)
-}
 
-async function handleSend(e: React.FormEvent) {
-  e.preventDefault()
-  if (!canSend) return
+  const readFileAsDataUrl = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = () => reject(reader.error)
+      reader.readAsDataURL(file)
+    })
 
-  const trimmed = input.trim()
-  const now = new Date().toISOString()
-  const tempUserId = `temp-user-${Date.now()}`
-  const tempAssistantId = `temp-assistant-${Date.now()}`
-  const draftAttachments: ChatAttachment[] = attachments.map((attachment) => ({
-    id: attachment.id,
-    name: attachment.name,
-    type: attachment.type,
-    size: attachment.size,
-    previewUrl: attachment.dataUrl,
-  }))
-
-  setIsSending(true)
-  setError(null)
-  setInput("")
-  setMessages((prev) => [
-    ...prev,
-    {
-      id: tempUserId,
-      role: "user",
-      content: trimmed,
-      createdAt: now,
-      attachments: draftAttachments,
-    },
-    {
-      id: tempAssistantId,
-      role: "assistant",
-      content: "",
-      createdAt: now,
-      mcpCommands: [],
-    },
-  ])
-  setAttachments([])
-
-  try {
-    if (subscriptionTier === "free" && !localReady) {
-      setError(
-        "The free tier requires a local LLM. Configure one in Settings → Local LLM Configuration before prompting."
-      )
+  const handleFileInputChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (!files || files.length === 0) {
       return
     }
 
-    const payload: Record<string, unknown> = {
-      projectId,
-      conversationId: conversationId ?? undefined,
-      startNew: !conversationId,
-      message: trimmed,
+    const remainingSlots = MAX_ATTACHMENTS - attachments.length
+    if (remainingSlots <= 0) {
+      setError(`You can attach up to ${MAX_ATTACHMENTS} images per message.`)
+      event.target.value = ""
+      return
     }
 
-    if (subscriptionTier === "free") {
-      payload.useLocalModel = true
+    const selectedFiles = Array.from(files).slice(0, remainingSlots)
+    const newAttachments: PendingAttachment[] = []
+
+    for (const file of selectedFiles) {
+      if (!file.type.startsWith("image/")) {
+        setError("Only image files are supported right now.")
+        continue
+      }
+      if (file.size > MAX_ATTACHMENT_SIZE) {
+        setError("Images must be 5MB or smaller.")
+        continue
+      }
+
+      try {
+        const dataUrl = await readFileAsDataUrl(file)
+        const base64 = dataUrl.split(",")[1] ?? ""
+        newAttachments.push({
+          id: crypto.randomUUID(),
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          dataUrl,
+          base64,
+        })
+      } catch (fileError) {
+        console.error(fileError)
+        setError("Failed to read one of the files. Please try again.")
+      }
     }
+
+    if (newAttachments.length > 0) {
+      setAttachments((prev) => [...prev, ...newAttachments])
+      setError(null)
+    }
+
+    event.target.value = ""
+  }
+
+  const handleRemoveAttachment = (id: string) => {
+    setAttachments((prev) => prev.filter((attachment) => attachment.id !== id))
+  }
+
+  const handleProviderChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    const value = event.target.value
+    if (value === "configure") {
+      router.push("/dashboard/settings#local-llm")
+      return
+    }
+    if (!value) {
+      return
+    }
+    if (value === localProvider.provider) {
+      return
+    }
+    router.push(`/dashboard/settings?localProvider=${value}#local-llm`)
+  }
+
+  async function handleSend(e: React.FormEvent) {
+    e.preventDefault()
+    if (!canSend) return
+
+    const trimmed = input.trim()
+    const now = new Date().toISOString()
+    const tempUserId = `temp-user-${Date.now()}`
+    const tempAssistantId = `temp-assistant-${Date.now()}`
+    const draftAttachments: ChatAttachment[] = attachments.map((attachment) => ({
+      id: attachment.id,
+      name: attachment.name,
+      type: attachment.type,
+      size: attachment.size,
+      previewUrl: attachment.dataUrl,
+    }))
+
+    setIsSending(true)
+    setError(null)
+    setInput("")
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: tempUserId,
+        role: "user",
+        content: trimmed,
+        createdAt: now,
+        attachments: draftAttachments,
+      },
+      {
+        id: tempAssistantId,
+        role: "assistant",
+        content: "",
+        createdAt: now,
+        mcpCommands: [],
+      },
+    ])
+    setAttachments([])
+
+    try {
+      if (subscriptionTier === "free" && !localReady) {
+        setError(
+          "The free tier requires a local LLM. Configure one in Settings → Local LLM Configuration before prompting."
+        )
+        return
+      }
+
+      const payload: Record<string, unknown> = {
+        projectId,
+        conversationId: conversationId ?? undefined,
+        startNew: !conversationId,
+        message: trimmed,
+      }
+
+      if (subscriptionTier === "free") {
+        payload.useLocalModel = true
+      }
 
       if (attachments.length > 0) {
         payload.attachments = attachments.map((attachment) => ({
@@ -537,10 +540,10 @@ async function handleSend(e: React.FormEvent) {
                   prev.map((msg) =>
                     msg.id === tempUserId
                       ? {
-                          ...msg,
-                          id: userRecord.id ?? msg.id,
-                          createdAt: userRecord.createdAt ?? msg.createdAt,
-                        }
+                        ...msg,
+                        id: userRecord.id ?? msg.id,
+                        createdAt: userRecord.createdAt ?? msg.createdAt,
+                      }
                       : msg
                   )
                 )
@@ -558,18 +561,18 @@ async function handleSend(e: React.FormEvent) {
                   prev.map((msg) =>
                     msg.id === tempAssistantId
                       ? {
-                          ...msg,
-                          id: assistantRecord.id ?? msg.id,
-                          content:
-                            assistantRecord.content ?? assistantContent,
-                          createdAt:
-                            assistantRecord.createdAt ?? msg.createdAt,
-                          mcpCommands:
-                            assistantRecord.mcpCommands?.length
-                              ? assistantRecord.mcpCommands
-                              : suggestionPayload,
-                          plan: planPayload ?? assistantRecord.plan ?? msg.plan,
-                        }
+                        ...msg,
+                        id: assistantRecord.id ?? msg.id,
+                        content:
+                          assistantRecord.content ?? assistantContent,
+                        createdAt:
+                          assistantRecord.createdAt ?? msg.createdAt,
+                        mcpCommands:
+                          assistantRecord.mcpCommands?.length
+                            ? assistantRecord.mcpCommands
+                            : suggestionPayload,
+                        plan: planPayload ?? assistantRecord.plan ?? msg.plan,
+                      }
                       : msg
                   )
                 )
@@ -585,17 +588,17 @@ async function handleSend(e: React.FormEvent) {
                   prev.map((item) =>
                     item.id === completedConversationId
                       ? {
-                          ...item,
-                          messages: item.messages.map((msg) =>
-                            assistantRecordId && msg.id === assistantRecordId
-                              ? {
-                                  ...msg,
-                                  mcpCommands: suggestionPayload ?? msg.mcpCommands,
-                                  plan: planPayload ?? msg.plan,
-                                }
-                              : msg
-                          ),
-                        }
+                        ...item,
+                        messages: item.messages.map((msg) =>
+                          assistantRecordId && msg.id === assistantRecordId
+                            ? {
+                              ...msg,
+                              mcpCommands: suggestionPayload ?? msg.mcpCommands,
+                              plan: planPayload ?? msg.plan,
+                            }
+                            : msg
+                        ),
+                      }
                       : item
                   )
                 )
@@ -630,6 +633,9 @@ async function handleSend(e: React.FormEvent) {
                 if (agentEvent.type === "agent:planning_start") {
                   setAgentActive(true)
                   setAgentEvents([agentEvent])
+                } else if (agentEvent.type === "agent:workflow_proposal") {
+                  setActiveWorkflow((agentEvent as unknown as { proposal: WorkflowProposal }).proposal)
+                  setAgentEvents((prev) => [...prev, agentEvent])
                 } else if (agentEvent.type === "agent:complete") {
                   setAgentEvents((prev) => [...prev, agentEvent])
                   // Keep active briefly so user can see the final status
@@ -851,24 +857,21 @@ async function handleSend(e: React.FormEvent) {
             messages.map((message, index) => (
               <div
                 key={`${message.id ?? index}-${message.role}-${index}`}
-                className={`flex flex-col gap-1 ${
-                  message.role === "assistant" ? "items-start" : "items-end"
-                }`}
+                className={`flex flex-col gap-1 ${message.role === "assistant" ? "items-start" : "items-end"
+                  }`}
               >
                 <div
-                  className={`max-w-[80%] rounded-md px-3 py-2 text-sm ${
-                    message.role === "assistant"
-                      ? "bg-white shadow"
-                      : "bg-primary text-primary-foreground"
-                  }`}
+                  className={`max-w-[80%] rounded-md px-3 py-2 text-sm ${message.role === "assistant"
+                    ? "bg-white shadow"
+                    : "bg-primary text-primary-foreground"
+                    }`}
                 >
                   {message.content}
                 </div>
                 {message.attachments?.length ? (
                   <div
-                    className={`flex flex-wrap gap-2 ${
-                      message.role === "assistant" ? "justify-start" : "justify-end"
-                    }`}
+                    className={`flex flex-wrap gap-2 ${message.role === "assistant" ? "justify-start" : "justify-end"
+                      }`}
                   >
                     {message.attachments.map((attachment) => {
                       const previewSrc = attachment.previewUrl ?? attachment.url
@@ -1099,6 +1102,19 @@ async function handleSend(e: React.FormEvent) {
                     )}
                   </div>
                 )}
+                {/* Guided workflow panel (neural/hybrid requests) */}
+                {message.role === "assistant" &&
+                  index === messages.length - 1 &&
+                  activeWorkflow && (
+                    <div className="max-w-[90%]">
+                      <WorkflowPanel
+                        proposal={activeWorkflow}
+                        onStepAction={(stepId, action) => {
+                          console.log(`[Workflow] Step ${stepId}: ${action}`)
+                        }}
+                      />
+                    </div>
+                  )}
                 {message.role === "assistant" &&
                   Array.isArray(message.mcpCommands) &&
                   message.mcpCommands.length > 0 && (

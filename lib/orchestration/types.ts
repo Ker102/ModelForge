@@ -1,4 +1,5 @@
 import type { StrategyDecision } from "./strategy-types"
+import type { WorkflowProposal, WorkflowStepStatus } from "./workflow-types"
 
 export interface PlanStep {
   stepNumber: number
@@ -103,6 +104,8 @@ interface AgentVisualCorrection extends AgentEventBase { type: "agent:visual_cor
 interface AgentNeuralGeneration extends AgentEventBase { type: "agent:neural_generation"; provider: string; stage: string; status: string; progress?: number }
 interface AgentHybridPipeline extends AgentEventBase { type: "agent:hybrid_pipeline"; stagesCompleted: number; stagesTotal: number; currentStage: string }
 interface AgentStrategyClassification extends AgentEventBase { type: "agent:strategy_classification"; strategy: string; confidence: number; reasoning: string; method: string }
+interface AgentWorkflowProposal extends AgentEventBase { type: "agent:workflow_proposal"; proposal: WorkflowProposal }
+interface AgentWorkflowStepUpdate extends AgentEventBase { type: "agent:workflow_step_update"; stepId: string; status: WorkflowStepStatus; message?: string; error?: string; durationMs?: number }
 
 /**
  * Real-time stream event types sent during agent execution
@@ -125,6 +128,8 @@ export type AgentStreamEvent =
   | AgentNeuralGeneration
   | AgentHybridPipeline
   | AgentStrategyClassification
+  | AgentWorkflowProposal
+  | AgentWorkflowStepUpdate
 
 export interface PlanningMetadata {
   planSummary: string

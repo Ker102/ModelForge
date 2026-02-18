@@ -25,6 +25,7 @@ import { recordExecutionLog } from "@/lib/orchestration/monitor"
 import { buildSystemPrompt } from "@/lib/orchestration/prompts"
 import { searchFirecrawl, type FirecrawlSearchResult } from "@/lib/firecrawl"
 import { classifyStrategy } from "@/lib/orchestration/strategy-router"
+import { generateWorkflowProposal } from "@/lib/orchestration/workflow-advisor"
 import { z } from "zod"
 
 const MAX_HISTORY_MESSAGES = 12
@@ -520,93 +521,140 @@ export async function POST(req: Request) {
           let executionLogs: ExecutionLogEntry[] | undefined = undefined
           let planResult: PlanGenerationResult | null = null
 
-          try {
-            planResult = await planner.generatePlan(
-              message,
-              {
-                sceneSummary: sceneSnapshotResult.summary ?? undefined,
-                allowHyper3dAssets: assetConfig.allowHyper3d,
-                allowSketchfabAssets: assetConfig.allowSketchfab,
-                allowPolyHavenAssets: assetConfig.allowPolyHaven,
-                researchContext: researchContext?.promptContext,
-                strategyDecision,
-              },
-              llmProvider
-            )
+          // ── Neural/Hybrid → Guided Workflow (human-in-the-loop) ──
+          if (strategyDecision.strategy === "neural" || strategyDecision.strategy === "hybrid") {
+            try {
+              const workflowProposal = await generateWorkflowProposal(
+                message,
+                strategyDecision.strategy,
+                { sceneContext: sceneSnapshotResult.summary ?? undefined }
+              )
 
-            if (planResult && planResult.plan) {
-              const executionResult = await planExecutor.executePlan(
-                planResult.plan,
+              // Send the workflow proposal to the UI
+              send({
+                type: "agent:workflow_proposal",
+                timestamp: new Date().toISOString(),
+                proposal: workflowProposal,
+              })
+
+              // Build a lightweight planningMetadata for the conversation record
+              planningMetadata = {
+                planSummary: `Workflow proposed: ${workflowProposal.title} (${workflowProposal.steps.length} steps). Awaiting user action on each step.`,
+                planSteps: workflowProposal.steps.map((s) => ({
+                  stepNumber: s.stepNumber,
+                  action: s.recommendedTool === "neural" ? "neural_generate" : s.recommendedTool === "manual" ? "manual" : "execute_code",
+                  parameters: {
+                    category: s.category,
+                    tool: s.recommendedTool,
+                    neuralProvider: s.neuralProvider,
+                    workflowStepId: s.id,
+                  },
+                  rationale: s.toolReasoning,
+                  expectedOutcome: s.description,
+                })),
+                rawPlan: JSON.stringify(workflowProposal, null, 2),
+                retries: 0,
+                executionSuccess: true, // Proposal was successfully generated
+                sceneSnapshot: sceneSnapshotResult.summary,
+                strategyDecision,
+              }
+            } catch (workflowError) {
+              console.error("Workflow proposal failed, falling back to planner:", workflowError)
+              // Fall through to the procedural planner+executor below
+            }
+          }
+
+          // ── Procedural → Auto-pilot planner + executor (existing flow) ──
+          if (!planningMetadata) {
+
+            try {
+              planResult = await planner.generatePlan(
                 message,
                 {
-                  ...assetConfig,
-                  enableVisualFeedback: true,
-                  onStreamEvent: (event) => send(event),
+                  sceneSummary: sceneSnapshotResult.summary ?? undefined,
+                  allowHyper3dAssets: assetConfig.allowHyper3d,
+                  allowSketchfabAssets: assetConfig.allowSketchfab,
+                  allowPolyHavenAssets: assetConfig.allowPolyHaven,
+                  researchContext: researchContext?.promptContext,
                   strategyDecision,
                 },
-                planResult.analysis,
                 llmProvider
               )
-              executionLogs = executionResult.logs
-              executedCommands = buildExecutedCommandsFromPlan(planResult.plan, executionResult)
-              planningMetadata = {
-                planSummary: planResult.plan.planSummary,
-                planSteps: planResult.plan.steps,
-                rawPlan: planResult.rawResponse,
-                retries: planResult.retries ?? 0,
-                executionSuccess: executionResult.success,
-                errors: planResult.errors,
-                executionLog: executionResult.logs,
-                sceneSnapshot: sceneSnapshotResult.summary,
-                analysis: planResult.analysis,
-                researchSummary: researchContext?.promptContext,
-                researchSources: researchContext?.sources,
-                strategyDecision,
-              }
 
-              if (!executionResult.success) {
-                planningMetadata.executionSuccess = false
+              if (planResult && planResult.plan) {
+                const executionResult = await planExecutor.executePlan(
+                  planResult.plan,
+                  message,
+                  {
+                    ...assetConfig,
+                    enableVisualFeedback: true,
+                    onStreamEvent: (event) => send(event),
+                    strategyDecision,
+                  },
+                  planResult.analysis,
+                  llmProvider
+                )
+                executionLogs = executionResult.logs
+                executedCommands = buildExecutedCommandsFromPlan(planResult.plan, executionResult)
+                planningMetadata = {
+                  planSummary: planResult.plan.planSummary,
+                  planSteps: planResult.plan.steps,
+                  rawPlan: planResult.rawResponse,
+                  retries: planResult.retries ?? 0,
+                  executionSuccess: executionResult.success,
+                  errors: planResult.errors,
+                  executionLog: executionResult.logs,
+                  sceneSnapshot: sceneSnapshotResult.summary,
+                  analysis: planResult.analysis,
+                  researchSummary: researchContext?.promptContext,
+                  researchSources: researchContext?.sources,
+                  strategyDecision,
+                }
+
+                if (!executionResult.success) {
+                  planningMetadata.executionSuccess = false
+                }
+              } else if (planResult) {
+                const previousLogs = executionLogs
+                planningMetadata = {
+                  planSummary: "Plan generation failed",
+                  planSteps: [],
+                  rawPlan: planResult.rawResponse,
+                  retries: planResult.retries ?? 0,
+                  executionSuccess: false,
+                  errors: planResult.errors,
+                  fallbackUsed: false,
+                  executionLog: previousLogs,
+                  sceneSnapshot: sceneSnapshotResult.summary,
+                  analysis: planResult.analysis,
+                  researchSummary: researchContext?.promptContext,
+                  researchSources: researchContext?.sources,
+                }
+                executedCommands = []
+              } else {
+                throw new Error("Planner returned no result")
               }
-            } else if (planResult) {
-              const previousLogs = executionLogs
-              planningMetadata = {
-                planSummary: "Plan generation failed",
+            } catch (error) {
+              console.error("Planning pipeline error:", error)
+              const messageText =
+                error instanceof Error ? error.message : "Unknown planning error"
+              planningMetadata = planningMetadata ?? {
+                planSummary: "Planner error",
                 planSteps: [],
-                rawPlan: planResult.rawResponse,
-                retries: planResult.retries ?? 0,
+                rawPlan: "",
+                retries: 0,
                 executionSuccess: false,
-                errors: planResult.errors,
+                errors: [messageText],
                 fallbackUsed: false,
-                executionLog: previousLogs,
+                executionLog: executionLogs,
                 sceneSnapshot: sceneSnapshotResult.summary,
-                analysis: planResult.analysis,
+                analysis: planResult?.analysis,
                 researchSummary: researchContext?.promptContext,
                 researchSources: researchContext?.sources,
               }
               executedCommands = []
-            } else {
-              throw new Error("Planner returned no result")
             }
-          } catch (error) {
-            console.error("Planning pipeline error:", error)
-            const messageText =
-              error instanceof Error ? error.message : "Unknown planning error"
-            planningMetadata = planningMetadata ?? {
-              planSummary: "Planner error",
-              planSteps: [],
-              rawPlan: "",
-              retries: 0,
-              executionSuccess: false,
-              errors: [messageText],
-              fallbackUsed: false,
-              executionLog: executionLogs,
-              sceneSnapshot: sceneSnapshotResult.summary,
-              analysis: planResult?.analysis,
-              researchSummary: researchContext?.promptContext,
-              researchSources: researchContext?.sources,
-            }
-            executedCommands = []
-          }
+          } // ← closing brace for procedural fallback block
 
 
 
