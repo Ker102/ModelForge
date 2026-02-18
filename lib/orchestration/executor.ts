@@ -9,6 +9,7 @@ import { type LlmProviderSpec } from "@/lib/llm"
 import { createMcpClient, getViewportScreenshot, type McpCommand } from "@/lib/mcp"
 import { suggestImprovements } from "@/lib/ai/vision"
 import { ExecutionLogEntry, ExecutionPlan, PlanAnalysis, AgentStreamEvent } from "./types"
+import type { StrategyDecision } from "./strategy-types"
 
 export interface ExecutionResult {
   success: boolean
@@ -47,6 +48,8 @@ export interface ExecutionOptions {
   maxVisualIterations?: number
   /** Callback to stream real-time agent events to the client */
   onStreamEvent?: (event: AgentStreamEvent) => void
+  /** Strategy decision from the router */
+  strategyDecision?: StrategyDecision
 }
 
 export class PlanExecutor {

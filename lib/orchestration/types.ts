@@ -1,3 +1,5 @@
+import type { StrategyDecision } from "./strategy-types"
+
 export interface PlanStep {
   stepNumber: number
   action: string
@@ -100,6 +102,7 @@ interface AgentVisualAnalysis extends AgentEventBase { type: "agent:visual_analy
 interface AgentVisualCorrection extends AgentEventBase { type: "agent:visual_correction"; iteration: number; description: string; issues: string[] }
 interface AgentNeuralGeneration extends AgentEventBase { type: "agent:neural_generation"; provider: string; stage: string; status: string; progress?: number }
 interface AgentHybridPipeline extends AgentEventBase { type: "agent:hybrid_pipeline"; stagesCompleted: number; stagesTotal: number; currentStage: string }
+interface AgentStrategyClassification extends AgentEventBase { type: "agent:strategy_classification"; strategy: string; confidence: number; reasoning: string; method: string }
 
 /**
  * Real-time stream event types sent during agent execution
@@ -121,6 +124,7 @@ export type AgentStreamEvent =
   | AgentVisualCorrection
   | AgentNeuralGeneration
   | AgentHybridPipeline
+  | AgentStrategyClassification
 
 export interface PlanningMetadata {
   planSummary: string
@@ -135,4 +139,5 @@ export interface PlanningMetadata {
   analysis?: PlanAnalysis
   researchSummary?: string
   researchSources?: ResearchSource[]
+  strategyDecision?: StrategyDecision
 }

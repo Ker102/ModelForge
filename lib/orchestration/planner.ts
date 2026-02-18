@@ -4,6 +4,7 @@ import { type LlmProviderSpec } from "@/lib/llm"
 import { createConversationMemory, type ConversationMemory } from "@/lib/memory"
 import { filterRelevantTools } from "./tool-filter"
 import { ExecutionPlan, PlanAnalysis, PlanGenerationResult, PlanStep } from "./types"
+import type { StrategyDecision } from "./strategy-types"
 
 interface PlanningOptions {
   sceneSummary?: string
@@ -17,6 +18,8 @@ interface PlanningOptions {
   useMemory?: boolean
   /** Existing conversation memory instance */
   memory?: ConversationMemory
+  /** Strategy decision from the router */
+  strategyDecision?: StrategyDecision
 }
 
 export class BlenderPlanner {
@@ -60,6 +63,11 @@ export class BlenderPlanner {
     }
     if (memoryContext) {
       enhancedRequest = `${memoryContext}\n\n${enhancedRequest}`
+    }
+    if (options.strategyDecision && options.strategyDecision.strategy !== "procedural") {
+      const sd = options.strategyDecision
+      const providers = sd.suggestedProviders?.join(", ") ?? "auto-select"
+      enhancedRequest += `\n\n[Strategy: ${sd.strategy.toUpperCase()}] This request should use ${sd.strategy} generation (${sd.reasoning}). Suggested providers: ${providers}. Include neural_generate steps in the plan where appropriate.`
     }
 
     try {

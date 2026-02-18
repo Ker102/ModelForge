@@ -24,6 +24,7 @@ import type {
 import { recordExecutionLog } from "@/lib/orchestration/monitor"
 import { buildSystemPrompt } from "@/lib/orchestration/prompts"
 import { searchFirecrawl, type FirecrawlSearchResult } from "@/lib/firecrawl"
+import { classifyStrategy } from "@/lib/orchestration/strategy-router"
 import { z } from "zod"
 
 const MAX_HISTORY_MESSAGES = 12
@@ -501,6 +502,19 @@ export async function POST(req: Request) {
 
           const sceneSnapshotResult = await fetchSceneSummary()
 
+          // Strategy classification: determine procedural vs neural vs hybrid
+          const strategyDecision = await classifyStrategy(message, {
+            sceneContext: sceneSnapshotResult.summary ?? undefined,
+          })
+          send({
+            type: "agent:strategy_classification",
+            timestamp: new Date().toISOString(),
+            strategy: strategyDecision.strategy,
+            confidence: strategyDecision.confidence,
+            reasoning: strategyDecision.reasoning,
+            method: strategyDecision.classificationMethod,
+          })
+
           let executedCommands: ExecutedCommand[] = []
           let planningMetadata: PlanningMetadata | null = null
           let executionLogs: ExecutionLogEntry[] | undefined = undefined
@@ -515,6 +529,7 @@ export async function POST(req: Request) {
                 allowSketchfabAssets: assetConfig.allowSketchfab,
                 allowPolyHavenAssets: assetConfig.allowPolyHaven,
                 researchContext: researchContext?.promptContext,
+                strategyDecision,
               },
               llmProvider
             )
@@ -527,6 +542,7 @@ export async function POST(req: Request) {
                   ...assetConfig,
                   enableVisualFeedback: true,
                   onStreamEvent: (event) => send(event),
+                  strategyDecision,
                 },
                 planResult.analysis,
                 llmProvider
@@ -545,6 +561,7 @@ export async function POST(req: Request) {
                 analysis: planResult.analysis,
                 researchSummary: researchContext?.promptContext,
                 researchSources: researchContext?.sources,
+                strategyDecision,
               }
 
               if (!executionResult.success) {

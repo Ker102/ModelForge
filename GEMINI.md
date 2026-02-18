@@ -114,6 +114,7 @@ npm run test:user        # Create test user
 | **NotebookLM Pipeline Research** | ✅ Complete | Deep research on retopology, Rigify, animation, PBR textures |
 | **Phase 1: Production Pipeline RAG** | ✅ Complete | 6 new scripts: retopology, rigging, UV, animation, PBR, export |
 | **Phase 2: Neural 3D Layer** | ✅ Complete | 5 providers (Hunyuan Shape/Paint/Part, TRELLIS 2, YVO3D) + hybrid pipeline |
+| **Phase 4: AI Strategy Router** | ✅ Complete | Keyword + LLM classification, user override, integrated into chat pipeline |
 
 ### Roadmap
 - [x] Gemini-backed conversational planning
@@ -132,7 +133,7 @@ npm run test:user        # Create test user
 - [x] **Phase 1: RAG scripts (retopology, rigging, animation, UV, PBR, export)**
 - [x] **Phase 2: Self-hosted neural 3D layer (Hunyuan Shape/Paint/Part, TRELLIS 2, YVO3D, hybrid pipeline)**
 - [ ] Phase 3: Deploy neural models (Azure ML/HF Inference Endpoints)
-- [ ] Phase 4: AI strategy router (auto-select procedural vs neural vs hybrid)
+- [x] **Phase 4: AI strategy router (auto-select procedural vs neural vs hybrid)**
 - [ ] Phase 5: Credit system + production export pipeline
 - [ ] Material/color quality enhancement
 - [ ] Production desktop app packaging
@@ -140,6 +141,20 @@ npm run test:user        # Create test user
 ---
 
 ## 📝 Session Log
+
+### 2026-02-18 (Phase 4: AI Strategy Router)
+- **New Module `lib/orchestration/strategy-router.ts`** — Two-phase request classifier:
+  - Phase 1: Keyword pattern matching (7 procedural, 5 neural, 4 hybrid regex patterns)
+  - Phase 2: LLM fallback via Gemini for ambiguous requests (structured JSON output)
+  - User override support (manual strategy selection from UI)
+  - Confidence scoring (0.0–1.0) with reasoning
+- **New Types `lib/orchestration/strategy-types.ts`**: `Strategy`, `StrategyDecision`, `StrategyOverride`
+- **Orchestration Integration**:
+  - `types.ts`: Added `AgentStrategyClassification` stream event + `strategyDecision` in `PlanningMetadata`
+  - `planner.ts`: Injects neural context into planning prompt when strategy is neural/hybrid
+  - `executor.ts`: Accepts `strategyDecision` in `ExecutionOptions`
+  - `route.ts`: Classifies between scene snapshot and planning, emits strategy event to UI
+- **TypeScript**: `tsc --noEmit` passed with 0 errors
 
 ### 2026-02-18 (Phase 2: Self-Hosted Neural 3D Layer)
 - **New Module `lib/neural/`** — 12 files, full abstraction layer for neural 3D generation:
