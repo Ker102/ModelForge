@@ -99,7 +99,7 @@ npm run test:user        # Create test user
 | AI Orchestration layer | ✅ Complete | Planner, Executor, Prompts |
 | **Serverless DB Migration** | ✅ Complete | Neon pgvector compatibility |
 | **AI Engineering Upgrade** | ✅ Complete | LangChain, Agents, RAG implemented |
-| **Script Library Expansion** | ✅ Complete | **134 scripts** (62 utility + 67 tasks + 4 NotebookLM + 1 research) |
+| **Script Library Expansion** | ✅ Complete | **135 scripts** (62 utility + 67 tasks + 4 NotebookLM + 1 research + 1 neural) |
 | **RAG Pipeline Ingestion** | ✅ Complete | Recursive ingestion of all scripts |
 | **Viewport Screenshot Analysis** | ✅ Complete | Gemini Vision feedback loop |
 | **Conversation Memory** | ✅ Complete | Vector embeddings for context-aware responses |
@@ -113,6 +113,7 @@ npm run test:user        # Create test user
 | **3D Pipeline Strategy** | ✅ Complete | Multi-strategy plan: procedural + neural (open-source) + hybrid |
 | **NotebookLM Pipeline Research** | ✅ Complete | Deep research on retopology, Rigify, animation, PBR textures |
 | **Phase 1: Production Pipeline RAG** | ✅ Complete | 6 new scripts: retopology, rigging, UV, animation, PBR, export |
+| **Phase 2: Neural 3D Layer** | ✅ Complete | 5 providers (Hunyuan Shape/Paint/Part, TRELLIS 2, YVO3D) + hybrid pipeline |
 
 ### Roadmap
 - [x] Gemini-backed conversational planning
@@ -129,8 +130,8 @@ npm run test:user        # Create test user
 - [x] **Visual feedback loop (viewport vision → auto-correct)**
 - [x] **3D pipeline strategy (competitors, techniques, 7-phase plan)**
 - [x] **Phase 1: RAG scripts (retopology, rigging, animation, UV, PBR, export)**
-- [ ] Phase 2: Open-source neural 3D models (Hunyuan 3D, Shap-E, InstantMesh on Azure ML)
-- [ ] Phase 3: Hybrid pipeline (neural gen → Blender post-processing)
+- [x] **Phase 2: Self-hosted neural 3D layer (Hunyuan Shape/Paint/Part, TRELLIS 2, YVO3D, hybrid pipeline)**
+- [ ] Phase 3: Deploy neural models (Azure ML/HF Inference Endpoints)
 - [ ] Phase 4: AI strategy router (auto-select procedural vs neural vs hybrid)
 - [ ] Phase 5: Credit system + production export pipeline
 - [ ] Material/color quality enhancement
@@ -139,6 +140,21 @@ npm run test:user        # Create test user
 ---
 
 ## 📝 Session Log
+
+### 2026-02-18 (Phase 2: Self-Hosted Neural 3D Layer)
+- **New Module `lib/neural/`** — 12 files, full abstraction layer for neural 3D generation:
+  - Core: `types.ts`, `base-client.ts`, `registry.ts`, `index.ts`, `gradio-client.d.ts`
+  - 5 Provider Clients:
+    - `providers/hunyuan-shape.ts` — Geometry (text→3D, image→3D, 10GB VRAM)
+    - `providers/hunyuan-paint.ts` — PBR texturing (21GB VRAM)
+    - `providers/hunyuan-part.ts` — Mesh segmentation via Gradio
+    - `providers/trellis.ts` — TRELLIS 2 (Microsoft, MIT, geometry+PBR, 24GB VRAM)
+    - `providers/yvo3d.ts` — Premium texturing API (up to ULTIMA 8K)
+  - `hybrid-pipeline.ts` — 8-stage orchestrator: neural gen → Blender import → retopo → UV → segment → rig → animate → export
+- **New RAG Script**: `data/blender-scripts/import_neural_mesh.py` (import, cleanup, normalize, decimate, UV, PBR — total: 135 scripts)
+- **Prompt Update**: Added neural vs procedural decision rules to `CODE_GENERATION_PROMPT`
+- **Orchestration Update**: Added `AgentNeuralGeneration` and `AgentHybridPipeline` stream events to `types.ts`
+- **Files Modified**: `lib/ai/prompts.ts`, `lib/orchestration/types.ts`
 
 ### 2026-02-18 (Phase 1: Production Pipeline RAG Scripts)
 - **6 New RAG Scripts Created** (total: 134):

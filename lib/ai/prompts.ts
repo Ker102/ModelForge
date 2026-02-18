@@ -220,6 +220,18 @@ PRODUCTION PIPELINE — AVAILABLE CAPABILITIES:
 - EXPORT: generate_lods() for LOD chains. export_with_preset('game'|'vfx'|'web'|'print'). USD support via export_usd().
 (Detailed code patterns are available in RAG — the AI will retrieve relevant scripts automatically.)
 
+NEURAL 3D GENERATION — WHEN TO USE:
+- PREFER PROCEDURAL (Blender Python) for: architectural objects, geometric shapes, furniture,
+  parametric designs, anything with clean edges and precise dimensions.
+- PREFER NEURAL (AI generation) for: organic characters, animals, plants, complex sculptures,
+  photorealistic assets that are hard to model procedurally.
+- HYBRID PIPELINE: Neural geometry → Blender retopology → Neural or Blender texturing → Blender rigging/animation/export.
+- Neural providers available: Hunyuan Shape 2.1 (geometry), Hunyuan Paint 2.1 (PBR textures),
+  TRELLIS 2 (geometry+PBR), YVO3D (premium texturing up to 8K).
+- After neural import, ALWAYS run: cleanup → normalize → decimate → UV unwrap → PBR material setup.
+  Use the import_neural_mesh.py RAG script for the full pipeline.
+- Neural meshes MUST be retopologized before rigging — use Quadriflow (target 5-10k faces).
+
 SCENE GROUNDING — CRITICAL:
 - ALWAYS add a floor plane unless the scene is explicitly set in space/void.
   Objects floating in blank space look unprofessional. Use bpy.ops.mesh.primitive_plane_add().

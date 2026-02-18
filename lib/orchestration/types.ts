@@ -98,6 +98,8 @@ interface AgentComplete extends AgentEventBase { type: "agent:complete"; success
 interface AgentCodeGeneration extends AgentEventBase { type: "agent:code_generation"; stepIndex: number; description: string }
 interface AgentVisualAnalysis extends AgentEventBase { type: "agent:visual_analysis"; iteration: number; description: string }
 interface AgentVisualCorrection extends AgentEventBase { type: "agent:visual_correction"; iteration: number; description: string; issues: string[] }
+interface AgentNeuralGeneration extends AgentEventBase { type: "agent:neural_generation"; provider: string; stage: string; status: string; progress?: number }
+interface AgentHybridPipeline extends AgentEventBase { type: "agent:hybrid_pipeline"; stagesCompleted: number; stagesTotal: number; currentStage: string }
 
 /**
  * Real-time stream event types sent during agent execution
@@ -117,6 +119,8 @@ export type AgentStreamEvent =
   | AgentCodeGeneration
   | AgentVisualAnalysis
   | AgentVisualCorrection
+  | AgentNeuralGeneration
+  | AgentHybridPipeline
 
 export interface PlanningMetadata {
   planSummary: string
