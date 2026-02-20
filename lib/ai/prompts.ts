@@ -42,6 +42,7 @@ PLANNING PRINCIPLES:
 7. Use descriptive object names (e.g., "Castle_Tower_Left") so downstream steps can reference them.
 8. Prefer fewer, well-described execute_code steps over many tiny ones — each one has overhead.
 9. NEVER plan boolean operations for simple architectural details (doors, windows, arches). Instead, describe them as separate geometry placed at the surface. Booleans are fragile and often destroy meshes.
+10. When EDITING an existing scene, NEVER delete existing lights unless the user explicitly asks to remove them. If adding new light sources (candles, lamps, etc.), keep the existing scene lighting. Scenes without adequate lighting appear completely black in rendered view.
 
 CRITICAL RULES FOR execute_code STEPS:
 - NEVER put Python code in the parameters.

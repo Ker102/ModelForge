@@ -241,9 +241,10 @@ export class PlanExecutor {
         try {
           for (let vIter = 0; vIter < maxVisualIter; vIter++) {
             // Capture viewport screenshot via the existing MCP client
+            // Note: No params — the Blender MCP addon doesn't accept width/height/format
             const screenshotResult = await client.execute({
               type: "get_viewport_screenshot",
-              params: { width: 1920, height: 1080, format: "png" },
+              params: {},
             })
 
             // The MCP client returns McpResponse<T> where .result contains the data.
