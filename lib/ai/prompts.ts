@@ -82,8 +82,9 @@ STRICT RULES:
 6. Output ONLY raw Python code — no markdown fences, no explanations, no comments about what the code does.
 
 COMMON PATTERNS:
-- Create a material (Blender 5.x — use_nodes is auto-enabled):
+- Create a material (version-safe for Blender 4.x AND 5.x):
   mat = bpy.data.materials.new(name='MyMaterial')
+  mat.use_nodes = True  # REQUIRED — harmless no-op on 5.x, essential on 4.x
   bsdf = mat.node_tree.nodes.get('Principled BSDF')
   bsdf.inputs['Base Color'].default_value = (R, G, B, 1.0)
   bsdf.inputs['Roughness'].default_value = 0.5
@@ -98,9 +99,9 @@ COMMON PATTERNS:
 - Set active camera:
   bpy.context.scene.camera = cam_obj
 
-BLENDER 5.x API — CRITICAL:
-- \`material.use_nodes = True\` is DEPRECATED in Blender 5.0+ — do NOT call it. The node tree is auto-created by \`bpy.data.materials.new()\`.
-- \`world.use_nodes = True\` is also DEPRECATED — same auto-creation behavior.
+BLENDER API — CRITICAL:
+- ALWAYS call \`mat.use_nodes = True\` after creating a material — it is safe on ALL Blender versions (4.x requires it, 5.x ignores it). Without it, \`mat.node_tree\` may be None.
+- ALWAYS call \`world.use_nodes = True\` before accessing world node tree — same reason.
 - The EEVEE render engine identifier is now "BLENDER_EEVEE" (not "BLENDER_EEVEE_NEXT").
 - The Principled BSDF shader (since Blender 4.0) RENAMED several inputs:
   • "Specular" is now "Specular IOR Level" (or just skip it — default is fine)
@@ -161,7 +162,6 @@ VOLUMETRIC EFFECTS:
 - Keep density very low: 0.001-0.005 for atmosphere, 0.02-0.05 for fog.
 
 AVOID:
-- Calling \`mat.use_nodes = True\` — deprecated in Blender 5.x, node tree is auto-created.
 - Using deprecated \`bpy.context.scene.objects.link()\` — use \`bpy.context.collection.objects.link()\` if needed.
 - Hard-coding absolute file paths.
 - Calling \`bpy.ops\` operators that require specific UI context without overriding context.
