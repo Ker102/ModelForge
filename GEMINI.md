@@ -136,6 +136,9 @@ npm run test:user        # Create test user
 - [ ] Phase 3: Deploy neural models (Azure ML/HF Inference Endpoints)
 - [x] **Phase 4: AI strategy router (auto-select procedural vs neural vs hybrid)**
 - [x] **Phase 3: Guided workflow system (per-step tool recommendations, human-in-the-loop)**
+- [ ] 🟠 **Tool use guide in system prompt** — structured guide for all 14+ MCP commands and how they modify scene state
+- [ ] 🟡 **CRAG pipeline** — relevance grading + re-ranking for RAG retrieval quality
+- [ ] 🔵 Search engine integration (Brave Search API as in-agent tool) — only if testing reveals knowledge gaps
 - [ ] Phase 5: Credit system + production export pipeline
 - [ ] Material/color quality enhancement
 - [ ] Production desktop app packaging
