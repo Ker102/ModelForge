@@ -267,6 +267,64 @@ def set_coat_safe(bsdf, weight=1.0, roughness=0.1):
     bsdf.inputs['Coat Weight'].default_value = weight
     bsdf.inputs['Coat Roughness'].default_value = roughness
 
+# --- 19. Material blend_method / shadow_method Changes (5.0) ---
+# REMOVED ATTRIBUTES (will crash if accessed):
+#   - mat.shadow_method  → DOES NOT EXIST in 5.x
+#   - mat.shadow_mode    → DOES NOT EXIST in 5.x
+#
+# VALID blend_method values (Blender 5.x):
+#   'OPAQUE'  — Default, fully opaque
+#   'CLIP'    — Binary alpha threshold
+#   'HASHED'  — Dithered alpha (good for foliage)
+#   'BLEND'   — True alpha blending (for glass, smoke, etc.)
+#
+# WRONG (will crash):  mat.blend_method = 'ALPHA_BLEND'
+# CORRECT:             mat.blend_method = 'BLEND'
+#
+# For transparent materials:
+#   mat.blend_method = 'BLEND'
+#   # Do NOT set mat.shadow_method — it does not exist
+
+
+# --- 20. EEVEE Removed Properties (5.0) ---
+# The following SceneEEVEE properties are ALL REMOVED in Blender 5.x:
+#   - eevee.use_ssr                      → Reflections are automatic
+#   - eevee.use_ssr_refraction           → Reflections are automatic
+#   - eevee.use_screen_space_reflections → Reflections are automatic
+#   - eevee.use_gtao                     → AO is automatic
+#   - eevee.use_bloom                    → Use compositor Glare node
+#   - eevee.shadow_cascade_size          → Removed
+#   - eevee.taa_render_samples           → Use eevee.taa_samples instead
+#
+# For bloom in EEVEE 5.x, use the compositor:
+#   scene.use_nodes = True
+#   tree = scene.compositing_node_group
+#   glare = tree.nodes.new('CompositorNodeGlare')
+#   glare.glare_type = 'FOG_GLOW'
+#   glare.quality = 'HIGH'
+#   glare.size = 7
+
+
+# --- 21. Correct Transparent Material Setup (5.0) ---
+def create_transparent_material(name, color=(0.8, 0.8, 0.8, 0.3)):
+    """
+    Create a transparent material compatible with Blender 5.x.
+    
+    IMPORTANT:
+    - Use 'BLEND' not 'ALPHA_BLEND' for blend_method
+    - Do NOT set shadow_method or shadow_mode (removed in 5.x)
+    """
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    mat.blend_method = 'BLEND'  # NOT 'ALPHA_BLEND'
+    
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs['Base Color'].default_value = color
+        bsdf.inputs['Alpha'].default_value = color[3]
+    
+    return mat
+
 
 # =============================================================================
 # STYLE CONVENTIONS (Official Blender Python Guidelines)
