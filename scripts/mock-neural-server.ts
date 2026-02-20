@@ -12,7 +12,7 @@
 
 import http from "http"
 
-const PORT = Number(process.env.MOCK_NEURAL_PORT || 8081)
+const PORT = Number(process.env.MOCK_NEURAL_PORT || 8090)
 
 /**
  * Minimal valid glTF-Binary (GLB) containing a cube mesh.
