@@ -160,6 +160,13 @@ AVOID:
 - Accessing \`bpy.context.active_object\` after deleting objects — it may be None or stale.
 - Use \`bpy.data.objects.remove(obj, do_unlink=True)\` to delete, then re-fetch references.
 - dict-style property access on API objects (removed in 5.0): scene['cycles'] → use scene.cycles
+- REMOVED SHADER SOCKETS (will crash with 'key not found'):
+  • 'Subsurface Color' — REMOVED. Base Color drives SSS color directly.
+  • 'Specular' — renamed to 'Specular IOR Level'.
+  • 'Transmission' — renamed to 'Transmission Weight'.
+  • 'Emission' — split into 'Emission Color' and 'Emission Strength'.
+  • 'Subsurface' — renamed to 'Subsurface Weight'.
+  Always use .get() to access sockets safely and handle None.
 
 BOOLEAN OPERATIONS:
 - The ONLY valid solvers are: 'EXACT', 'FLOAT', 'MANIFOLD'. NEVER use 'FAST'.
