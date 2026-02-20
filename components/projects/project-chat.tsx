@@ -106,6 +106,9 @@ export function ProjectChat({
   const [input, setInput] = useState("")
   const [isSending, setIsSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isRetryable, setIsRetryable] = useState(false)
+  const [lastPayload, setLastPayload] = useState<Record<string, unknown> | null>(null)
+  const lastTempAssistantIdRef = useRef<string | null>(null)
   const localProviderConfigured = Boolean(
     localProvider.provider && localProvider.baseUrl && localProvider.model
   )
@@ -414,12 +417,18 @@ export function ProjectChat({
         }))
       }
 
+      // Save payload for potential retry
+      setLastPayload(payload)
+      lastTempAssistantIdRef.current = tempAssistantId
+
+      const abortController = new AbortController()
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
+        signal: abortController.signal,
       })
 
       if (!response.ok || !response.body) {
@@ -432,6 +441,8 @@ export function ProjectChat({
         const errorMessage =
           typeof data?.error === "string" ? data.error : "Failed to send message"
         setError(errorMessage)
+        // Server errors (5xx) are retryable, client errors (4xx) are not
+        setIsRetryable(response.status >= 500)
         if (
           subscriptionTier === "free" &&
           typeof data?.error === "string" &&
@@ -455,214 +466,279 @@ export function ProjectChat({
       let assistantContent = ""
       let streamFinished = false
 
-      while (!streamFinished) {
-        const { done, value } = await reader.read()
-        if (done) {
-          streamFinished = true
-        }
-        buffer += decoder.decode(value ?? new Uint8Array(), {
-          stream: !done,
-        })
+      // Stream stall timeout — abort if no data received for 60 seconds
+      const STREAM_STALL_TIMEOUT_MS = 60_000
+      let staleTimer: ReturnType<typeof setTimeout> | null = null
 
-        let newlineIndex: number
-        while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
-          const line = buffer.slice(0, newlineIndex).trim()
-          buffer = buffer.slice(newlineIndex + 1)
+      const resetStaleTimer = () => {
+        if (staleTimer) clearTimeout(staleTimer)
+        staleTimer = setTimeout(() => {
+          abortController.abort()
+        }, STREAM_STALL_TIMEOUT_MS)
+      }
 
-          if (!line) {
-            continue
+      // Start the initial timer
+      resetStaleTimer()
+
+      try {
+        while (!streamFinished) {
+          const { done, value } = await reader.read()
+          if (done) {
+            streamFinished = true
+          } else {
+            // Reset stall timer on each chunk received
+            resetStaleTimer()
           }
+          buffer += decoder.decode(value ?? new Uint8Array(), {
+            stream: !done,
+          })
 
-          let event: Record<string, unknown>
-          try {
-            event = JSON.parse(line) as Record<string, unknown>
-          } catch {
-            continue
-          }
+          let newlineIndex: number
+          while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
+            const line = buffer.slice(0, newlineIndex).trim()
+            buffer = buffer.slice(newlineIndex + 1)
 
-          const eventType = typeof event.type === "string" ? event.type : undefined
-          if (!eventType) {
-            continue
-          }
-
-          switch (eventType) {
-            case "init": {
-              const incomingConversationId =
-                typeof event.conversationId === "string"
-                  ? event.conversationId
-                  : undefined
-              if (incomingConversationId) {
-                setConversationId(incomingConversationId)
-              }
-              break
+            if (!line) {
+              continue
             }
-            case "delta": {
-              const delta = typeof event.delta === "string" ? event.delta : ""
-              assistantContent += delta
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === tempAssistantId
-                    ? { ...msg, content: assistantContent }
-                    : msg
-                )
-              )
-              break
+
+            let event: Record<string, unknown>
+            try {
+              event = JSON.parse(line) as Record<string, unknown>
+            } catch {
+              continue
             }
-            case "usage": {
-              const usagePayload = event.usage as UsageSummary | undefined
-              if (usagePayload) {
-                setUsage(usagePayload)
-              }
-              break
+
+            const eventType = typeof event.type === "string" ? event.type : undefined
+            if (!eventType) {
+              continue
             }
-            case "complete": {
-              const messagesPayload = Array.isArray(event.messages)
-                ? (event.messages as Array<Record<string, unknown>>)
-                : []
-              const userRecordRaw = messagesPayload[0]
-              const assistantRecordRaw = messagesPayload[1]
-              const suggestionPayload = Array.isArray(event.commandSuggestions)
-                ? (event.commandSuggestions as CommandStub[])
-                : undefined
-              const planPayload = parsePlanningMetadata(event.planning)
 
-              const completedConversationId =
-                typeof event.conversationId === "string"
-                  ? event.conversationId
-                  : undefined
-              if (completedConversationId) {
-                setConversationId(completedConversationId)
-              }
-
-              if (userRecordRaw && typeof userRecordRaw === "object") {
-                const userRecord = userRecordRaw as Partial<ChatMessage>
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === tempUserId
-                      ? {
-                        ...msg,
-                        id: userRecord.id ?? msg.id,
-                        createdAt: userRecord.createdAt ?? msg.createdAt,
-                      }
-                      : msg
-                  )
-                )
-              }
-
-              let assistantRecordId: string | undefined
-              if (assistantRecordRaw && typeof assistantRecordRaw === "object") {
-                const assistantRecord = assistantRecordRaw as Partial<ChatMessage> & {
-                  mcpCommands?: CommandStub[]
+            switch (eventType) {
+              case "init": {
+                const incomingConversationId =
+                  typeof event.conversationId === "string"
+                    ? event.conversationId
+                    : undefined
+                if (incomingConversationId) {
+                  setConversationId(incomingConversationId)
                 }
-                assistantContent =
-                  assistantRecord.content ?? assistantContent
-                assistantRecordId = assistantRecord.id
+                break
+              }
+              case "delta": {
+                const delta = typeof event.delta === "string" ? event.delta : ""
+                assistantContent += delta
                 setMessages((prev) =>
                   prev.map((msg) =>
                     msg.id === tempAssistantId
-                      ? {
-                        ...msg,
-                        id: assistantRecord.id ?? msg.id,
-                        content:
-                          assistantRecord.content ?? assistantContent,
-                        createdAt:
-                          assistantRecord.createdAt ?? msg.createdAt,
-                        mcpCommands:
-                          assistantRecord.mcpCommands?.length
-                            ? assistantRecord.mcpCommands
-                            : suggestionPayload,
-                        plan: planPayload ?? assistantRecord.plan ?? msg.plan,
-                      }
+                      ? { ...msg, content: assistantContent }
                       : msg
                   )
                 )
+                break
               }
-
-              const usagePayload = event.usage as UsageSummary | undefined
-              if (usagePayload) {
-                setUsage(usagePayload)
-              }
-
-              if ((suggestionPayload || planPayload) && completedConversationId) {
-                setHistory((prev) =>
-                  prev.map((item) =>
-                    item.id === completedConversationId
-                      ? {
-                        ...item,
-                        messages: item.messages.map((msg) =>
-                          assistantRecordId && msg.id === assistantRecordId
-                            ? {
-                              ...msg,
-                              mcpCommands: suggestionPayload ?? msg.mcpCommands,
-                              plan: planPayload ?? msg.plan,
-                            }
-                            : msg
-                        ),
-                      }
-                      : item
-                  )
-                )
-              }
-
-              router.refresh()
-              streamFinished = true
-              setAgentActive(false)
-              break
-            }
-            case "error": {
-              const errorMessage =
-                typeof event.error === "string"
-                  ? event.error
-                  : "Failed to process AI request"
-              setError(errorMessage)
-              setAgentActive(false)
-              setMessages((prev) =>
-                prev.filter((msg) => msg.id !== tempAssistantId)
-              )
-              streamFinished = true
-              break
-            }
-            default:
-              // Handle agent stream events
-              if (eventType.startsWith("agent:")) {
-                const agentEvent: AgentStreamEvent | null =
-                  event && typeof event === "object" && "type" in event && typeof event.type === "string" && event.type.startsWith("agent:")
-                    ? (event as unknown as AgentStreamEvent)
-                    : null
-                if (!agentEvent) break
-                if (agentEvent.type === "agent:planning_start") {
-                  setAgentActive(true)
-                  setAgentEvents([agentEvent])
-                } else if (agentEvent.type === "agent:workflow_proposal") {
-                  setActiveWorkflow((agentEvent as unknown as { proposal: WorkflowProposal }).proposal)
-                  setAgentEvents((prev) => [...prev, agentEvent])
-                } else if (agentEvent.type === "agent:complete") {
-                  setAgentEvents((prev) => [...prev, agentEvent])
-                  // Keep active briefly so user can see the final status
-                } else {
-                  setAgentEvents((prev) => [...prev, agentEvent])
+              case "usage": {
+                const usagePayload = event.usage as UsageSummary | undefined
+                if (usagePayload) {
+                  setUsage(usagePayload)
                 }
+                break
               }
-              break
+              case "complete": {
+                const messagesPayload = Array.isArray(event.messages)
+                  ? (event.messages as Array<Record<string, unknown>>)
+                  : []
+                const userRecordRaw = messagesPayload[0]
+                const assistantRecordRaw = messagesPayload[1]
+                const suggestionPayload = Array.isArray(event.commandSuggestions)
+                  ? (event.commandSuggestions as CommandStub[])
+                  : undefined
+                const planPayload = parsePlanningMetadata(event.planning)
+
+                const completedConversationId =
+                  typeof event.conversationId === "string"
+                    ? event.conversationId
+                    : undefined
+                if (completedConversationId) {
+                  setConversationId(completedConversationId)
+                }
+
+                if (userRecordRaw && typeof userRecordRaw === "object") {
+                  const userRecord = userRecordRaw as Partial<ChatMessage>
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === tempUserId
+                        ? {
+                          ...msg,
+                          id: userRecord.id ?? msg.id,
+                          createdAt: userRecord.createdAt ?? msg.createdAt,
+                        }
+                        : msg
+                    )
+                  )
+                }
+
+                let assistantRecordId: string | undefined
+                if (assistantRecordRaw && typeof assistantRecordRaw === "object") {
+                  const assistantRecord = assistantRecordRaw as Partial<ChatMessage> & {
+                    mcpCommands?: CommandStub[]
+                  }
+                  assistantContent =
+                    assistantRecord.content ?? assistantContent
+                  assistantRecordId = assistantRecord.id
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === tempAssistantId
+                        ? {
+                          ...msg,
+                          id: assistantRecord.id ?? msg.id,
+                          content:
+                            assistantRecord.content ?? assistantContent,
+                          createdAt:
+                            assistantRecord.createdAt ?? msg.createdAt,
+                          mcpCommands:
+                            assistantRecord.mcpCommands?.length
+                              ? assistantRecord.mcpCommands
+                              : suggestionPayload,
+                          plan: planPayload ?? assistantRecord.plan ?? msg.plan,
+                        }
+                        : msg
+                    )
+                  )
+                }
+
+                const usagePayload = event.usage as UsageSummary | undefined
+                if (usagePayload) {
+                  setUsage(usagePayload)
+                }
+
+                if ((suggestionPayload || planPayload) && completedConversationId) {
+                  setHistory((prev) =>
+                    prev.map((item) =>
+                      item.id === completedConversationId
+                        ? {
+                          ...item,
+                          messages: item.messages.map((msg) =>
+                            assistantRecordId && msg.id === assistantRecordId
+                              ? {
+                                ...msg,
+                                mcpCommands: suggestionPayload ?? msg.mcpCommands,
+                                plan: planPayload ?? msg.plan,
+                              }
+                              : msg
+                          ),
+                        }
+                        : item
+                    )
+                  )
+                }
+
+                router.refresh()
+                streamFinished = true
+                setAgentActive(false)
+                break
+              }
+              case "error": {
+                const errorMessage =
+                  typeof event.error === "string"
+                    ? event.error
+                    : "Failed to process AI request"
+                setError(errorMessage)
+                setAgentActive(false)
+                setMessages((prev) =>
+                  prev.filter((msg) => msg.id !== tempAssistantId)
+                )
+                streamFinished = true
+                break
+              }
+              default:
+                // Handle agent stream events
+                if (eventType.startsWith("agent:")) {
+                  const agentEvent: AgentStreamEvent | null =
+                    event && typeof event === "object" && "type" in event && typeof event.type === "string" && event.type.startsWith("agent:")
+                      ? (event as unknown as AgentStreamEvent)
+                      : null
+                  if (!agentEvent) break
+                  if (agentEvent.type === "agent:planning_start") {
+                    setAgentActive(true)
+                    setAgentEvents([agentEvent])
+                  } else if (agentEvent.type === "agent:workflow_proposal") {
+                    setActiveWorkflow((agentEvent as unknown as { proposal: WorkflowProposal }).proposal)
+                    setAgentEvents((prev) => [...prev, agentEvent])
+                  } else if (agentEvent.type === "agent:complete") {
+                    setAgentEvents((prev) => [...prev, agentEvent])
+                    // Keep active briefly so user can see the final status
+                  } else {
+                    setAgentEvents((prev) => [...prev, agentEvent])
+                  }
+                }
+                break
+            }
           }
         }
+      } finally {
+        // Clear the stall timer when streaming ends (success or error)
+        if (staleTimer) clearTimeout(staleTimer)
       }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Something went wrong. Try again."
+      // Classify errors as retryable vs non-retryable
+      const isAbort = err instanceof DOMException && err.name === "AbortError"
+      const isNetworkError = err instanceof TypeError && err.message.includes("fetch")
+      const isStreamError = err instanceof Error && (
+        err.message.includes("network") ||
+        err.message.includes("abort") ||
+        err.message.includes("Failed to fetch") ||
+        err.message.includes("The operation was aborted")
       )
-      setMessages((prev) =>
-        prev.filter((msg) => msg.id !== tempAssistantId)
-      )
+      const retryable = isAbort || isNetworkError || isStreamError
+
+      const errorMessage = isAbort
+        ? "Connection timed out — the server stopped responding. Your request may still be processing."
+        : err instanceof Error
+          ? err.message
+          : "Something went wrong. Try again."
+
+      setError(errorMessage)
+      setIsRetryable(retryable)
+
+      if (!retryable) {
+        // Non-retryable: remove the assistant message
+        setMessages((prev) =>
+          prev.filter((msg) => msg.id !== tempAssistantId)
+        )
+      }
+      // Retryable: keep assistant message (shows partial progress)
     } finally {
       setIsSending(false)
     }
+  }
+
+  /**
+   * Retry the last failed request.
+   * Re-sends the saved payload to /api/ai/chat.
+   */
+  function handleRetry() {
+    if (!lastPayload || isSending) return
+    setError(null)
+    setIsRetryable(false)
+
+    // Create a synthetic form event and reinvoke handleSend
+    // But we need the same payload, so we restore input and call handleSend
+    const message = typeof lastPayload.message === "string" ? lastPayload.message : ""
+    setInput(message)
+    // Use a microtask so the state update takes effect before handleSend reads it
+    setTimeout(() => {
+      const form = document.querySelector<HTMLFormElement>('form')
+      if (form) form.requestSubmit()
+    }, 0)
   }
 
   function handleStartNew() {
     setConversationId(null)
     setMessages([])
     setError(null)
+    setIsRetryable(false)
+    setLastPayload(null)
     setInput("")
     setAttachments([])
     setAgentEvents([])
@@ -1248,8 +1324,20 @@ export function ProjectChat({
         )}
 
         {error && (
-          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {error}
+          <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <span className="flex-1">{error}</span>
+            {isRetryable && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleRetry}
+                disabled={isSending}
+                className="shrink-0 border-destructive/30 text-destructive hover:bg-destructive/20"
+              >
+                Retry
+              </Button>
+            )}
           </div>
         )}
         <form onSubmit={handleSend} className="space-y-3">
