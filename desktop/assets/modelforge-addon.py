@@ -447,19 +447,22 @@ class BlenderMCPServer:
 
     def get_viewport_screenshot(self, max_size=800, filepath=None, format="png"):
         """
-        Capture a screenshot of the current 3D viewport and save it to the specified path.
+        Capture a screenshot of the current 3D viewport.
 
         Parameters:
         - max_size: Maximum size in pixels for the largest dimension of the image
-        - filepath: Path where to save the screenshot file
+        - filepath: Optional path to save the screenshot file. If None, returns
+                    the image as base64-encoded data directly.
         - format: Image format (png, jpg, etc.)
 
-        Returns success/error status
+        Returns:
+        - If filepath: {success, width, height, filepath}
+        - If no filepath: {image (base64), width, height, format}
         """
-        try:
-            if not filepath:
-                return {"error": "No filepath provided"}
+        import tempfile
+        import base64
 
+        try:
             # Find the active 3D viewport
             area = None
             for a in bpy.context.screen.areas:
@@ -469,6 +472,13 @@ class BlenderMCPServer:
 
             if not area:
                 return {"error": "No 3D viewport found"}
+
+            # Determine file path — use temp if none provided
+            return_base64 = filepath is None
+            if return_base64:
+                tmp = tempfile.NamedTemporaryFile(suffix=f".{format}", delete=False)
+                filepath = tmp.name
+                tmp.close()
 
             # Take screenshot with proper context override
             with bpy.context.temp_override(area=area):
@@ -492,14 +502,36 @@ class BlenderMCPServer:
             # Cleanup Blender image data
             bpy.data.images.remove(img)
 
-            return {
-                "success": True,
-                "width": width,
-                "height": height,
-                "filepath": filepath
-            }
+            if return_base64:
+                # Read the file and encode as base64
+                with open(filepath, "rb") as f:
+                    image_data = base64.b64encode(f.read()).decode("utf-8")
+                # Clean up temp file
+                try:
+                    os.remove(filepath)
+                except OSError:
+                    pass
+                return {
+                    "image": image_data,
+                    "width": width,
+                    "height": height,
+                    "format": format,
+                }
+            else:
+                return {
+                    "success": True,
+                    "width": width,
+                    "height": height,
+                    "filepath": filepath
+                }
 
         except Exception as e:
+            # Clean up temp file on error
+            if return_base64 and filepath:
+                try:
+                    os.remove(filepath)
+                except OSError:
+                    pass
             return {"error": str(e)}
 
     def execute_code(self, code):

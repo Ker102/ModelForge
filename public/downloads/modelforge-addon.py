@@ -35,9 +35,6 @@ RODIN_FREE_TRIAL_KEY = os.environ.get("RODIN_FREE_TRIAL_KEY", "")
 REQ_HEADERS = requests.utils.default_headers()
 REQ_HEADERS.update({"User-Agent": "modelforge-blender"})
 
-# Default timeout for HTTP requests (seconds)
-DEFAULT_TIMEOUT = 30
-
 class BlenderMCPServer:
     def __init__(self, host='localhost', port=9876):
         self.host = host
@@ -450,19 +447,22 @@ class BlenderMCPServer:
 
     def get_viewport_screenshot(self, max_size=800, filepath=None, format="png"):
         """
-        Capture a screenshot of the current 3D viewport and save it to the specified path.
+        Capture a screenshot of the current 3D viewport.
 
         Parameters:
         - max_size: Maximum size in pixels for the largest dimension of the image
-        - filepath: Path where to save the screenshot file
+        - filepath: Optional path to save the screenshot file. If None, returns
+                    the image as base64-encoded data directly.
         - format: Image format (png, jpg, etc.)
 
-        Returns success/error status
+        Returns:
+        - If filepath: {success, width, height, filepath}
+        - If no filepath: {image (base64), width, height, format}
         """
-        try:
-            if not filepath:
-                return {"error": "No filepath provided"}
+        import tempfile
+        import base64
 
+        try:
             # Find the active 3D viewport
             area = None
             for a in bpy.context.screen.areas:
@@ -472,6 +472,13 @@ class BlenderMCPServer:
 
             if not area:
                 return {"error": "No 3D viewport found"}
+
+            # Determine file path — use temp if none provided
+            return_base64 = filepath is None
+            if return_base64:
+                tmp = tempfile.NamedTemporaryFile(suffix=f".{format}", delete=False)
+                filepath = tmp.name
+                tmp.close()
 
             # Take screenshot with proper context override
             with bpy.context.temp_override(area=area):
@@ -495,14 +502,36 @@ class BlenderMCPServer:
             # Cleanup Blender image data
             bpy.data.images.remove(img)
 
-            return {
-                "success": True,
-                "width": width,
-                "height": height,
-                "filepath": filepath
-            }
+            if return_base64:
+                # Read the file and encode as base64
+                with open(filepath, "rb") as f:
+                    image_data = base64.b64encode(f.read()).decode("utf-8")
+                # Clean up temp file
+                try:
+                    os.remove(filepath)
+                except OSError:
+                    pass
+                return {
+                    "image": image_data,
+                    "width": width,
+                    "height": height,
+                    "format": format,
+                }
+            else:
+                return {
+                    "success": True,
+                    "width": width,
+                    "height": height,
+                    "filepath": filepath
+                }
 
         except Exception as e:
+            # Clean up temp file on error
+            if return_base64 and filepath:
+                try:
+                    os.remove(filepath)
+                except OSError:
+                    pass
             return {"error": str(e)}
 
     def execute_code(self, code):
@@ -530,7 +559,7 @@ class BlenderMCPServer:
             if asset_type not in ["hdris", "textures", "models", "all"]:
                 return {"error": f"Invalid asset type: {asset_type}. Must be one of: hdris, textures, models, all"}
 
-            response = requests.get(f"https://api.polyhaven.com/categories/{asset_type}", headers=REQ_HEADERS, timeout=DEFAULT_TIMEOUT)
+            response = requests.get(f"https://api.polyhaven.com/categories/{asset_type}", headers=REQ_HEADERS)
             if response.status_code == 200:
                 return {"categories": response.json()}
             else:
@@ -552,7 +581,7 @@ class BlenderMCPServer:
             if categories:
                 params["categories"] = categories
 
-            response = requests.get(url, params=params, headers=REQ_HEADERS, timeout=DEFAULT_TIMEOUT)
+            response = requests.get(url, params=params, headers=REQ_HEADERS)
             if response.status_code == 200:
                 # Limit the response size to avoid overwhelming Blender
                 assets = response.json()
@@ -572,7 +601,7 @@ class BlenderMCPServer:
     def download_polyhaven_asset(self, asset_id, asset_type, resolution="1k", file_format=None):
         try:
             # First get the files information
-            files_response = requests.get(f"https://api.polyhaven.com/files/{asset_id}", headers=REQ_HEADERS, timeout=DEFAULT_TIMEOUT)
+            files_response = requests.get(f"https://api.polyhaven.com/files/{asset_id}", headers=REQ_HEADERS)
             if files_response.status_code != 200:
                 return {"error": f"Failed to get asset files: {files_response.status_code}"}
 
@@ -1000,7 +1029,27 @@ class BlenderMCPServer:
 
                 links.new(mapping.outputs['Vector'], tex_node.inputs['Vector'])
 
-                # Store reference for second-pass wiring (avoid double-linking)
+                # Connect to appropriate input on Principled BSDF
+                if map_type.lower() in ['color', 'diffuse', 'albedo']:
+                    links.new(tex_node.outputs['Color'], principled.inputs['Base Color'])
+                elif map_type.lower() in ['roughness', 'rough']:
+                    links.new(tex_node.outputs['Color'], principled.inputs['Roughness'])
+                elif map_type.lower() in ['metallic', 'metalness', 'metal']:
+                    links.new(tex_node.outputs['Color'], principled.inputs['Metallic'])
+                elif map_type.lower() in ['normal', 'nor', 'dx', 'gl']:
+                    # Add normal map node
+                    normal_map = nodes.new(type='ShaderNodeNormalMap')
+                    normal_map.location = (x_pos + 200, y_pos)
+                    links.new(tex_node.outputs['Color'], normal_map.inputs['Color'])
+                    links.new(normal_map.outputs['Normal'], principled.inputs['Normal'])
+                elif map_type.lower() in ['displacement', 'disp', 'height']:
+                    # Add displacement node
+                    disp_node = nodes.new(type='ShaderNodeDisplacement')
+                    disp_node.location = (x_pos + 200, y_pos - 200)
+                    disp_node.inputs['Scale'].default_value = 0.1  # Reduce displacement strength
+                    links.new(tex_node.outputs['Color'], disp_node.inputs['Height'])
+                    links.new(disp_node.outputs['Displacement'], output.inputs['Displacement'])
+
                 y_pos -= 250
 
             # Second pass: Connect nodes with proper handling for special cases
@@ -1225,7 +1274,7 @@ class BlenderMCPServer:
             case "FAL_AI":
                 return self.create_rodin_job_fal_ai(*args, **kwargs)
             case _:
-                return {"error": f"Unknown Hyper3D Rodin mode: {bpy.context.scene.blendermcp_hyper3d_mode}"}
+                return f"Error: Unknown Hyper3D Rodin mode!"
 
     def create_rodin_job_main_site(
             self,
@@ -1317,9 +1366,8 @@ class BlenderMCPServer:
         response = requests.get(
             f"https://queue.fal.run/fal-ai/hyper3d/requests/{request_id}/status",
             headers={
-                "Authorization": f"Key {bpy.context.scene.blendermcp_hyper3d_api_key}",
+                "Authorization": f"KEY {bpy.context.scene.blendermcp_hyper3d_api_key}",
             },
-            timeout=30,
         )
         data = response.json()
         return data
@@ -1398,7 +1446,7 @@ class BlenderMCPServer:
             case "FAL_AI":
                 return self.import_generated_asset_fal_ai(*args, **kwargs)
             case _:
-                return {"error": f"Unknown Hyper3D Rodin mode: {bpy.context.scene.blendermcp_hyper3d_mode}"}
+                return f"Error: Unknown Hyper3D Rodin mode!"
 
     def import_generated_asset_main_site(self, task_uuid: str, name: str):
         """Fetch the generated asset, import into blender"""
@@ -1448,8 +1496,6 @@ class BlenderMCPServer:
                 filepath=temp_file.name,
                 mesh_name=name
             )
-            if obj is None:
-                return {"succeed": False, "error": "Import succeeded but no mesh object was found"}
             result = {
                 "name": obj.name,
                 "type": obj.type,
@@ -1467,13 +1513,6 @@ class BlenderMCPServer:
             }
         except Exception as e:
             return {"succeed": False, "error": str(e)}
-        finally:
-            # Clean up temp file
-            try:
-                if temp_file and os.path.isfile(temp_file.name):
-                    os.unlink(temp_file.name)
-            except OSError:
-                pass
 
     def import_generated_asset_fal_ai(self, request_id: str, name: str):
         """Fetch the generated asset, import into blender"""
@@ -1515,8 +1554,6 @@ class BlenderMCPServer:
                 filepath=temp_file.name,
                 mesh_name=name
             )
-            if obj is None:
-                return {"succeed": False, "error": "Import succeeded but no mesh object was found"}
             result = {
                 "name": obj.name,
                 "type": obj.type,
@@ -1534,13 +1571,6 @@ class BlenderMCPServer:
             }
         except Exception as e:
             return {"succeed": False, "error": str(e)}
-        finally:
-            # Clean up temp file
-            try:
-                if temp_file and os.path.isfile(temp_file.name):
-                    os.unlink(temp_file.name)
-            except OSError:
-                pass
     #endregion
 
     #region Sketchfab API
@@ -1585,9 +1615,9 @@ class BlenderMCPServer:
                     "message": f"Error testing Sketchfab API key: {str(e)}"
                 }
 
-        # If api_key was present, the block above already returned.
-        # This handles: enabled with no key, or disabled entirely.
-        if enabled and not api_key:
+        if enabled and api_key:
+            return {"enabled": True, "message": "Sketchfab integration is enabled and ready to use."}
+        elif enabled and not api_key:
             return {
                 "enabled": False,
                 "message": """Sketchfab integration is currently enabled, but API key is not given. To enable it:

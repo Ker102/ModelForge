@@ -167,6 +167,9 @@ AVOID:
   • 'Emission' — split into 'Emission Color' and 'Emission Strength'.
   • 'Subsurface' — renamed to 'Subsurface Weight'.
   Always use .get() to access sockets safely and handle None.
+- REMOVED MATERIAL ATTRIBUTES (will crash):
+  • mat.shadow_method — does NOT exist. For transparent/alpha materials, use mat.blend_method = 'ALPHA_BLEND' instead.
+  • mat.shadow_mode — does NOT exist either. Do NOT attempt to set shadow properties on Material objects.
 
 BOOLEAN OPERATIONS:
 - The ONLY valid solvers are: 'EXACT', 'FLOAT', 'MANIFOLD'. NEVER use 'FAST'.
