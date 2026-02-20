@@ -150,45 +150,40 @@ function formatSceneSnapshot(payload: unknown): string | null {
   const objectCount = typeof scene.object_count === "number" ? scene.object_count : undefined
   const errorMessage = typeof scene.error === "string" ? (scene.error as string) : undefined
 
-  const objectList = Array.isArray(scene.objects) ? scene.objects.slice(0, 12) : []
-  const objects = objectList
-    .map((raw) => {
-      if (!raw || typeof raw !== "object") {
-        return "- (unknown object)"
+  const objectList = Array.isArray(scene.objects) ? scene.objects.slice(0, 30) : []
+  const structuredObjects = objectList
+    .filter((raw): raw is Record<string, unknown> => !!raw && typeof raw === "object")
+    .map((obj) => {
+      const entry: Record<string, unknown> = {
+        name: typeof obj.name === "string" ? obj.name : "(unnamed)",
+        type: typeof obj.type === "string" ? obj.type : "UNKNOWN",
       }
-      const obj = raw as Record<string, unknown>
-      const identifier = typeof obj.name === "string" ? obj.name : "(unnamed)"
-      const type = typeof obj.type === "string" ? obj.type : "UNKNOWN"
-      const locationArray = Array.isArray(obj.location) ? obj.location : []
-      const location = locationArray
-        .slice(0, 3)
-        .map((value) => (typeof value === "number" ? value.toFixed(2) : "?"))
-        .join(", ")
-      return `- ${identifier} [${type}] @ (${location})`
+      if (Array.isArray(obj.location)) {
+        entry.location = obj.location.slice(0, 3).map((v) => typeof v === "number" ? Math.round(v * 100) / 100 : 0)
+      }
+      if (Array.isArray(obj.dimensions)) {
+        entry.dimensions = obj.dimensions.slice(0, 3).map((v) => typeof v === "number" ? Math.round(v * 100) / 100 : 0)
+      }
+      return entry
     })
-    .join("\n")
 
-  const materials =
+  const materialsCount =
     typeof scene.materials_count === "number"
-      ? `Materials: ${scene.materials_count}`
+      ? scene.materials_count
       : undefined
 
-  let summary = `Scene: ${name}`
-  if (typeof objectCount === "number") {
-    summary += ` | Objects: ${objectCount}`
-  }
-  if (materials) {
-    summary += ` | ${materials}`
+  // Return structured JSON so the model can parse object names and locations precisely
+  const snapshot: Record<string, unknown> = {
+    scene: name,
+    object_count: objectCount,
+    materials_count: materialsCount,
+    objects: structuredObjects,
   }
   if (errorMessage) {
-    summary += ` | Error: ${errorMessage}`
+    snapshot.error = errorMessage
   }
 
-  if (objects) {
-    summary += `\nObjects:\n${objects}`
-  }
-
-  return summary
+  return JSON.stringify(snapshot, null, 2)
 }
 
 

@@ -29,7 +29,7 @@ PLANNING PRINCIPLES:
 4. Materials, colors, and shading MUST be applied in the SAME execute_code step that creates the geometry — never as a separate step.
 5. Plan order depends on the request type:
    - NEW SCENE: inspect → clear default objects → create geometry (with materials) → lighting → camera.
-   - EDIT SCENE: inspect → modify/add only what the user asked for. NEVER delete objects the user didn't mention. Preserve existing lights and camera.
+   - EDIT SCENE: inspect → modify/add only what the user asked for. NEVER delete objects the user didn't mention. Preserve existing lights and camera. When placing objects ON or NEAR existing objects, reference the EXACT object name and location from get_scene_info in your step description (e.g. "Place 'Hot_Sword' on top of 'Anvil' at its location (0.0, 0.5, 0.8)"). NEVER recreate objects that already exist in the scene — use their names and known positions.
 6. Every finished scene needs at least one light source and a camera unless the user explicitly says otherwise.
 7. Use descriptive object names (e.g., "Castle_Tower_Left") so downstream steps can reference them.
 8. Prefer fewer, well-described execute_code steps over many tiny ones — each one has overhead.

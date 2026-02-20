@@ -115,6 +115,9 @@ export class PlanExecutor {
       const allowSketchfab = options.allowSketchfab
       const allowPolyHaven = options.allowPolyHaven
 
+      // Track scene state from get_scene_info/get_all_object_info for code gen context
+      let sceneObjectContext = ""
+
       for (let i = 0; i < plan.steps.length; i++) {
         const result = await agent.executeStep(i, async (step) => {
           // Tool restriction checks
@@ -171,7 +174,7 @@ export class PlanExecutor {
             try {
               generatedCode = await generateCode({
                 request: description,
-                context: `This is one step in a larger plan for: "${userRequest}". Generate code for ONLY the described task, not the entire plan.${ragContext ? `\n\n## Reference Blender Python Scripts\n${ragContext}` : ""}`,
+                context: `This is one step in a larger plan for: "${userRequest}". Generate code for ONLY the described task, not the entire plan.${sceneObjectContext ? `\n\n## Current Scene Objects\nThese objects already exist in the scene. Reference them by name, do NOT recreate them:\n${sceneObjectContext}` : ""}${ragContext ? `\n\n## Reference Blender Python Scripts\n${ragContext}` : ""}`,
                 applyMaterials: true,
                 namingPrefix: "ModelForge_",
                 constraints: step.expected_outcome,
@@ -201,6 +204,28 @@ export class PlanExecutor {
           }
 
           const toolResult = await client.execute(command)
+
+          // Capture scene state from inspection steps for code gen context
+          if ((step.action === "get_scene_info" || step.action === "get_all_object_info") && toolResult) {
+            try {
+              const payload = typeof toolResult === "object" ? toolResult as Record<string, unknown> : {}
+              const result = typeof payload.result === "object" && payload.result ? payload.result as Record<string, unknown> : payload
+              const objects = Array.isArray(result.objects) ? result.objects : []
+              const compactObjects = objects.slice(0, 30)
+                .filter((o): o is Record<string, unknown> => !!o && typeof o === "object")
+                .map((o) => ({
+                  name: o.name,
+                  type: o.type,
+                  location: Array.isArray(o.location) ? o.location.slice(0, 3).map((v) => typeof v === "number" ? Math.round(v * 100) / 100 : 0) : undefined,
+                  dimensions: Array.isArray(o.dimensions) ? o.dimensions.slice(0, 3).map((v) => typeof v === "number" ? Math.round(v * 100) / 100 : 0) : undefined,
+                }))
+              if (compactObjects.length > 0) {
+                sceneObjectContext = JSON.stringify(compactObjects, null, 2)
+              }
+            } catch {
+              // Non-fatal — scene context is a nice-to-have
+            }
+          }
 
           // Log specific tool execution
           logs.push({
