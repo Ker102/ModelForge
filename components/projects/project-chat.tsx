@@ -466,9 +466,10 @@ export function ProjectChat({
       let assistantContent = ""
       let streamFinished = false
 
-      // Stream stall timeout — abort if no data received for 180 seconds
-      // (deep-thinking models like Gemini 3.1 can take 60-120s per reasoning phase)
-      const STREAM_STALL_TIMEOUT_MS = 180_000
+      // Stream stall timeout — abort if no data received within this window.
+      // Deep-thinking models (Gemini 3.1) can take 60-120s per reasoning phase.
+      const STREAM_STALL_TIMEOUT_MS =
+        Number(process.env.NEXT_PUBLIC_STREAM_STALL_TIMEOUT_MS) || 180_000
       let staleTimer: ReturnType<typeof setTimeout> | null = null
 
       const resetStaleTimer = () => {
