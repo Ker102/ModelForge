@@ -116,6 +116,8 @@ npm run test:user        # Create test user
 | **Phase 2: Neural 3D Layer** | ✅ Complete | 5 providers (Hunyuan Shape/Paint/Part, TRELLIS 2, YVO3D) + hybrid pipeline |
 | **Phase 4: AI Strategy Router** | ✅ Complete | Keyword + LLM classification, user override, integrated into chat pipeline |
 | **Phase 3: Guided Workflow System** | ✅ Complete | WorkflowAdvisor, per-step UI, workflow-step API, mock neural server |
+| **Blender 5.x API Compatibility** | ✅ Complete | 21 breaking change categories in RAG, EEVEE/blend_method/shadow_method fixes |
+| **Planner Edit Awareness** | ✅ Complete | Scene state → code gen, structured JSON snapshots, stronger edit rules |
 
 ### Roadmap
 - [x] Gemini-backed conversational planning
@@ -136,16 +138,40 @@ npm run test:user        # Create test user
 - [ ] Phase 3: Deploy neural models (Azure ML/HF Inference Endpoints)
 - [x] **Phase 4: AI strategy router (auto-select procedural vs neural vs hybrid)**
 - [x] **Phase 3: Guided workflow system (per-step tool recommendations, human-in-the-loop)**
+- [x] **Blender 5.x API compatibility (21 breaking changes, blend_method, EEVEE removals)**
+- [x] **Planner edit awareness (scene state → code gen, structured JSON, object referencing)**
 - [ ] 🟠 **Tool use guide in system prompt** — structured guide for all 14+ MCP commands and how they modify scene state
 - [ ] 🟡 **CRAG pipeline** — relevance grading + re-ranking for RAG retrieval quality
 - [ ] 🔵 Search engine integration (Brave Search API as in-agent tool) — only if testing reveals knowledge gaps
 - [ ] Phase 5: Credit system + production export pipeline
 - [ ] Material/color quality enhancement
 - [ ] Production desktop app packaging
+- [ ] 🟠 **CodeRabbit review** — address PR review comments from recent commits
 
 ---
 
 ## 📝 Session Log
+
+### 2026-02-21 (Blender 5.x API Fixes + Planner Edit Awareness)
+- **Stack Restart Fix**: Next.js 16 with Turbopack wasn't binding to localhost — fixed by running `npx next dev -H localhost -p 3000`. OAuth redirect broke with `-H 0.0.0.0` (redirected browser to `0.0.0.0:3000`).
+- **Blacksmith Forge Test Analysis** (5 runs total across sessions):
+  - Runs 1-2: Timeout (60s too short for deep thinking) → fixed to 180s
+  - Run 3: 6/7 steps passed, step 7 crashed 3x on `eevee.use_ssr` (poisoned by outdated RAG script)
+  - Run 4: 5/5 steps passed, but step 5 failed 3x: `blend_method = 'ALPHA_BLEND'` (wrong value) + `mat.shadow_method` (removed API)
+  - Run 5: All steps passed ✅ (after fixes)
+- **API Compatibility Fixes**:
+  - `prompts.ts`: Fixed `ALPHA_BLEND` → `BLEND`, strengthened `shadow_method`/`shadow_mode` AVOID rules
+  - `api_version_compatibility.py`: Added 3 new sections (19-21): `blend_method` valid values, EEVEE removed properties, `create_transparent_material()` pattern
+  - `eevee_setup.py`: Rewrote for 5.x — removed `use_ssr`, `use_gtao`, `use_bloom`, `taa_render_samples`. Replaced bloom with compositor Glare node.
+  - `toon_setup.py`: Added `use_nodes = True`, removed `use_ssr`/`shadow_cascade_size`
+- **Planner Edit Awareness** (root cause: planner ignored existing objects during edits):
+  - `executor.ts`: Captures `get_scene_info`/`get_all_object_info` structured data (name, type, location, dimensions) and injects into every `generateCode()` call as `## Current Scene Objects`
+  - `route.ts`: Scene snapshot now returns structured JSON instead of formatted string. Object cap increased 12 → 30.
+  - `prompts.ts`: Edit rule 5 now mandates referencing existing objects by exact name + coordinates, never recreating existing objects
+- **Re-ingested** all 135 scripts into pgvector after RAG fixes
+- **Files Modified**: `lib/ai/prompts.ts`, `lib/orchestration/executor.ts`, `app/api/ai/chat/route.ts`, `data/blender-scripts/api_version_compatibility.py`, `data/blender-scripts/tasks/rendering/eevee_setup.py`, `data/blender-scripts/tasks/rendering/toon_setup.py`, `components/projects/project-chat.tsx`
+- **TypeScript**: `tsc --noEmit` passed with 0 errors after all changes
+- **Git**: 6 commits pushed to main
 
 ### 2026-02-18 (Phase 3: Guided Workflow System)
 - **New Module `lib/orchestration/workflow-types.ts`** — `WorkflowStep`, `WorkflowProposal`, `WorkflowStepAction`, `WorkflowStepStatus`, `WorkflowStepResult` types
