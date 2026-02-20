@@ -6,7 +6,7 @@
   "tags": ["npr", "toon", "cartoon", "stylized", "outline", "freestyle"],
   "difficulty": "intermediate",
   "description": "Sets up non-photorealistic/toon rendering with outlines.",
-  "blender_version": "3.0+",
+  "blender_version": "5.0+",
   "estimated_objects": 0
 }
 """
@@ -34,6 +34,7 @@ def setup_toon_shading(
         The created material
     """
     mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
     
@@ -154,17 +155,13 @@ def setup_grease_pencil_outline(
 
 
 def setup_eevee_for_toon() -> None:
-    """Configure Eevee settings for toon rendering."""
+    """Configure Eevee settings for toon rendering (Blender 5.x)."""
     bpy.context.scene.render.engine = 'BLENDER_EEVEE'
     
+    # Note: In Blender 5.x, use_ssr, taa_render_samples, shadow_cascade_size
+    # are REMOVED. EEVEE handles reflections and shadows automatically.
     eevee = bpy.context.scene.eevee
-    eevee.taa_render_samples = 32
-    
-    # Disable reflections/refractions for flat look
-    eevee.use_ssr = False
-    
-    # Simple shadows
-    eevee.shadow_cascade_size = '1024'
+    eevee.taa_samples = 32
 
 
 def create_toon_scene(

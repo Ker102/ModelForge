@@ -5,8 +5,8 @@
   "subcategory": "optimization",
   "tags": ["eevee", "realtime", "optimization", "performance", "rendering"],
   "difficulty": "intermediate",
-  "description": "Optimized Eevee render settings for fast previews and final renders.",
-  "blender_version": "3.0+",
+  "description": "Optimized Eevee render settings for Blender 5.x fast previews and final renders.",
+  "blender_version": "5.0+",
   "estimated_objects": 0
 }
 """
@@ -15,7 +15,14 @@ import bpy
 
 def setup_eevee_quality(quality: str = 'MEDIUM') -> dict:
     """
-    Configure Eevee quality preset.
+    Configure Eevee quality preset for Blender 5.x.
+    
+    NOTE: In Blender 5.x, many EEVEE properties were removed or changed:
+    - use_ssr, use_ssr_refraction — REMOVED (reflections are automatic)
+    - use_gtao — REMOVED (AO is always active)
+    - use_bloom — REMOVED (use compositor Glare node instead)
+    - shadow_cascade_size — REMOVED
+    - taa_render_samples — REMOVED (use scene.eevee.sampling_render_samples)
     
     Args:
         quality: 'LOW', 'MEDIUM', 'HIGH', 'ULTRA'
@@ -24,97 +31,28 @@ def setup_eevee_quality(quality: str = 'MEDIUM') -> dict:
         Dictionary with applied settings
     """
     bpy.context.scene.render.engine = 'BLENDER_EEVEE'
-    eevee = bpy.context.scene.eevee
     
     presets = {
         'LOW': {
             'samples': 16,
-            'shadows': '512',
-            'ssr': False,
-            'ao': True,
-            'bloom': False
         },
         'MEDIUM': {
-            'samples': 32,
-            'shadows': '1024',
-            'ssr': True,
-            'ao': True,
-            'bloom': True
+            'samples': 64,
         },
         'HIGH': {
-            'samples': 64,
-            'shadows': '2048',
-            'ssr': True,
-            'ao': True,
-            'bloom': True
+            'samples': 128,
         },
         'ULTRA': {
-            'samples': 128,
-            'shadows': '4096',
-            'ssr': True,
-            'ao': True,
-            'bloom': True
+            'samples': 256,
         }
     }
     
     preset = presets.get(quality, presets['MEDIUM'])
     
-    eevee.taa_render_samples = preset['samples']
-    eevee.shadow_cascade_size = preset['shadows']
-    eevee.use_ssr = preset['ssr']
-    eevee.use_gtao = preset['ao']
-    eevee.use_bloom = preset['bloom']
+    # Blender 5.x: use scene render samples
+    bpy.context.scene.eevee.taa_samples = preset['samples']
     
     return preset
-
-
-def enable_eevee_reflections(
-    quality: str = 'MEDIUM',
-    thickness: float = 0.5
-) -> None:
-    """Enable screen-space reflections."""
-    eevee = bpy.context.scene.eevee
-    eevee.use_ssr = True
-    eevee.use_ssr_refraction = True
-    eevee.ssr_thickness = thickness
-    
-    if quality == 'HIGH':
-        eevee.ssr_quality = 1.0
-        eevee.ssr_max_roughness = 0.5
-    else:
-        eevee.ssr_quality = 0.5
-        eevee.ssr_max_roughness = 0.3
-
-
-def enable_eevee_shadows(soft: bool = True, contact: bool = True) -> None:
-    """Configure shadow settings."""
-    eevee = bpy.context.scene.eevee
-    eevee.shadow_soft_max = 50 if soft else 0
-    eevee.use_shadow_contact = contact
-
-
-def enable_eevee_ambient_occlusion(
-    distance: float = 0.5,
-    factor: float = 1.0
-) -> None:
-    """Enable ambient occlusion."""
-    eevee = bpy.context.scene.eevee
-    eevee.use_gtao = True
-    eevee.gtao_distance = distance
-    eevee.gtao_factor = factor
-
-
-def enable_eevee_bloom(
-    threshold: float = 0.8,
-    intensity: float = 0.05,
-    radius: float = 6.5
-) -> None:
-    """Enable bloom/glow effect."""
-    eevee = bpy.context.scene.eevee
-    eevee.use_bloom = True
-    eevee.bloom_threshold = threshold
-    eevee.bloom_intensity = intensity
-    eevee.bloom_radius = radius
 
 
 def add_reflection_probe(
@@ -124,7 +62,10 @@ def add_reflection_probe(
     name: str = "ReflectionProbe"
 ) -> bpy.types.Object:
     """
-    Add reflection/light probe.
+    Add reflection/light probe for EEVEE.
+    
+    In Blender 5.x, reflections are handled automatically but probes
+    can still improve quality for specific areas.
     
     Args:
         location: Probe position
@@ -175,6 +116,57 @@ def add_irradiance_volume(
     return volume
 
 
+def setup_bloom_compositor(
+    threshold: float = 0.8,
+    mix: float = 0.5,
+    size: int = 8
+) -> None:
+    """
+    Set up bloom/glow effect using the compositor (Blender 5.x).
+    
+    In Blender 5.x, eevee.use_bloom is removed. Use a compositor
+    Glare node instead for bloom/glow effects.
+    
+    Args:
+        threshold: Brightness threshold for bloom
+        mix: Mix factor (0-1)
+        size: Glare size (1-9)
+    """
+    scene = bpy.context.scene
+    scene.use_nodes = True
+    tree = scene.node_tree
+    
+    # Find existing render layers and composite nodes
+    render_node = None
+    composite_node = None
+    for node in tree.nodes:
+        if node.type == 'R_LAYERS':
+            render_node = node
+        elif node.type == 'COMPOSITE':
+            composite_node = node
+    
+    if not render_node or not composite_node:
+        return
+    
+    # Add Glare node for bloom
+    glare = tree.nodes.new('CompositorNodeGlare')
+    glare.glare_type = 'BLOOM'
+    glare.threshold = threshold
+    glare.mix = mix
+    glare.size = size
+    glare.location = (render_node.location.x + 300, render_node.location.y)
+    
+    # Rewire: Render Layers -> Glare -> Composite
+    # Remove existing link from render to composite
+    for link in tree.links:
+        if link.to_node == composite_node and link.to_socket.name == 'Image':
+            tree.links.remove(link)
+            break
+    
+    tree.links.new(render_node.outputs['Image'], glare.inputs['Image'])
+    tree.links.new(glare.outputs['Image'], composite_node.inputs['Image'])
+
+
 def bake_lighting() -> None:
     """Bake indirect lighting for Eevee."""
     bpy.ops.scene.light_cache_bake()
@@ -182,7 +174,6 @@ def bake_lighting() -> None:
 
 if __name__ == "__main__":
     setup_eevee_quality('HIGH')
-    enable_eevee_reflections()
-    enable_eevee_bloom()
+    setup_bloom_compositor()
     
-    print("Configured Eevee for high quality rendering")
+    print("Configured Eevee for high quality rendering (Blender 5.x)")

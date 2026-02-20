@@ -170,6 +170,7 @@ AVOID:
 - REMOVED MATERIAL ATTRIBUTES (will crash):
   • mat.shadow_method — does NOT exist. For transparent/alpha materials, use mat.blend_method = 'ALPHA_BLEND' instead.
   • mat.shadow_mode — does NOT exist either. Do NOT attempt to set shadow properties on Material objects.
+  • eevee.use_ssr / eevee.use_ssr_refraction / eevee.use_screen_space_reflections — ALL REMOVED in Blender 5.x. EEVEE handles reflections automatically. Do NOT access SceneEEVEE properties for SSR.
 
 BOOLEAN OPERATIONS:
 - The ONLY valid solvers are: 'EXACT', 'FLOAT', 'MANIFOLD'. NEVER use 'FAST'.
