@@ -208,6 +208,8 @@ export class PlanExecutor {
             tool: step.action,
             parameters: step.parameters ?? {},
             result: toolResult,
+            logType: "execute",
+            detail: `Step result: ${step.action}`,
           })
 
           return toolResult
@@ -244,16 +246,34 @@ export class PlanExecutor {
               params: { width: 1920, height: 1080, format: "png" },
             })
 
-            const screenshotData = screenshotResult?.result as Record<string, unknown> | undefined
-            const imageBase64 = screenshotData?.image as string | undefined
+            // The MCP client returns McpResponse<T> where .result contains the data.
+            // Blender MCP addons may nest the response differently, so try multiple paths.
+            const topLevel = screenshotResult as Record<string, unknown>
+            const resultLevel = screenshotResult?.result as Record<string, unknown> | undefined
+
+            // Try: result.image (standard), then top-level image, then result.result.image (double-nested)
+            const imageBase64 = (
+              resultLevel?.image ??
+              topLevel?.image ??
+              (resultLevel?.result as Record<string, unknown> | undefined)?.image
+            ) as string | undefined
+
             if (!imageBase64) {
+              // Log the actual response shape for debugging
+              const debugKeys = {
+                topLevelKeys: Object.keys(topLevel || {}),
+                resultKeys: resultLevel ? Object.keys(resultLevel) : 'no result',
+                status: screenshotResult?.status,
+                message: screenshotResult?.message,
+              }
+              console.warn('[Executor] Screenshot data not found. Response shape:', JSON.stringify(debugKeys))
               logs.push({
                 timestamp: new Date().toISOString(),
                 tool: "visual_feedback",
-                parameters: { iteration: vIter + 1 },
+                parameters: { iteration: vIter + 1, debugKeys },
                 error: "No screenshot data received from Blender MCP",
                 logType: "vision",
-                detail: "Viewport screenshot capture failed — skipping visual feedback",
+                detail: `Viewport screenshot capture failed — response keys: ${JSON.stringify(debugKeys)}`,
               })
               break
             }
