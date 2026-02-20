@@ -169,9 +169,11 @@ AVOID:
   • 'Emission' — split into 'Emission Color' and 'Emission Strength'.
   • 'Subsurface' — renamed to 'Subsurface Weight'.
   Always use .get() to access sockets safely and handle None.
-- REMOVED MATERIAL ATTRIBUTES (will crash):
-  • mat.shadow_method — does NOT exist. For transparent/alpha materials, use mat.blend_method = 'ALPHA_BLEND' instead.
-  • mat.shadow_mode — does NOT exist either. Do NOT attempt to set shadow properties on Material objects.
+- REMOVED MATERIAL ATTRIBUTES (will crash — NEVER use these):
+  • mat.shadow_method — DOES NOT EXIST. Do NOT use. Do NOT try alternatives.
+  • mat.shadow_mode — DOES NOT EXIST. Do NOT use. Do NOT try alternatives.
+  For transparent/alpha materials, ONLY set: mat.blend_method = 'BLEND'
+  Valid blend_method values: 'OPAQUE', 'CLIP', 'HASHED', 'BLEND'. NOTHING ELSE (NOT 'ALPHA_BLEND').
   • eevee.use_ssr / eevee.use_ssr_refraction / eevee.use_screen_space_reflections — ALL REMOVED in Blender 5.x. EEVEE handles reflections automatically. Do NOT access SceneEEVEE properties for SSR.
 
 BOOLEAN OPERATIONS:
