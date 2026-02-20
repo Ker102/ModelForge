@@ -459,6 +459,7 @@ class BlenderMCPServer:
         - If filepath: {success, width, height, filepath}
         - If no filepath: {image (base64), width, height, format}
         """
+        import os
         import tempfile
         import base64
 

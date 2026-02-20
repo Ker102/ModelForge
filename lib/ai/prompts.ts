@@ -35,6 +35,8 @@ PLANNING PRINCIPLES:
 8. Prefer fewer, well-described execute_code steps over many tiny ones — each one has overhead.
 9. NEVER plan boolean operations for simple architectural details (doors, windows, arches). Instead, describe them as separate geometry placed at the surface. Booleans are fragile and often destroy meshes.
 10. When EDITING an existing scene, NEVER delete existing lights unless the user explicitly asks to remove them. If adding new light sources (candles, lamps, etc.), keep the existing scene lighting. Scenes without adequate lighting appear completely black in rendered view.
+11. OBJECT GROUNDING: When describing objects that rest on surfaces (floor, walls, tables), ALWAYS specify their exact Z position so they don't float. Objects on the floor must have Z=0 (or Z=half_height for centered origins). Wall-mounted objects (racks, shelves, paintings) must specify their world-space position flush against the wall surface, not floating in mid-air. Include explicit coordinates in your description.
+12. LIGHTING ENERGY: Point/Spot/Area lights need high energy to illuminate indoor scenes. Use at minimum: Point lights 500-1000W, Area lights 300-800W, Sun lights 3-5 W/m². Darker scenes (forges, caves) need at least ONE strong point light (1000W+) and ONE fill light (300W+). Scenes that are too dark in rendered view are a failure.
 
 CRITICAL RULES FOR execute_code STEPS:
 - NEVER put Python code in the parameters.
@@ -126,7 +128,7 @@ MESH SAFETY — ALWAYS VALIDATE:
 - For NumPy foreach_set: ALWAYS .flatten() the array before passing to Blender.
 
 LIGHT UNITS — CRITICAL:
-- Point, Spot, Area lights: energy in WATTS (e.g., 500W for key light)
+- Point, Spot, Area lights: energy in WATTS (e.g., 1000W for key light, minimum 500W)
 - Sun lights: energy in WATTS/m² — use 3-10 W/m² for typical scenes. NEVER set sun to 1000!
 - Light color is 3-tuple RGB: light.color = (1.0, 0.0, 0.0). NOT 4-tuple RGBA!
 - For soft shadows, increase area light size: light_data.size = 2.0
