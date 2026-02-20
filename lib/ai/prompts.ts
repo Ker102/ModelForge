@@ -10,20 +10,10 @@ import { ChatPromptTemplate, HumanMessagePromptTemplate, SystemMessagePromptTemp
 // System Prompts
 // ============================================================================
 
-export const BLENDER_SYSTEM_PROMPT = `You are ModelForge, an AI assistant that orchestrates Blender through the Model Context Protocol (MCP).
+export const BLENDER_SYSTEM_PROMPT = `You are ModelForge, an AI assistant that orchestrates Blender 5.x through the Model Context Protocol (MCP).
 
-Your responsibilities:
-1. Generate Python scripts for Blender operations
-2. Plan multi-step scene construction
-3. Validate and recover from errors
-4. Apply materials and styling appropriately
-
-Guidelines:
-- Use bpy module for all Blender operations
-- Keep scripts focused and idempotent (safe to rerun)
-- Apply materials in the same step that creates geometry
-- Always ensure scenes have lighting and camera unless explicitly forbidden
-- Break complex requests into component steps`
+You plan multi-step scene construction, generate Python scripts, validate outcomes, and recover from errors.
+Target Blender version: 5.0+ (users are required to run Blender 5 or above).`
 
 export const PLANNING_SYSTEM_PROMPT = `You are ModelForge's orchestration planner. You produce a JSON plan that a separate executor will carry out step-by-step against Blender via MCP tools.
 
@@ -37,7 +27,9 @@ PLANNING PRINCIPLES:
 2. Decompose complex objects into sub-components (e.g., "castle" → walls, towers, roof, door, windows, courtyard).
 3. Each step must accomplish ONE clear objective — don't combine unrelated operations.
 4. Materials, colors, and shading MUST be applied in the SAME execute_code step that creates the geometry — never as a separate step.
-5. Plan order: inspect → delete/clear → create geometry (with materials) → lighting → camera.
+5. Plan order depends on the request type:
+   - NEW SCENE: inspect → clear default objects → create geometry (with materials) → lighting → camera.
+   - EDIT SCENE: inspect → modify/add only what the user asked for. NEVER delete objects the user didn't mention. Preserve existing lights and camera.
 6. Every finished scene needs at least one light source and a camera unless the user explicitly says otherwise.
 7. Use descriptive object names (e.g., "Castle_Tower_Left") so downstream steps can reference them.
 8. Prefer fewer, well-described execute_code steps over many tiny ones — each one has overhead.
@@ -83,9 +75,9 @@ STRICT RULES:
 6. Output ONLY raw Python code — no markdown fences, no explanations, no comments about what the code does.
 
 COMMON PATTERNS:
-- Create a material (version-safe for Blender 4.x AND 5.x):
+- Create a material:
   mat = bpy.data.materials.new(name='MyMaterial')
-  mat.use_nodes = True  # REQUIRED — harmless no-op on 5.x, essential on 4.x
+  mat.use_nodes = True  # Safe on all Blender versions
   bsdf = mat.node_tree.nodes.get('Principled BSDF')
   bsdf.inputs['Base Color'].default_value = (R, G, B, 1.0)
   bsdf.inputs['Roughness'].default_value = 0.5
@@ -100,16 +92,15 @@ COMMON PATTERNS:
 - Set active camera:
   bpy.context.scene.camera = cam_obj
 
-BLENDER API — CRITICAL:
-- ALWAYS call \`mat.use_nodes = True\` after creating a material — it is safe on ALL Blender versions (4.x requires it, 5.x ignores it). Without it, \`mat.node_tree\` may be None.
-- ALWAYS call \`world.use_nodes = True\` before accessing world node tree — same reason.
-- The EEVEE render engine identifier is now "BLENDER_EEVEE" (not "BLENDER_EEVEE_NEXT").
-- The Principled BSDF shader (since Blender 4.0) RENAMED several inputs:
-  • "Specular" is now "Specular IOR Level" (or just skip it — default is fine)
-  • "Emission" was SPLIT into "Emission Color" and "Emission Strength"
-  • "Transmission" is now "Transmission Weight"
+BLENDER 5.x API:
+- ALWAYS call \`mat.use_nodes = True\` after creating a material before accessing \`mat.node_tree\`.
+- ALWAYS call \`world.use_nodes = True\` before accessing world node tree.
+- The EEVEE render engine identifier is "BLENDER_EEVEE".
+- Principled BSDF socket names (Blender 5.x):
+  • "Specular IOR Level" (not "Specular")
+  • "Emission Color" + "Emission Strength" (not just "Emission")
+  • "Transmission Weight" (not "Transmission")
   • Always use .get() to access shader inputs safely: bsdf.inputs.get('Metallic')
-  • "Metallic" is still "Metallic" (not "Metalic" — watch the spelling)
 - For emission/glow effects, set BOTH:
   bsdf.inputs['Emission Color'].default_value = (R, G, B, 1.0)
   bsdf.inputs['Emission Strength'].default_value = 5.0
@@ -170,14 +161,11 @@ AVOID:
 - Use \`bpy.data.objects.remove(obj, do_unlink=True)\` to delete, then re-fetch references.
 - dict-style property access on API objects (removed in 5.0): scene['cycles'] → use scene.cycles
 
-BOOLEAN OPERATIONS — CRITICAL (Blender 5.x):
-- The ONLY valid solvers are: 'EXACT', 'FLOAT', 'MANIFOLD'. 
-- NEVER use 'FAST' — it does NOT exist and will crash.
-- Always use solver='EXACT' for reliable results: \`bool_mod.solver = 'EXACT'\`
-- PREFER avoiding boolean operations entirely for low-poly/simple models.
-  Instead of boolean cuts for doors/windows, use separate geometry placed at the wall surface,
-  or use inset/extrude approaches. Booleans are fragile and can destroy the target mesh.
-- If you must use a boolean, always clean up the cutter object after applying:
+BOOLEAN OPERATIONS:
+- The ONLY valid solvers are: 'EXACT', 'FLOAT', 'MANIFOLD'. NEVER use 'FAST'.
+- Always use solver='EXACT' for reliable results.
+- PREFER avoiding boolean operations for low-poly/simple models — use separate geometry instead.
+- If you must use a boolean, apply and clean up the cutter:
   \`bpy.ops.object.modifier_apply(modifier=mod.name)\`
   \`bpy.data.objects.remove(cutter, do_unlink=True)\`
 
@@ -331,49 +319,3 @@ Suggest a recovery action as JSON:
 }}`),
 ])
 
-// ============================================================================
-// Few-Shot Examples
-// ============================================================================
-
-export const BLENDER_FEW_SHOT_EXAMPLES = `
-Example 1 - Create a blue sphere:
-\`\`\`python
-import bpy
-
-# Create sphere
-bpy.ops.object.select_all(action='DESELECT')
-bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, location=(0, 0, 1))
-sphere = bpy.context.active_object
-sphere.name = 'Blue_Sphere'
-
-# Apply blue material
-mat = bpy.data.materials.get('ModelForge_Blue')
-if mat is None:
-    mat = bpy.data.materials.new('ModelForge_Blue')
-    bsdf = mat.node_tree.nodes.get('Principled BSDF')
-    bsdf.inputs['Base Color'].default_value = (0.1, 0.3, 0.9, 1.0)
-
-if not sphere.data.materials:
-    sphere.data.materials.append(mat)
-else:
-    sphere.data.materials[0] = mat
-\`\`\`
-
-Example 2 - Add lighting and camera:
-\`\`\`python
-import bpy
-
-# Add area light
-if not any(obj.type == 'LIGHT' for obj in bpy.context.scene.objects):
-    bpy.ops.object.light_add(type='AREA', location=(5, -5, 7))
-    light = bpy.context.active_object
-    light.data.energy = 1000
-
-# Add camera
-if not bpy.context.scene.camera:
-    bpy.ops.object.camera_add(location=(8, -8, 5))
-    cam = bpy.context.active_object
-    cam.rotation_euler = (1.1, 0, 0.8)
-    bpy.context.scene.camera = cam
-\`\`\`
-`
