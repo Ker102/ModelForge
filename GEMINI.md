@@ -118,6 +118,7 @@ npm run test:user        # Create test user
 | **Phase 3: Guided Workflow System** | ✅ Complete | WorkflowAdvisor, per-step UI, workflow-step API, mock neural server |
 | **Blender 5.x API Compatibility** | ✅ Complete | 21 breaking change categories in RAG, EEVEE/blend_method/shadow_method fixes |
 | **Planner Edit Awareness** | ✅ Complete | Scene state → code gen, structured JSON snapshots, stronger edit rules |
+| **CodeRabbit PR Review** | ✅ Complete | Triaged 125 comments, applied 17 fixes across 10 files, PR #20 merged |
 
 ### Roadmap
 - [x] Gemini-backed conversational planning
@@ -146,11 +147,33 @@ npm run test:user        # Create test user
 - [ ] Phase 5: Credit system + production export pipeline
 - [ ] Material/color quality enhancement
 - [ ] Production desktop app packaging
-- [ ] 🟠 **CodeRabbit review** — address PR review comments from recent commits
+- [x] **CodeRabbit review** — 17 fixes: use_nodes, LOD naming, UnboundLocalError, compositor 5.x, idempotency, try/finally
 
 ---
 
 ## 📝 Session Log
+
+### 2026-02-21 (CodeRabbit PR Review Fixes)
+- **Triaged 125 CodeRabbit comments** from PR #20 — accepted 17 fixes, rejected ~95 noise
+- **Critical bugs fixed (8)**:
+  - `mat.use_nodes = True` added in 7 material creation sites (`import_neural_mesh.py`, `displacement_textures.py` ×5, `executor.ts`)
+  - LOD name mutation in `model_export.py` — saved `base_name` before LOD0 rename
+  - `UnboundLocalError` in addon `get_viewport_screenshot` — init `return_base64` before `try`
+  - `scene.compositing_node_group` for Blender 5.x compositor (was `scene.node_tree`)
+  - Fixed wrong docstring (`sampling_render_samples` → `taa_samples`)
+- **Improvements (8)**:
+  - `try/finally` for EDIT mode safety in `cleanup_neural_mesh`
+  - O(1) `bound_box` grounding (was O(n) vertex loop)
+  - Bloom compositor idempotency (remove existing Glare before adding)
+  - `taa_render_samples = 64` for toon final render
+  - `fcurve.array_index` guard in `ease_in_out_animation`
+  - Screenshot options forwarded to MCP (were silently ignored)
+  - `create_rodin_job` returns `{error: ...}` dict (was plain string)
+  - Diagnostic prints for missing compositor nodes
+- **Housekeeping**: Synced addon to `public/downloads/`, partial GEMINI.md stale section cleanup
+- **Verification**: `tsc --noEmit` = 0 errors
+- **Files Modified**: `import_neural_mesh.py`, `model_export.py`, `displacement_textures.py`, `eevee_setup.py`, `toon_setup.py`, `procedural_animation.py`, `executor.ts`, `screenshot.ts`, `modelforge-addon.py` (×2), `GEMINI.md`
+- **Git**: All pushed to main, PR #20 merged
 
 ### 2026-02-21 (Blender 5.x API Fixes + Planner Edit Awareness)
 - **Stack Restart Fix**: Next.js 16 with Turbopack wasn't binding to localhost — fixed by running `npx next dev -H localhost -p 3000`. OAuth redirect broke with `-H 0.0.0.0` (redirected browser to `0.0.0.0:3000`).
