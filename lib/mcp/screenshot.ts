@@ -24,7 +24,11 @@ export async function getViewportScreenshot(options: {
     try {
         const response = await client.execute<ViewportScreenshotResponse>({
             type: "get_viewport_screenshot",
-            params: {},
+            params: {
+                ...(options.width && { width: options.width }),
+                ...(options.height && { height: options.height }),
+                ...(options.format && { format: options.format }),
+            },
         })
 
         if (response.status === "error") {

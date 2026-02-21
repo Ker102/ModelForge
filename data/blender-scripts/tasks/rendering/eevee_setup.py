@@ -22,7 +22,7 @@ def setup_eevee_quality(quality: str = 'MEDIUM') -> dict:
     - use_gtao — REMOVED (AO is always active)
     - use_bloom — REMOVED (use compositor Glare node instead)
     - shadow_cascade_size — REMOVED
-    - taa_render_samples — REMOVED (use scene.eevee.sampling_render_samples)
+    - taa_render_samples — REMOVED (use scene.eevee.taa_samples for viewport)
     
     Args:
         quality: 'LOW', 'MEDIUM', 'HIGH', 'ULTRA'
@@ -134,8 +134,13 @@ def setup_bloom_compositor(
     """
     scene = bpy.context.scene
     scene.use_nodes = True
-    tree = scene.node_tree
-    
+
+    # Blender 5.x: use compositing_node_group; fallback to node_tree for older versions
+    tree = getattr(scene, 'compositing_node_group', None) or scene.node_tree
+    if tree is None:
+        print("Warning: No compositor node tree available")
+        return
+
     # Find existing render layers and composite nodes
     render_node = None
     composite_node = None
@@ -144,10 +149,16 @@ def setup_bloom_compositor(
             render_node = node
         elif node.type == 'COMPOSITE':
             composite_node = node
-    
+
     if not render_node or not composite_node:
+        print("Warning: Missing Render Layers or Composite node in compositor")
         return
-    
+
+    # Idempotency: remove existing Glare nodes to prevent duplicates
+    for node in list(tree.nodes):
+        if node.type == 'GLARE':
+            tree.nodes.remove(node)
+
     # Add Glare node for bloom
     glare = tree.nodes.new('CompositorNodeGlare')
     glare.glare_type = 'BLOOM'
@@ -155,14 +166,14 @@ def setup_bloom_compositor(
     glare.mix = mix
     glare.size = size
     glare.location = (render_node.location.x + 300, render_node.location.y)
-    
+
     # Rewire: Render Layers -> Glare -> Composite
     # Remove existing link from render to composite
     for link in tree.links:
         if link.to_node == composite_node and link.to_socket.name == 'Image':
             tree.links.remove(link)
             break
-    
+
     tree.links.new(render_node.outputs['Image'], glare.inputs['Image'])
     tree.links.new(glare.outputs['Image'], composite_node.inputs['Image'])
 

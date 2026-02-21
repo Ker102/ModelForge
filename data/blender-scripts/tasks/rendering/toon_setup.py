@@ -158,10 +158,11 @@ def setup_eevee_for_toon() -> None:
     """Configure Eevee settings for toon rendering (Blender 5.x)."""
     bpy.context.scene.render.engine = 'BLENDER_EEVEE'
     
-    # Note: In Blender 5.x, use_ssr, taa_render_samples, shadow_cascade_size
-    # are REMOVED. EEVEE handles reflections and shadows automatically.
+    # Note: In Blender 5.x, use_ssr, shadow_cascade_size are REMOVED.
+    # EEVEE handles reflections and shadows automatically.
     eevee = bpy.context.scene.eevee
-    eevee.taa_samples = 32
+    eevee.taa_samples = 32  # Viewport preview samples
+    eevee.taa_render_samples = 64  # Final render samples
 
 
 def create_toon_scene(

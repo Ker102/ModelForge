@@ -100,12 +100,13 @@ def generate_lods(
         lod_collection = bpy.data.collections[collection_name]
 
     lods = []
+    base_name = obj.name  # Save original name before LOD0 rename
 
     for i, ratio in enumerate(ratios):
         if i == 0:
             # LOD0 is the original
             lod = obj
-            lod.name = f"{obj.name}_LOD0"
+            lod.name = f"{base_name}_LOD0"
         else:
             # Duplicate and decimate
             bpy.ops.object.select_all(action='DESELECT')
@@ -114,7 +115,7 @@ def generate_lods(
             bpy.ops.object.duplicate()
 
             lod = bpy.context.active_object
-            lod.name = f"{obj.name}_LOD{i}"
+            lod.name = f"{base_name}_LOD{i}"
 
             # Apply Decimate modifier
             mod = lod.modifiers.new(name=f"Decimate_LOD{i}", type='DECIMATE')

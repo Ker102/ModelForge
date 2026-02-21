@@ -48,6 +48,7 @@ def create_raked_sand_material(name="RakedSand", scale=8.0, distortion=2.0):
     Connects to Material Output Displacement socket for true displacement.
     """
     mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
     mat.displacement_method = 'BOTH'  # Bump + true displacement
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
@@ -109,6 +110,7 @@ def create_raked_sand_material(name="RakedSand", scale=8.0, distortion=2.0):
 def create_water_ripple_material(name="WaterRipple"):
     """Create concentric water ripple displacement using RINGS wave type."""
     mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
     mat.displacement_method = 'BOTH'
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
@@ -145,6 +147,7 @@ def create_water_ripple_material(name="WaterRipple"):
 def create_rocky_surface_material(name="RockySurface"):
     """Create rough rocky terrain using noise displacement + bump."""
     mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
     mat.displacement_method = 'BOTH'
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
@@ -263,6 +266,7 @@ def create_terrain_plane(name="Terrain", size=10, subdivisions=5,
 
     # Add earth-tone material
     mat = bpy.data.materials.new(name=f"{name}_Mat")
+    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.4, 0.32, 0.2, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.9
@@ -302,6 +306,7 @@ def create_raked_sand_plane(name="RakedSandFloor", size=10):
 
     # Sand material
     mat = bpy.data.materials.new(name="SandMaterial")
+    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs['Base Color'].default_value = (0.76, 0.70, 0.58, 1.0)
     bsdf.inputs['Roughness'].default_value = 0.85

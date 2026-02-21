@@ -460,12 +460,7 @@ npm run test:user        # Create test user
   - Successfully ingested all 113 scripts into Neon pgvector database
   - Verified embedding generation with Together.ai M2-BERT model
 - **Documentation**:
-  - Updated README.md and GEMINI.md to reflect new capabilities
----
-
-## 📜 Agent Rules
-
-### ⚡ Before EVERY Commit
+  - Updated README.md and GEMINI.md to reflect new capabilities\n
 1. **Update this file** (`Claude.md`) with:
    - Any new features or changes made
    - Updated progress tracking

@@ -463,6 +463,7 @@ class BlenderMCPServer:
         import tempfile
         import base64
 
+        return_base64 = filepath is None
         try:
             # Find the active 3D viewport
             area = None
@@ -475,7 +476,6 @@ class BlenderMCPServer:
                 return {"error": "No 3D viewport found"}
 
             # Determine file path — use temp if none provided
-            return_base64 = filepath is None
             if return_base64:
                 tmp = tempfile.NamedTemporaryFile(suffix=f".{format}", delete=False)
                 filepath = tmp.name
@@ -1275,7 +1275,7 @@ class BlenderMCPServer:
             case "FAL_AI":
                 return self.create_rodin_job_fal_ai(*args, **kwargs)
             case _:
-                return f"Error: Unknown Hyper3D Rodin mode!"
+                return {"error": "Unknown Hyper3D Rodin mode"}
 
     def create_rodin_job_main_site(
             self,

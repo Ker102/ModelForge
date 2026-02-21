@@ -94,29 +94,30 @@ def cleanup_neural_mesh(
     bpy.context.view_layer.objects.active = obj
     obj.select_set(True)
     bpy.ops.object.mode_set(mode='EDIT')
-    bpy.ops.mesh.select_all(action='SELECT')
+    try:
+        bpy.ops.mesh.select_all(action='SELECT')
 
-    # Remove loose geometry
-    bpy.ops.mesh.delete_loose(use_verts=True, use_edges=True, use_faces=False)
+        # Remove loose geometry
+        bpy.ops.mesh.delete_loose(use_verts=True, use_edges=True, use_faces=False)
 
-    # Merge by distance (remove duplicate vertices)
-    if remove_doubles:
-        bpy.ops.mesh.remove_doubles(threshold=merge_distance)
+        # Merge by distance (remove duplicate vertices)
+        if remove_doubles:
+            bpy.ops.mesh.remove_doubles(threshold=merge_distance)
 
-    # Recalculate normals (neural meshes often have flipped faces)
-    if fix_normals:
-        bpy.ops.mesh.normals_make_consistent(inside=False)
+        # Recalculate normals (neural meshes often have flipped faces)
+        if fix_normals:
+            bpy.ops.mesh.normals_make_consistent(inside=False)
 
-    # Fill holes (non-manifold boundaries)
-    if fill_holes:
-        bpy.ops.mesh.select_all(action='DESELECT')
-        bpy.ops.mesh.select_non_manifold()
-        try:
-            bpy.ops.mesh.fill()
-        except RuntimeError:
-            pass  # Some non-manifold edges can't be filled
-
-    bpy.ops.object.mode_set(mode='OBJECT')
+        # Fill holes (non-manifold boundaries)
+        if fill_holes:
+            bpy.ops.mesh.select_all(action='DESELECT')
+            bpy.ops.mesh.select_non_manifold()
+            try:
+                bpy.ops.mesh.fill()
+            except RuntimeError:
+                pass  # Some non-manifold edges can't be filled
+    finally:
+        bpy.ops.object.mode_set(mode='OBJECT')
     print(f"Cleaned {obj.name}: {len(obj.data.vertices)} verts, {len(obj.data.polygons)} faces")
 
 
@@ -154,7 +155,7 @@ def normalize_neural_mesh(
 
     # Ground to floor (bottom of bounding box at z=0)
     if ground_to_floor:
-        bbox_min_z = min(v.co.z for v in obj.data.vertices)
+        bbox_min_z = min(corner[2] for corner in obj.bound_box)
         obj.location.z -= bbox_min_z
 
     print(f"Normalized {obj.name}: height={obj.dimensions.z:.2f}m, grounded={ground_to_floor}")
@@ -252,6 +253,7 @@ def ensure_pbr_material(obj, material_name: str = "Neural_PBR"):
 
     # Create new PBR material
     mat = bpy.data.materials.new(name=material_name)
+    mat.use_nodes = True
     bsdf = mat.node_tree.nodes.get('Principled BSDF')
 
     # If the mesh has vertex colors, connect them to Base Color

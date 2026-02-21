@@ -691,7 +691,7 @@ Only flag CLEARLY missing top-level objects or completely absent material assign
   ) {
     if (meshNames.length === 0) return
     const pythonList = meshNames.map((name) => JSON.stringify(name)).join(", ")
-    const script = `import bpy\n\nDEFAULT_NAME = "ModelForge_Default_Material"\nmat = bpy.data.materials.get(DEFAULT_NAME)\nif mat is None:\n    mat = bpy.data.materials.new(name=DEFAULT_NAME)\n    bsdf = mat.node_tree.nodes.get('Principled BSDF')\n    if bsdf:\n        bsdf.inputs['Base Color'].default_value = (0.85, 0.82, 0.78, 1.0)\n        bsdf.inputs['Roughness'].default_value = 0.4\n\nfor obj_name in [${pythonList}]:\n    obj = bpy.data.objects.get(obj_name)\n    if not obj or obj.type != 'MESH':\n        continue\n    if not obj.data.materials:\n        obj.data.materials.append(mat)\n    else:\n        obj.data.materials[0] = mat\n`
+    const script = `import bpy\n\nDEFAULT_NAME = "ModelForge_Default_Material"\nmat = bpy.data.materials.get(DEFAULT_NAME)\nif mat is None:\n    mat = bpy.data.materials.new(name=DEFAULT_NAME)\n    mat.use_nodes = True\n    bsdf = mat.node_tree.nodes.get('Principled BSDF')\n    if bsdf:\n        bsdf.inputs['Base Color'].default_value = (0.85, 0.82, 0.78, 1.0)\n        bsdf.inputs['Roughness'].default_value = 0.4\n\nfor obj_name in [${pythonList}]:\n    obj = bpy.data.objects.get(obj_name)\n    if not obj or obj.type != 'MESH':\n        continue\n    if not obj.data.materials:\n        obj.data.materials.append(mat)\n    else:\n        obj.data.materials[0] = mat\n`
 
     await client.execute({ type: "execute_code", params: { code: script } })
   }

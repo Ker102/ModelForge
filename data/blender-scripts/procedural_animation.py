@@ -408,7 +408,7 @@ def ease_in_out_animation(
     # Set Bezier interpolation (default ease-in-out)
     if obj.animation_data and obj.animation_data.action:
         for fcurve in obj.animation_data.action.fcurves:
-            if fcurve.data_path == data_path:
+            if fcurve.data_path == data_path and (index < 0 or fcurve.array_index == index):
                 for kf in fcurve.keyframe_points:
                     kf.interpolation = 'BEZIER'
                     kf.handle_left_type = 'AUTO_CLAMPED'
