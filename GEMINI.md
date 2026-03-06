@@ -123,6 +123,7 @@ npm run test:user        # Create test user
 | **CRAG Pipeline** | ✅ Complete | LLM relevance grading + corrective fallback retrieval |
 | **Model Upgrade** | ✅ Complete | gemini-3.1-pro-preview-customtools + GTE-ModernBERT-base alignment |
 | **Hybrid Neural Deployment** | ✅ Complete | fal.ai client (Hunyuan $0.05, TRELLIS $0.25), RunPod Serverless (Paint/Part), env-based routing, Brave Search |
+| **Studio Mode UI** | ✅ Complete | Two-mode architecture (Autopilot/Studio), tool catalog (17 tools, 11 categories), advisor assistant, full stack wiring |
 
 ### Roadmap
 - [x] Gemini-backed conversational planning
@@ -155,10 +156,27 @@ npm run test:user        # Create test user
 - [x] **MCP Tool Use Guide** — 17 commands with params, returns, tips in PLANNING_SYSTEM_PROMPT
 - [x] **CRAG pipeline** — LLM relevance grading + re-ranking for RAG retrieval quality
 - [x] **Model upgrade** — gemini-3.1-pro-preview-customtools (agentic variant) + embedding model alignment
+- [x] **Studio Mode** — two-mode UI (Autopilot/Studio), tool catalog, advisory assistant, guided workflow for all strategies
 
 ---
 
 ## 📝 Session Log
+
+### 2026-03-06 (Studio Mode UI — Two-Mode Architecture)
+- **Studio Mode Implementation** — Full guided 3D workflow UI:
+  - **New `tool-catalog.ts`**: Central registry of 17 tools across 11 categories (Shape, Cleanup, Unwrap, Paint, Skeleton, Motion, Effects, Lighting, Scene, Render, Export). Includes beginner-friendly descriptions, difficulty ratings, input schemas (text, image, select, slider), cost/time estimates, and helper functions.
+  - **New `mode-selector.tsx`**: Autopilot/Studio toggle with gradient badges and contextual helper text.
+  - **New `studio-tool-picker.tsx`**: Category tab bar → tool cards with difficulty badges, expandable help sections ("What is this?"), and dynamic input forms. Supports text, image upload, select, and slider inputs.
+  - **New `studio-advisor.tsx`**: Embedded advisory chat assistant — collapsible panel, suggestion chips, workflow-context-aware responses. Advisory only (never executes actions).
+  - **New `advisor/route.ts`**: Lightweight API using Gemini 2.0 Flash for instant tool/concept answers. Injects full tool catalog into system prompt.
+  - **Updated `workflow-types.ts`**: Added `effects` and `rendering` to `WorkflowCategory` union.
+  - **Updated `workflow-advisor.ts`**: Added effects/rendering to `CATEGORY_DEFAULTS` knowledge base and `validCategories`.
+  - **Updated `project-chat.tsx`**: Integrated mode selector, tool picker, and advisor. Dynamic descriptions per mode. `workflowMode` state passed in API payload.
+  - **Updated `route.ts`**: Added `workflowMode` to Zod schema. Studio mode forces guided workflow proposals for ALL strategies (not just neural/hybrid).
+- **Verification**: `tsc --noEmit` = 0 errors
+- **Git**: Pushed to main (`6901adc`)
+- **Files Created**: `tool-catalog.ts`, `mode-selector.tsx`, `studio-tool-picker.tsx`, `studio-advisor.tsx`, `advisor/route.ts`
+- **Files Modified**: `workflow-types.ts`, `workflow-advisor.ts`, `project-chat.tsx`, `route.ts`
 
 ### 2026-03-06 (Model Upgrade + MCP Tool Guide + CRAG Pipeline + Neural Testing + Hybrid Deployment)
 - **Model Upgrade**:
