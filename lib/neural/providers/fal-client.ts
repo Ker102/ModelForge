@@ -100,23 +100,23 @@ export class FalClient extends Neural3DClient {
             const input: Record<string, unknown> = {}
 
             if (this.slug === "hunyuan-shape") {
-                // Hunyuan3D 2.1 on fal.ai accepts image_url (required)
-                // For text-to-3D, we'd need to generate an image first
+                // Hunyuan3D 2.1 on fal.ai: input field is "input_image_url" (not "image_url")
                 if (request.imageUrl) {
-                    input.image_url = request.imageUrl
-                } else if (request.prompt) {
-                    // fal.ai Hunyuan requires an image — if we only have text,
-                    // return an error suggesting using the self-hosted endpoint
+                    input.input_image_url = request.imageUrl
+                } else {
                     return {
                         status: "failed",
                         provider: this.slug,
                         stage: "geometry",
-                        error: "fal.ai Hunyuan3D requires an image_url input. For text-to-3D, use the self-hosted endpoint or generate a reference image first.",
+                        error: "fal.ai Hunyuan3D requires an image URL (input_image_url). For text-to-3D, generate a reference image first.",
                         generationTimeMs: Date.now() - startTime,
                     }
                 }
+                // Enable PBR textured mesh output (costs 3x but we need it)
+                input.textured_mesh = true
+                input.octree_resolution = request.resolution ?? 256
             } else if (this.slug === "trellis") {
-                // TRELLIS 2 on fal.ai — image-to-3D with texture
+                // TRELLIS 2 on fal.ai: input field is "image_url"
                 if (request.imageUrl) {
                     input.image_url = request.imageUrl
                 } else {
@@ -124,12 +124,12 @@ export class FalClient extends Neural3DClient {
                         status: "failed",
                         provider: this.slug,
                         stage: "geometry",
-                        error: "fal.ai TRELLIS 2 requires an image_url input.",
+                        error: "fal.ai TRELLIS 2 requires an image URL (image_url).",
                         generationTimeMs: Date.now() - startTime,
                     }
                 }
                 // TRELLIS 2 specific defaults
-                input.resolution = 1024
+                input.resolution = request.resolution ?? 1024
                 input.remesh = true
                 input.texture_size = 2048
                 input.decimation_target = 500000
@@ -154,16 +154,23 @@ export class FalClient extends Neural3DClient {
             })
 
             // Extract GLB URL from result
+            // Hunyuan: model_glb_pbr (PBR) or model_glb (white mesh)
+            // TRELLIS: model_glb
             const data = result.data as Record<string, unknown>
-            const modelMesh = (data.model_mesh ?? data.model_glb) as { url?: string } | undefined
-            const glbUrl = modelMesh?.url
+            const modelGlbPbr = data.model_glb_pbr as { url?: string } | undefined
+            const modelGlb = data.model_glb as { url?: string } | undefined
+            const glbUrl = modelGlbPbr?.url ?? modelGlb?.url
+
+            console.log(`[fal.ai] Response keys: ${Object.keys(data).join(", ")}`)
+            if (modelGlbPbr?.url) console.log(`[fal.ai] PBR model available`)
 
             if (!glbUrl) {
+                console.error(`[fal.ai] Full response data:`, JSON.stringify(data, null, 2))
                 return {
                     status: "failed",
                     provider: this.slug,
                     stage: "geometry",
-                    error: "fal.ai returned no model URL in response",
+                    error: `fal.ai returned no model URL. Response keys: ${Object.keys(data).join(", ")}`,
                     generationTimeMs: Date.now() - startTime,
                 }
             }
