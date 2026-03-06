@@ -38,6 +38,21 @@ export function StudioLayout({ projectId }: StudioLayoutProps) {
         console.log("[Studio] Run all workflow steps:", workflowSteps)
     }, [workflowSteps])
 
+    const handleToolRunNow = useCallback(
+        (tool: ToolEntry, inputs: Record<string, string>) => {
+            const step: WorkflowTimelineStep = {
+                id: `run-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                title: tool.name,
+                toolName: tool.id,
+                status: "running",
+            }
+            setWorkflowSteps((prev) => [...prev, step])
+            console.log("[Studio] Running tool immediately:", tool.id, inputs)
+            // TODO: call workflow-step API directly for immediate execution
+        },
+        []
+    )
+
     return (
         <div
             className="flex flex-col rounded-2xl border overflow-hidden"
@@ -59,6 +74,7 @@ export function StudioLayout({ projectId }: StudioLayoutProps) {
                 <StudioWorkspace
                     activeCategory={activeCategory}
                     onToolSelect={handleToolSelect}
+                    onToolRunNow={handleToolRunNow}
                 />
 
                 <StudioAdvisor

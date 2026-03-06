@@ -13,6 +13,7 @@ import {
 interface StudioWorkspaceProps {
     activeCategory: string
     onToolSelect: (tool: ToolEntry, inputs: Record<string, string>) => void
+    onToolRunNow: (tool: ToolEntry, inputs: Record<string, string>) => void
 }
 
 // ── Difficulty Badge ────────────────────────────────────────────
@@ -148,15 +149,22 @@ function ToolDetailView({
     tool,
     onBack,
     onSubmit,
+    onRunNow,
 }: {
     tool: ToolEntry
     onBack: () => void
     onSubmit: (tool: ToolEntry, inputs: Record<string, string>) => void
+    onRunNow: (tool: ToolEntry, inputs: Record<string, string>) => void
 }) {
     const [inputs, setInputs] = useState<Record<string, string>>({})
 
     const handleSubmit = () => {
         onSubmit(tool, inputs)
+        setInputs({})
+    }
+
+    const handleRunNow = () => {
+        onRunNow(tool, inputs)
         setInputs({})
     }
 
@@ -467,17 +475,30 @@ function ToolDetailView({
                             </div>
                         ))}
 
-                        <button
-                            onClick={handleSubmit}
-                            className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 mt-4"
-                            style={{
-                                backgroundColor: "hsl(var(--forge-accent))",
-                                boxShadow:
-                                    "0 2px 8px hsl(168 75% 32% / 0.3)",
-                            }}
-                        >
-                            Add to Workflow
-                        </button>
+                        <div className="flex gap-3 mt-4">
+                            <button
+                                onClick={handleRunNow}
+                                className="flex-1 py-3 rounded-xl text-sm font-semibold text-white transition-all duration-200 hover:opacity-90"
+                                style={{
+                                    backgroundColor: "hsl(var(--forge-accent))",
+                                    boxShadow:
+                                        "0 2px 8px hsl(168 75% 32% / 0.3)",
+                                }}
+                            >
+                                ▶ Run Now
+                            </button>
+                            <button
+                                onClick={handleSubmit}
+                                className="flex-1 py-3 rounded-xl text-sm font-semibold transition-all duration-200 hover:opacity-90 border"
+                                style={{
+                                    backgroundColor: "transparent",
+                                    borderColor: "hsl(var(--forge-border))",
+                                    color: "hsl(var(--forge-text))",
+                                }}
+                            >
+                                + Add to Workflow
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
@@ -490,6 +511,7 @@ function ToolDetailView({
 export function StudioWorkspace({
     activeCategory,
     onToolSelect,
+    onToolRunNow,
 }: StudioWorkspaceProps) {
     const [selectedTool, setSelectedTool] = useState<ToolEntry | null>(null)
     const category = CATEGORIES.find(
@@ -514,6 +536,10 @@ export function StudioWorkspace({
                 onBack={() => setSelectedTool(null)}
                 onSubmit={(tool, inputs) => {
                     onToolSelect(tool, inputs)
+                    setSelectedTool(null)
+                }}
+                onRunNow={(tool, inputs) => {
+                    onToolRunNow(tool, inputs)
                     setSelectedTool(null)
                 }}
             />
