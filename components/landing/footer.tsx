@@ -7,12 +7,12 @@ const footerLinks = {
   Product: [
     { label: "Features", href: "/#features" },
     { label: "Pricing", href: "/#pricing" },
-    { label: "Quick Start", href: "/docs" },
+    { label: "Quick Start", href: "/docs#quick-start" },
     { label: "Changelog", href: "/docs" },
   ],
   Resources: [
     { label: "Documentation", href: "/docs" },
-    { label: "API Reference", href: "/docs" },
+    { label: "API Reference", href: "/docs#api-reference" },
     { label: "Blender Scripts", href: "/docs" },
     { label: "Status", href: "/docs" },
   ],

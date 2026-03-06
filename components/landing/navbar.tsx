@@ -1,9 +1,12 @@
+"use client"
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { motion } from "framer-motion"
 
 export function Navbar() {
   return (
-    <nav
+    <motion.nav
       className="sticky top-0 z-50 border-b"
       style={{
         backgroundColor: "hsla(0, 0%, 100%, 0.85)",
@@ -11,6 +14,9 @@ export function Navbar() {
         WebkitBackdropFilter: "blur(16px)",
         borderColor: "hsl(var(--forge-border))",
       }}
+      initial={{ y: -40, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
     >
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-8">
@@ -50,22 +56,33 @@ export function Navbar() {
               { href: "/#features", label: "Features" },
               { href: "/#pricing", label: "Pricing" },
               { href: "/docs", label: "Docs" },
-              { href: "/docs", label: "Quick Start" },
-            ].map((link) => (
-              <Link
+              { href: "/docs#quick-start", label: "Quick Start" },
+            ].map((link, i) => (
+              <motion.div
                 key={link.label}
-                href={link.href}
-                className="text-sm font-medium transition-colors hover:opacity-80"
-                style={{ color: "hsl(var(--forge-text-muted))" }}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.15 + i * 0.06, ease: "easeOut" }}
               >
-                {link.label}
-              </Link>
+                <Link
+                  href={link.href}
+                  className="text-sm font-medium transition-colors hover:opacity-80"
+                  style={{ color: "hsl(var(--forge-text-muted))" }}
+                >
+                  {link.label}
+                </Link>
+              </motion.div>
             ))}
           </div>
         </div>
 
         {/* CTA */}
-        <div className="flex items-center gap-3">
+        <motion.div
+          className="flex items-center gap-3"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.35, ease: "easeOut" }}
+        >
           <Link href="/login">
             <Button
               variant="ghost"
@@ -87,8 +104,8 @@ export function Navbar() {
               Get Started
             </Button>
           </Link>
-        </div>
+        </motion.div>
       </div>
-    </nav>
+    </motion.nav>
   )
 }
