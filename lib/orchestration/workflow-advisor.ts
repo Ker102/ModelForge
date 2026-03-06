@@ -109,6 +109,22 @@ const CATEGORY_DEFAULTS: Record<WorkflowCategory, ToolRecommendation> = {
         estimatedDuration: "~10-20s",
         blenderAction: "execute_code",
     },
+    effects: {
+        tool: "blender_agent",
+        reasoning:
+            "VFX effects (particles, fire, rain, portals) are created via Blender's particle and physics systems. The agent generates custom code for each effect.",
+        alternatives: ["manual"],
+        estimatedDuration: "~10-30s",
+        blenderAction: "execute_code",
+    },
+    rendering: {
+        tool: "blender_agent",
+        reasoning:
+            "Render engine configuration (EEVEE, Cycles, toon shading) is fully automated via Python scripts. The agent sets up optimal settings.",
+        alternatives: ["manual"],
+        estimatedDuration: "~5-15s",
+        blenderAction: "execute_code",
+    },
     other: {
         tool: "manual",
         reasoning:
@@ -214,7 +230,7 @@ async function generateWithLLM(
     const validTools: WorkflowTool[] = ["blender_agent", "neural", "manual"]
     const validCategories: WorkflowCategory[] = [
         "geometry", "topology", "uv", "texturing", "rigging",
-        "animation", "lighting", "export", "composition", "other",
+        "animation", "lighting", "export", "composition", "effects", "rendering", "other",
     ]
 
     for (const step of parsed.steps) {

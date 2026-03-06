@@ -265,6 +265,7 @@ const chatRequestSchema = z.object({
   startNew: z.boolean().optional(),
   message: z.string().min(1).max(2000),
   useLocalModel: z.boolean().optional(),
+  workflowMode: z.enum(["autopilot", "studio"]).optional(),
 })
 
 async function ensureConversation({
@@ -338,7 +339,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json()
-    const { projectId, conversationId, startNew, message, useLocalModel } =
+    const { projectId, conversationId, startNew, message, useLocalModel, workflowMode } =
       chatRequestSchema.parse(body)
 
     const project = await prisma.project.findFirst({
@@ -516,8 +517,10 @@ export async function POST(req: Request) {
           let executionLogs: ExecutionLogEntry[] | undefined = undefined
           let planResult: PlanGenerationResult | null = null
 
-          // ── Neural/Hybrid → Guided Workflow (human-in-the-loop) ──
-          if (strategyDecision.strategy === "neural" || strategyDecision.strategy === "hybrid") {
+          // ── Neural/Hybrid or Studio mode → Guided Workflow (human-in-the-loop) ──
+          const useGuidedWorkflow = workflowMode === "studio" ||
+            strategyDecision.strategy === "neural" || strategyDecision.strategy === "hybrid"
+          if (useGuidedWorkflow) {
             try {
               const workflowProposal = await generateWorkflowProposal(
                 message,

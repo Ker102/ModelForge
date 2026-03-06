@@ -1,18 +1,22 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react"
+import { useEffect, useMemo, useRef, useState, useCallback, type ChangeEvent } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import type { PlanStep, PlanningMetadata, AgentStreamEvent } from "@/lib/orchestration/types"
 import type { UsageSummary } from "@/lib/usage"
-import type { PlanningMetadata, PlanStep, AgentStreamEvent } from "@/lib/orchestration/types"
 import { parsePlanningMetadata } from "@/lib/orchestration/plan-utils"
 import { ImagePlus, X } from "lucide-react"
 import { WorkflowPanel } from "@/components/projects/workflow-panel"
 import type { WorkflowProposal } from "@/lib/orchestration/workflow-types"
+import { ModeSelector, type WorkflowMode } from "@/components/projects/mode-selector"
+import { StudioToolPicker } from "@/components/projects/studio-tool-picker"
+import { StudioAdvisor } from "@/components/projects/studio-advisor"
+import type { StudioCategory } from "@/lib/orchestration/tool-catalog"
 
 interface CommandStub {
   id: string
@@ -125,6 +129,7 @@ export function ProjectChat({
   const [agentActive, setAgentActive] = useState(false)
   const [activeWorkflow, setActiveWorkflow] = useState<WorkflowProposal | null>(null)
   const [mcpConnected, setMcpConnected] = useState<boolean | null>(null)
+  const [workflowMode, setWorkflowMode] = useState<WorkflowMode>("autopilot")
   const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024
   const MAX_ATTACHMENTS = 4
 
@@ -401,6 +406,7 @@ export function ProjectChat({
         conversationId: conversationId ?? undefined,
         startNew: !conversationId,
         message: trimmed,
+        workflowMode,
       }
 
       if (subscriptionTier === "free") {
@@ -794,6 +800,15 @@ export function ProjectChat({
     }
   }
 
+  const handleStudioAddStep = useCallback(
+    (toolId: string, _category: StudioCategory, inputs: Record<string, string>) => {
+      // In studio mode, send the tool selection as a chat message
+      const description = inputs.prompt || inputs.meshUrl || inputs.imageUrl || "Execute step"
+      setInput(`[Studio Step] Use ${toolId}: ${description}`)
+    },
+    []
+  )
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-4">
@@ -807,7 +822,9 @@ export function ProjectChat({
             )}
           </div>
           <CardDescription>
-            Ask questions about your Blender project or request AI-powered changes.
+            {workflowMode === "autopilot"
+              ? "Describe what you want — AI plans and builds automatically."
+              : "Pick your tools and build step-by-step with AI guidance."}
           </CardDescription>
         </div>
         {formattedUsage && (
@@ -926,10 +943,33 @@ export function ProjectChat({
             })}
           </div>
         )}
+
+        {/* Mode Selector */}
+        <ModeSelector
+          mode={workflowMode}
+          onChange={setWorkflowMode}
+        />
+
+        {/* Studio Tool Picker (only in studio mode) */}
+        {workflowMode === "studio" && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <StudioToolPicker
+              onAddStep={handleStudioAddStep}
+              className="min-h-[300px]"
+            />
+            <StudioAdvisor
+              projectId={projectId}
+              className="min-h-[300px]"
+            />
+          </div>
+        )}
+
         <div className="h-72 overflow-y-auto rounded-md border bg-muted/30 p-4 space-y-4">
           {messages.length === 0 ? (
             <div className="text-center text-sm text-muted-foreground">
-              Start a conversation to plan, modify, or debug your Blender scene.
+              {workflowMode === "autopilot"
+                ? "Describe what you want and the AI will plan and build it automatically."
+                : "Pick tools from the categories above, or ask the assistant for guidance."}
             </div>
           ) : (
             messages.map((message, index) => (

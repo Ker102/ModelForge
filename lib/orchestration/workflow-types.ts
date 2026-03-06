@@ -21,6 +21,8 @@ export type WorkflowCategory =
     | "lighting"
     | "export"
     | "composition"
+    | "effects"
+    | "rendering"
     | "other"
 
 // ─── Step status lifecycle ────────────────────────────────────────
