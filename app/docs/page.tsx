@@ -250,10 +250,10 @@ export default function DocsPage() {
             <Section id="quick-start">
               <SectionTitle icon="🚀" title="Quick Start" subtitle="Get connected in three steps — no extra tools required" />
               <div className="space-y-4">
-                <StepCard num={1} title="Install Blender 3.0+">
+                <StepCard num={1} title="Install Blender 5.x (Recommended)">
                   <p>Download from <a href="https://www.blender.org/download/" target="_blank" rel="noreferrer"
                     className="font-medium underline" style={{ color: "hsl(var(--forge-accent))" }}>blender.org</a> and
-                    follow the installer for your platform. ModelForge supports Blender 3.0 through 5.x.</p>
+                    follow the installer for your platform. <strong>Blender 5.x is strongly recommended</strong> — ModelForge&apos;s code generation, RAG scripts, and API compatibility layer are built around the 5.x API. Older versions (3.x / 4.x) may work but are not actively tested.</p>
                 </StepCard>
 
                 <StepCard num={2} title="Install the ModelForge Addon">
@@ -466,7 +466,7 @@ export default function DocsPage() {
               <div className="space-y-3">
                 <FaqItem
                   question="Which Blender versions are supported?"
-                  answer="ModelForge supports Blender 3.0 through 5.x. The AI is trained on the latest API changes and automatically generates compatible code. We track 21 categories of breaking changes between versions."
+                  answer="Blender 5.x is strongly recommended and is the primary supported version. ModelForge's RAG scripts, code generation, and API compatibility layer are all built around the Blender 5.x API. We track 21 categories of breaking changes. Older versions (3.x / 4.x) may work for basic tasks but are not actively tested."
                 />
                 <FaqItem
                   question="Can I use ModelForge with other MCP clients?"
