@@ -119,6 +119,9 @@ npm run test:user        # Create test user
 | **Blender 5.x API Compatibility** | ✅ Complete | 21 breaking change categories in RAG, EEVEE/blend_method/shadow_method fixes |
 | **Planner Edit Awareness** | ✅ Complete | Scene state → code gen, structured JSON snapshots, stronger edit rules |
 | **CodeRabbit PR Review** | ✅ Complete | Triaged 125 comments, applied 17 fixes across 10 files, PR #20 merged |
+| **MCP Tool Use Guide** | ✅ Complete | 17 commands documented in system prompt with params, returns, and planning tips |
+| **CRAG Pipeline** | ✅ Complete | LLM relevance grading + corrective fallback retrieval |
+| **Model Upgrade** | ✅ Complete | gemini-3.1-pro-preview-customtools + GTE-ModernBERT-base alignment |
 
 ### Roadmap
 - [x] Gemini-backed conversational planning
@@ -148,10 +151,35 @@ npm run test:user        # Create test user
 - [ ] Material/color quality enhancement
 - [ ] Production desktop app packaging
 - [x] **CodeRabbit review** — 17 fixes: use_nodes, LOD naming, UnboundLocalError, compositor 5.x, idempotency, try/finally
+- [x] **MCP Tool Use Guide** — 17 commands with params, returns, tips in PLANNING_SYSTEM_PROMPT
+- [x] **CRAG pipeline** — LLM relevance grading + re-ranking for RAG retrieval quality
+- [x] **Model upgrade** — gemini-3.1-pro-preview-customtools (agentic variant) + embedding model alignment
 
 ---
 
 ## 📝 Session Log
+
+### 2026-03-06 (Model Upgrade + MCP Tool Guide + CRAG Pipeline + Neural Testing)
+- **Model Upgrade**:
+  - Switched DEFAULT_MODEL from `gemini-3.1-pro-preview` → `gemini-3.1-pro-preview-customtools` (optimized for agentic tool-use)
+  - Fixed stale EMBEDDING_MODEL in `lib/ai/index.ts`: `m2-bert` → `gte-modernbert-base` (matching `embeddings.ts`)
+  - Updated all stale docstrings (Gemini 2.5 → 3.1, M2-BERT → GTE-ModernBERT)
+- **MCP Tool Use Guide** added to `PLANNING_SYSTEM_PROMPT` in `prompts.ts`:
+  - 17 MCP commands: 4 read-only, 1 write, 4 PolyHaven, 3 neural, 2 Sketchfab, 3 status
+  - Each entry: params, return shape, when to use
+  - Planning tips for multi-step workflows (textures, HDRI, neural meshes)
+- **CRAG Pipeline** (`lib/ai/crag.ts`):
+  - `gradeDocument()`: Gemini grades each RAG doc as relevant/partially/not_relevant
+  - `correctiveRetrieve()`: retrieve → grade → filter → fallback (broader search if <2 relevant)
+  - Wired into `rag.ts` `generateBlenderCode()` replacing raw `similaritySearch()`
+  - Observability: `[CRAG]` console logs with retrieval/relevance/fallback stats
+- **Neural Pipeline E2E Test**:
+  - Mock neural server (port 8090) returns valid 772-byte GLB cube
+  - `HunyuanShapeClient` → mock server via `HUNYUAN_API_URL` env var
+  - All tests passed: health ✅, generate ✅, file saved ✅, GLB magic verified ✅
+- **Verification**: `tsc --noEmit` = 0 errors
+- **Files Created**: `lib/ai/crag.ts`, `scripts/test-neural-pipeline.ts`
+- **Files Modified**: `lib/ai/index.ts`, `lib/gemini.ts`, `lib/ai/rag.ts`, `lib/ai/prompts.ts`, `GEMINI.md`
 
 ### 2026-02-21 (CodeRabbit PR Review Fixes)
 - **Triaged 125 CodeRabbit comments** from PR #20 — accepted 17 fixes, rejected ~95 noise
