@@ -1,12 +1,14 @@
+"use client"
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Sparkles } from "lucide-react"
+import { motion } from "framer-motion"
 
 // ── Simplified Studio workspace preview (pure CSS/HTML) ────────
 
 function StudioPreview() {
   const sidebarIcons = [
-    // Shape, Cleanup, Unwrap, Paint, Skeleton, Motion, Effects, Lighting
     "M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z",
     "M3 6h18M3 12h18M3 18h18",
     "M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8",
@@ -62,29 +64,17 @@ function StudioPreview() {
         {/* Mini sidebar */}
         <div
           className="flex flex-col items-center gap-2 py-3 px-2 border-r"
-          style={{
-            borderColor: "hsl(var(--forge-border))",
-            width: 40,
-          }}
+          style={{ borderColor: "hsl(var(--forge-border))", width: 40 }}
         >
           {sidebarIcons.map((d, i) => (
             <div
               key={i}
               className="w-6 h-6 rounded-md flex items-center justify-center"
-              style={{
-                backgroundColor: i === 0 ? "hsl(var(--forge-accent))" : "transparent",
-              }}
+              style={{ backgroundColor: i === 0 ? "hsl(var(--forge-accent))" : "transparent" }}
             >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
                 stroke={i === 0 ? "white" : "hsl(var(--forge-text-subtle))"}
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
+                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d={d} />
               </svg>
             </div>
@@ -94,55 +84,35 @@ function StudioPreview() {
         {/* Content area */}
         <div className="flex-1 p-3">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold" style={{ color: "hsl(var(--forge-text))" }}>
-              3D Tools
-            </span>
+            <span className="text-xs font-semibold" style={{ color: "hsl(var(--forge-text))" }}>3D Tools</span>
             <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{
               backgroundColor: "hsl(var(--forge-accent-subtle))",
               color: "hsl(var(--forge-accent))",
-            }}>
-              Shape
-            </span>
+            }}>Shape</span>
           </div>
 
-          {/* Tool grid */}
           <div className="grid grid-cols-6 gap-1.5 mb-4">
             {tools.map((tool) => (
-              <div
-                key={tool.name}
+              <div key={tool.name}
                 className="aspect-square rounded-lg border flex flex-col items-center justify-center gap-1"
                 style={{
                   borderColor: tool.active ? "hsl(var(--forge-accent))" : "hsl(var(--forge-border))",
                   backgroundColor: tool.active ? "hsl(var(--forge-accent-subtle))" : "hsl(var(--forge-surface-dim))",
-                }}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke={tool.active ? "hsl(var(--forge-accent))" : "hsl(var(--forge-text-subtle))"}
-                  strokeWidth="1.5"
-                >
+                }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke={tool.active ? "hsl(var(--forge-accent))" : "hsl(var(--forge-text-subtle))"} strokeWidth="1.5">
                   <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" />
                 </svg>
                 <span className="text-[8px]" style={{
                   color: tool.active ? "hsl(var(--forge-accent))" : "hsl(var(--forge-text-subtle))",
-                }}>
-                  {tool.name}
-                </span>
+                }}>{tool.name}</span>
               </div>
             ))}
           </div>
 
-          {/* Project Assets */}
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold" style={{ color: "hsl(var(--forge-text))" }}>
-              Project Assets
-            </span>
-            <span className="text-[9px]" style={{ color: "hsl(var(--forge-accent))" }}>
-              View all
-            </span>
+            <span className="text-xs font-semibold" style={{ color: "hsl(var(--forge-text))" }}>Project Assets</span>
+            <span className="text-[9px]" style={{ color: "hsl(var(--forge-accent))" }}>View all</span>
           </div>
           <div className="grid grid-cols-4 gap-1.5">
             {[
@@ -153,19 +123,11 @@ function StudioPreview() {
             ].map((asset) => (
               <div key={asset.name} className="rounded-lg overflow-hidden border" style={{ borderColor: "hsl(var(--forge-border))" }}>
                 <div className="aspect-square overflow-hidden">
-                  <img
-                    src={asset.img}
-                    alt={asset.name}
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={asset.img} alt={asset.name} className="w-full h-full object-cover" />
                 </div>
                 <div className="px-1.5 py-1">
-                  <span className="text-[7px] font-medium block truncate" style={{ color: "hsl(var(--forge-text))" }}>
-                    {asset.name}
-                  </span>
-                  <span className="text-[6px]" style={{ color: "hsl(var(--forge-text-subtle))" }}>
-                    {asset.time}
-                  </span>
+                  <span className="text-[7px] font-medium block truncate" style={{ color: "hsl(var(--forge-text))" }}>{asset.name}</span>
+                  <span className="text-[6px]" style={{ color: "hsl(var(--forge-text-subtle))" }}>{asset.time}</span>
                 </div>
               </div>
             ))}
@@ -176,14 +138,47 @@ function StudioPreview() {
   )
 }
 
+// ── Animation variants ─────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const fadeUp: any = {
+  hidden: { opacity: 0, y: 30 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] as [number, number, number, number], delay: i * 0.1 },
+  }),
+}
+
+const fadeIn = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { duration: 0.8, ease: "easeOut" as const },
+  },
+}
+
+const scaleIn = {
+  hidden: { opacity: 0, scale: 0.92, y: 40 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: { duration: 1, ease: [0.22, 1, 0.36, 1] as [number, number, number, number], delay: 0.3 },
+  },
+}
+
 // ── Hero Section ───────────────────────────────────────────────
 
 export function Hero() {
   return (
     <section className="relative overflow-hidden pb-32">
       {/* Background glow */}
-      <div
+      <motion.div
         className="absolute inset-x-0 bottom-0 top-1/2 pointer-events-none flex justify-center"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1.5, delay: 0.5 }}
       >
         <div
           className="w-[1000px] h-[600px]"
@@ -192,12 +187,16 @@ export function Hero() {
             filter: "blur(60px)",
           }}
         />
-      </div>
+      </motion.div>
 
       <div className="container relative py-20 md:py-28">
         <div className="mx-auto max-w-4xl text-center space-y-8">
           {/* Badge */}
-          <div
+          <motion.div
+            variants={fadeUp}
+            initial="hidden"
+            animate="visible"
+            custom={0}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium"
             style={{
               backgroundColor: "hsl(var(--forge-accent-subtle))",
@@ -207,29 +206,43 @@ export function Hero() {
           >
             <Sparkles className="w-4 h-4 text-[hsl(var(--forge-accent))]" />
             Transform your Blender workflow with AI
-          </div>
+          </motion.div>
 
           {/* Heading */}
-          <h1
+          <motion.h1
+            variants={fadeUp}
+            initial="hidden"
+            animate="visible"
+            custom={1}
             className="text-5xl md:text-7xl font-bold tracking-tight leading-[1.1]"
             style={{ color: "hsl(var(--forge-text))" }}
           >
             Build 3D Models with
             <br />
             <span style={{ color: "hsl(var(--forge-accent))" }}>Natural Language</span>
-          </h1>
+          </motion.h1>
 
           {/* Subtitle */}
-          <p
+          <motion.p
+            variants={fadeUp}
+            initial="hidden"
+            animate="visible"
+            custom={2}
             className="text-lg md:text-xl max-w-2xl mx-auto leading-relaxed"
             style={{ color: "hsl(var(--forge-text-muted))" }}
           >
             ModelForge brings AI-powered automation to Blender. Create, modify,
             and enhance your 3D projects through simple conversation.
-          </p>
+          </motion.p>
 
           {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <motion.div
+            variants={fadeUp}
+            initial="hidden"
+            animate="visible"
+            custom={3}
+            className="flex flex-col sm:flex-row items-center justify-center gap-4"
+          >
             <Link href="/signup">
               <Button
                 size="lg"
@@ -260,13 +273,16 @@ export function Hero() {
                 Quick Start Guide
               </Button>
             </Link>
-          </div>
+          </motion.div>
         </div>
 
         {/* Tilted Preview */}
-        <div
+        <motion.div
           className="mt-20 mx-auto max-w-5xl relative"
           style={{ perspective: "2000px" }}
+          variants={scaleIn}
+          initial="hidden"
+          animate="visible"
         >
           <div
             className="relative z-10 transition-transform duration-1000 ease-out hover:scale-[1.02]"
@@ -286,7 +302,7 @@ export function Hero() {
               zIndex: 0,
             }}
           />
-        </div>
+        </motion.div>
       </div>
     </section>
   )

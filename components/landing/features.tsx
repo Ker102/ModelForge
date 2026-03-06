@@ -1,3 +1,7 @@
+"use client"
+
+import { motion } from "framer-motion"
+
 // ── Features Section — Image-based illustrations (11 features) ──
 
 const features = [
@@ -69,6 +73,34 @@ const features = [
   },
 ]
 
+// ── Animation variants ──────────────────────────────────────────
+
+const containerVariants = {
+  hidden: {} as const,
+  visible: {
+    transition: { staggerChildren: 0.08 },
+  },
+}
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 30 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
+  },
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const headingVariants: any = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: i * 0.1 },
+  }),
+}
+
 // ── Feature Card ────────────────────────────────────────────────
 
 function FeatureCard({
@@ -81,8 +113,9 @@ function FeatureCard({
   image: string
 }) {
   return (
-    <div
-      className="rounded-2xl border transition-all duration-200 hover:shadow-lg overflow-hidden group"
+    <motion.div
+      variants={cardVariants}
+      className="rounded-2xl border transition-all duration-200 hover:shadow-lg hover:-translate-y-1 overflow-hidden group"
       style={{
         borderColor: "hsl(var(--forge-border))",
         backgroundColor: "white",
@@ -96,7 +129,7 @@ function FeatureCard({
         <img
           src={image}
           alt={title}
-          className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
+          className="w-full h-full object-cover group-hover:scale-[1.05] transition-transform duration-700 ease-out"
         />
       </div>
 
@@ -115,7 +148,7 @@ function FeatureCard({
           {description}
         </p>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -130,7 +163,12 @@ export function Features() {
     >
       <div className="container mx-auto max-w-6xl">
         <div className="text-center space-y-4 mb-16">
-          <div
+          <motion.div
+            variants={headingVariants}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-80px" }}
+            custom={0}
             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
             style={{
               backgroundColor: "hsl(var(--forge-accent-subtle))",
@@ -138,22 +176,38 @@ export function Features() {
             }}
           >
             Features
-          </div>
-          <h2
+          </motion.div>
+          <motion.h2
+            variants={headingVariants}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-80px" }}
+            custom={1}
             className="text-3xl md:text-5xl font-bold tracking-tight"
             style={{ color: "hsl(var(--forge-text))" }}
           >
             Everything You Need to Create
-          </h2>
-          <p
+          </motion.h2>
+          <motion.p
+            variants={headingVariants}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-80px" }}
+            custom={2}
             className="text-lg max-w-2xl mx-auto"
             style={{ color: "hsl(var(--forge-text-muted))" }}
           >
             From natural language to finished 3D model — ModelForge handles the entire pipeline.
-          </p>
+          </motion.p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <motion.div
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-60px" }}
+        >
           {features.map((feature) => (
             <FeatureCard
               key={feature.title}
@@ -162,7 +216,7 @@ export function Features() {
               image={feature.image}
             />
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   )
