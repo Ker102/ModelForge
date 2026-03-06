@@ -114,12 +114,10 @@ export function selectBestProvider(
  * Uses dynamic imports to avoid loading every provider's dependencies
  * upfront (they may have heavy optional packages like @gradio/client).
  *
- * Provider routing:
- *  - If NEURAL_PROVIDER=fal (or FAL_KEY is set), uses fal.ai hosted APIs
- *    for hunyuan-shape and trellis (serverless, pay-per-call, zero ops).
- *  - If NEURAL_PROVIDER=self-hosted (or HUNYUAN_API_URL is set), uses
- *    self-hosted endpoints for all providers.
- *  - Default: fal.ai (recommended for launch/development).
+ * Provider routing (in priority order):
+ *  1. fal.ai: hunyuan-shape, trellis (if FAL_KEY set or NEURAL_PROVIDER=fal)
+ *  2. RunPod Serverless: hunyuan-paint, hunyuan-part (if RUNPOD_API_KEY set)
+ *  3. Self-hosted: all providers via local endpoints
  */
 export async function createNeuralClient(slug: ProviderSlug): Promise<Neural3DClient> {
     const provider = process.env.NEURAL_PROVIDER ?? (process.env.FAL_KEY ? "fal" : "self-hosted")
@@ -129,6 +127,13 @@ export async function createNeuralClient(slug: ProviderSlug): Promise<Neural3DCl
     if (useFal && (slug === "hunyuan-shape" || slug === "trellis")) {
         const { FalClient } = await import("./providers/fal-client")
         return new FalClient(slug)
+    }
+
+    // RunPod Serverless routing for models without hosted APIs
+    const useRunPod = !!process.env.RUNPOD_API_KEY
+    if (useRunPod && (slug === "hunyuan-paint" || slug === "hunyuan-part")) {
+        const { RunPodClient } = await import("./providers/runpod-client")
+        return new RunPodClient(slug)
     }
 
     // Self-hosted / provider-specific routing

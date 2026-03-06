@@ -122,7 +122,7 @@ npm run test:user        # Create test user
 | **MCP Tool Use Guide** | ✅ Complete | 17 commands documented in system prompt with params, returns, and planning tips |
 | **CRAG Pipeline** | ✅ Complete | LLM relevance grading + corrective fallback retrieval |
 | **Model Upgrade** | ✅ Complete | gemini-3.1-pro-preview-customtools + GTE-ModernBERT-base alignment |
-| **Hybrid Neural Deployment** | ✅ Complete | fal.ai client (Hunyuan $0.05, TRELLIS $0.25), env-based routing, Brave Search |
+| **Hybrid Neural Deployment** | ✅ Complete | fal.ai client (Hunyuan $0.05, TRELLIS $0.25), RunPod Serverless (Paint/Part), env-based routing, Brave Search |
 
 ### Roadmap
 - [x] Gemini-backed conversational planning
@@ -187,7 +187,7 @@ npm run test:user        # Create test user
   - Typed Brave Web Search API wrapper
   - `braveSearchBlender()` helper with Blender context + freshness filtering
 - **Verification**: `tsc --noEmit` = 0 errors
-- **Files Created**: `lib/ai/crag.ts`, `scripts/test-neural-pipeline.ts`, `lib/neural/providers/fal-client.ts`, `lib/ai/brave-search.ts`
+- **Files Created**: `lib/ai/crag.ts`, `scripts/test-neural-pipeline.ts`, `lib/neural/providers/fal-client.ts`, `lib/neural/providers/runpod-client.ts`, `lib/ai/brave-search.ts`
 - **Files Modified**: `lib/ai/index.ts`, `lib/gemini.ts`, `lib/ai/rag.ts`, `lib/ai/prompts.ts`, `lib/neural/registry.ts`, `.env.example`, `GEMINI.md`
 
 ### 2026-02-21 (CodeRabbit PR Review Fixes)
