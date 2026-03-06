@@ -61,8 +61,8 @@ RUN mkdir -p ${MODEL_DIR} && \
 
 WORKDIR /app
 
-# Copy handler (path relative to repo root — RunPod build context)
-COPY deploy/runpod/hunyuan-part/handler.py /app/handler.py
+# Copy handler (relative to build context: deploy/runpod/hunyuan-part/)
+COPY handler.py /app/handler.py
 
 EXPOSE 8080
 

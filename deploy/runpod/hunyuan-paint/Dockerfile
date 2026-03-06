@@ -62,8 +62,8 @@ RUN mkdir -p ${MODEL_DIR} && \
 
 WORKDIR /app
 
-# Copy handler (path relative to repo root — RunPod build context)
-COPY deploy/runpod/hunyuan-paint/handler.py /app/handler.py
+# Copy handler (relative to build context: deploy/runpod/hunyuan-paint/)
+COPY handler.py /app/handler.py
 
 # Pre-download any remaining model components
 # (this ensures FlashBoot cache includes everything)
