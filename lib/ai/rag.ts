@@ -3,7 +3,7 @@
  * 
  * Provides context-aware generation by combining:
  * - Vector store retrieval (Neon pgvector)
- * - Gemini 3 Pro Preview generation
+ * - Gemini 3.1 Pro generation
  */
 
 import { createGeminiModel } from "./index"

@@ -2,8 +2,8 @@
  * ModelForge AI Module
  * 
  * Core AI infrastructure using:
- * - Gemini 2.5 Pro for LLM generation
- * - Together.ai M2-BERT-Retrieval-32k for embeddings
+ * - Gemini 3.1 Pro (customtools variant) for LLM generation
+ * - Together.ai GTE-ModernBERT-base for embeddings
  * - LangChain.js for chains and agents
  * - Neon pgvector for RAG storage
  */
@@ -15,8 +15,8 @@ import OpenAI from "openai"
 // Configuration
 // ============================================================================
 
-const DEFAULT_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.1-pro-preview"
-const EMBEDDING_MODEL = "togethercomputer/m2-bert-80M-32k-retrieval"
+const DEFAULT_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.1-pro-preview-customtools"
+const EMBEDDING_MODEL = "Alibaba-NLP/gte-modernbert-base"
 const EMBEDDING_DIMENSIONS = 768
 
 // ============================================================================
@@ -45,7 +45,7 @@ export function createGeminiModel(options?: {
 }
 
 // ============================================================================
-// Embeddings Client (Together.ai M2-BERT)
+// Embeddings Client (Together.ai GTE-ModernBERT)
 // ============================================================================
 
 let togetherClient: OpenAI | null = null
@@ -70,7 +70,7 @@ function getTogetherClient(): OpenAI {
 }
 
 /**
- * Generate embeddings using Together.ai M2-BERT-Retrieval-32k
+ * Generate embeddings using Together.ai GTE-ModernBERT-base
  * @param input Single text or array of texts to embed
  * @returns Array of embedding vectors (768 dimensions each)
  */
