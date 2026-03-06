@@ -38,10 +38,10 @@ const STATUS_CONFIG: Record<
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-    geometry: "border-blue-500/30 bg-blue-500/5",
+    geometry: "border-teal-600/30 bg-teal-600/5",
     topology: "border-green-500/30 bg-green-500/5",
     uv: "border-yellow-500/30 bg-yellow-500/5",
-    texturing: "border-purple-500/30 bg-purple-500/5",
+    texturing: "border-teal-500/30 bg-teal-500/5",
     rigging: "border-orange-500/30 bg-orange-500/5",
     animation: "border-pink-500/30 bg-pink-500/5",
     lighting: "border-amber-500/30 bg-amber-500/5",

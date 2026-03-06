@@ -69,7 +69,7 @@ export function GenerationPanel() {
             <Card className="w-full max-w-2xl mx-auto">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                        <Wand2 className="w-5 h-5 text-purple-500" />
+                        <Wand2 className="w-5 h-5 text-teal-600" />
                         AI 3D Generator
                     </CardTitle>
                     <CardDescription>
@@ -129,7 +129,7 @@ export function GenerationPanel() {
             </Card>
 
             {outputUrl && (
-                <Card className="w-full max-w-2xl mx-auto border-purple-500/50">
+                <Card className="w-full max-w-2xl mx-auto border-teal-600/50">
                     <CardHeader>
                         <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">Generation Result</CardTitle>
                     </CardHeader>

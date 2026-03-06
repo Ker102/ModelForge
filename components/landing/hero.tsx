@@ -1,41 +1,291 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, Sparkles } from "lucide-react"
+import { Sparkles } from "lucide-react"
+
+// ── Simplified Studio workspace preview (pure CSS/HTML) ────────
+
+function StudioPreview() {
+  const sidebarIcons = [
+    // Shape, Cleanup, Unwrap, Paint, Skeleton, Motion, Effects, Lighting
+    "M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z",
+    "M3 6h18M3 12h18M3 18h18",
+    "M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8",
+    "M12 19l7-7 3 3-7 7-3-3z M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z",
+    "M18 20V6M14 20V4M10 20V8M6 20v-6",
+    "M5 12h14M12 5l7 7-7 7",
+  ]
+
+  const tools = [
+    { name: "Cube", active: true },
+    { name: "Sphere" },
+    { name: "Cylinder" },
+    { name: "Plane" },
+    { name: "Torus" },
+    { name: "Cone" },
+  ]
+
+  return (
+    <div
+      className="w-full rounded-[2rem] overflow-hidden border-4"
+      style={{
+        backgroundColor: "white",
+        borderColor: "rgba(255, 255, 255, 0.4)",
+        boxShadow: "0 0 0 1px hsl(var(--forge-border)), 0 30px 60px rgba(13, 148, 136, 0.15), 0 8px 32px rgba(0,0,0,0.08)",
+      }}
+    >
+      {/* Title bar */}
+      <div
+        className="flex items-center justify-between px-4 py-2.5 border-b"
+        style={{ borderColor: "hsl(var(--forge-border))" }}
+      >
+        <div className="flex items-center gap-2">
+          <svg width="14" height="14" viewBox="0 0 32 32" fill="hsl(var(--forge-accent))">
+            <path d="M16 2L4 8v16l12 6 12-6V8L16 2z" />
+          </svg>
+          <span className="text-xs font-semibold" style={{ color: "hsl(var(--forge-text))" }}>
+            ModelForge Studio
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px]" style={{ color: "hsl(var(--forge-text-subtle))" }}>Mode</span>
+          <div
+            className="w-8 h-4 rounded-full relative"
+            style={{ backgroundColor: "hsl(var(--forge-accent))" }}
+          >
+            <div className="absolute right-0.5 top-0.5 w-3 h-3 rounded-full bg-white" />
+          </div>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="flex" style={{ height: 220 }}>
+        {/* Mini sidebar */}
+        <div
+          className="flex flex-col items-center gap-2 py-3 px-2 border-r"
+          style={{
+            borderColor: "hsl(var(--forge-border))",
+            width: 40,
+          }}
+        >
+          {sidebarIcons.map((d, i) => (
+            <div
+              key={i}
+              className="w-6 h-6 rounded-md flex items-center justify-center"
+              style={{
+                backgroundColor: i === 0 ? "hsl(var(--forge-accent))" : "transparent",
+              }}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke={i === 0 ? "white" : "hsl(var(--forge-text-subtle))"}
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d={d} />
+              </svg>
+            </div>
+          ))}
+        </div>
+
+        {/* Content area */}
+        <div className="flex-1 p-3">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold" style={{ color: "hsl(var(--forge-text))" }}>
+              3D Tools
+            </span>
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{
+              backgroundColor: "hsl(var(--forge-accent-subtle))",
+              color: "hsl(var(--forge-accent))",
+            }}>
+              Shape
+            </span>
+          </div>
+
+          {/* Tool grid */}
+          <div className="grid grid-cols-6 gap-1.5 mb-4">
+            {tools.map((tool) => (
+              <div
+                key={tool.name}
+                className="aspect-square rounded-lg border flex flex-col items-center justify-center gap-1"
+                style={{
+                  borderColor: tool.active ? "hsl(var(--forge-accent))" : "hsl(var(--forge-border))",
+                  backgroundColor: tool.active ? "hsl(var(--forge-accent-subtle))" : "hsl(var(--forge-surface-dim))",
+                }}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke={tool.active ? "hsl(var(--forge-accent))" : "hsl(var(--forge-text-subtle))"}
+                  strokeWidth="1.5"
+                >
+                  <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" />
+                </svg>
+                <span className="text-[8px]" style={{
+                  color: tool.active ? "hsl(var(--forge-accent))" : "hsl(var(--forge-text-subtle))",
+                }}>
+                  {tool.name}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Project Assets */}
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold" style={{ color: "hsl(var(--forge-text))" }}>
+              Project Assets
+            </span>
+            <span className="text-[9px]" style={{ color: "hsl(var(--forge-accent))" }}>
+              View all
+            </span>
+          </div>
+          <div className="grid grid-cols-4 gap-1.5">
+            {[
+              { name: "Spaceship", img: "/images/hero/spaceship.png", time: "3 mins ago" },
+              { name: "Designer Chair", img: "/images/hero/chair.png", time: "12 mins ago" },
+              { name: "Robot Buddy", img: "/images/hero/robot.png", time: "28 mins ago" },
+              { name: "Treehouse", img: "/images/hero/treehouse.png", time: "1 hour ago" },
+            ].map((asset) => (
+              <div key={asset.name} className="rounded-lg overflow-hidden border" style={{ borderColor: "hsl(var(--forge-border))" }}>
+                <div className="aspect-square overflow-hidden">
+                  <img
+                    src={asset.img}
+                    alt={asset.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="px-1.5 py-1">
+                  <span className="text-[7px] font-medium block truncate" style={{ color: "hsl(var(--forge-text))" }}>
+                    {asset.name}
+                  </span>
+                  <span className="text-[6px]" style={{ color: "hsl(var(--forge-text-subtle))" }}>
+                    {asset.time}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Hero Section ───────────────────────────────────────────────
 
 export function Hero() {
   return (
-    <section className="container py-20 md:py-32">
-      <div className="mx-auto max-w-4xl text-center space-y-8">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border bg-muted/50 text-sm">
-          <Sparkles className="h-4 w-4 text-primary" />
-          <span>Transform your Blender workflow with AI</span>
-        </div>
-        <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
-          Build 3D Models with
-          <span className="text-primary"> Natural Language</span>
-        </h1>
-        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-          ModelForge brings AI-powered automation to Blender. Create, modify, and enhance your 3D projects through simple conversation.
-        </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link href="/signup">
-            <Button size="lg" className="gap-2">
-              Start Free Trial
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
-          <Link href="/docs">
-            <Button size="lg" variant="outline">
-              Quick Start Guide
-            </Button>
-          </Link>
-        </div>
-        <div className="pt-8">
-          <div className="relative rounded-lg border bg-muted/50 p-2">
-            <div className="aspect-video rounded-md bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-              <p className="text-sm text-muted-foreground">Product Demo Video/Screenshot</p>
-            </div>
+    <section className="relative overflow-hidden pb-32">
+      {/* Background glow */}
+      <div
+        className="absolute inset-x-0 bottom-0 top-1/2 pointer-events-none flex justify-center"
+      >
+        <div
+          className="w-[1000px] h-[600px]"
+          style={{
+            background: "radial-gradient(circle at center, hsl(168 75% 42% / 0.15) 0%, transparent 60%)",
+            filter: "blur(60px)",
+          }}
+        />
+      </div>
+
+      <div className="container relative py-20 md:py-28">
+        <div className="mx-auto max-w-4xl text-center space-y-8">
+          {/* Badge */}
+          <div
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium"
+            style={{
+              backgroundColor: "hsl(var(--forge-accent-subtle))",
+              color: "hsl(var(--forge-accent))",
+              border: "1px solid hsl(var(--forge-accent-muted))",
+            }}
+          >
+            <Sparkles className="w-4 h-4 text-[hsl(var(--forge-accent))]" />
+            Transform your Blender workflow with AI
           </div>
+
+          {/* Heading */}
+          <h1
+            className="text-5xl md:text-7xl font-bold tracking-tight leading-[1.1]"
+            style={{ color: "hsl(var(--forge-text))" }}
+          >
+            Build 3D Models with
+            <br />
+            <span style={{ color: "hsl(var(--forge-accent))" }}>Natural Language</span>
+          </h1>
+
+          {/* Subtitle */}
+          <p
+            className="text-lg md:text-xl max-w-2xl mx-auto leading-relaxed"
+            style={{ color: "hsl(var(--forge-text-muted))" }}
+          >
+            ModelForge brings AI-powered automation to Blender. Create, modify,
+            and enhance your 3D projects through simple conversation.
+          </p>
+
+          {/* CTAs */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link href="/signup">
+              <Button
+                size="lg"
+                className="gap-2 rounded-full px-8 text-sm font-semibold"
+                style={{
+                  backgroundColor: "hsl(var(--forge-accent))",
+                  color: "white",
+                  boxShadow: "0 4px 14px hsl(168 75% 32% / 0.3)",
+                }}
+              >
+                Start Free Trial
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14" />
+                  <path d="m12 5 7 7-7 7" />
+                </svg>
+              </Button>
+            </Link>
+            <Link href="/docs">
+              <Button
+                size="lg"
+                variant="outline"
+                className="rounded-full px-8 text-sm font-medium"
+                style={{
+                  borderColor: "hsl(var(--forge-border-strong))",
+                  color: "hsl(var(--forge-text))",
+                }}
+              >
+                Quick Start Guide
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        {/* Tilted Preview */}
+        <div
+          className="mt-20 mx-auto max-w-5xl relative"
+          style={{ perspective: "2000px" }}
+        >
+          <div
+            className="relative z-10 transition-transform duration-1000 ease-out hover:scale-[1.02]"
+            style={{
+              transform: "translateY(10px) rotateX(12deg) rotateY(8deg) rotateZ(-3deg) scale(0.95)",
+              transformOrigin: "center center",
+            }}
+          >
+            <StudioPreview />
+          </div>
+          {/* Intense teal glow immediately behind the card */}
+          <div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[110%] h-[110%] pointer-events-none"
+            style={{
+              background: "radial-gradient(ellipse at center, hsl(168 75% 42% / 0.25) 0%, transparent 60%)",
+              filter: "blur(80px)",
+              zIndex: 0,
+            }}
+          />
         </div>
       </div>
     </section>

@@ -1,37 +1,91 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Hammer } from "lucide-react"
 
 export function Navbar() {
   return (
-    <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <nav
+      className="sticky top-0 z-50 border-b"
+      style={{
+        backgroundColor: "hsla(0, 0%, 100%, 0.85)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+        borderColor: "hsl(var(--forge-border))",
+      }}
+    >
       <div className="container flex h-16 items-center justify-between">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-2">
-            <Hammer className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">ModelForge</span>
+        <div className="flex items-center gap-8">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2.5">
+            <svg
+              width="28"
+              height="28"
+              viewBox="0 0 32 32"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M16 2L4 8v16l12 6 12-6V8L16 2z"
+                fill="hsl(var(--forge-accent))"
+                fillOpacity="0.15"
+                stroke="hsl(var(--forge-accent))"
+                strokeWidth="2"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M16 2v14m0 0L4 8m12 8l12-8m-12 8v14"
+                stroke="hsl(var(--forge-accent))"
+                strokeWidth="2"
+                strokeLinejoin="round"
+              />
+              <circle cx="16" cy="14" r="3" fill="hsl(var(--forge-accent))" />
+            </svg>
+            <span className="text-xl font-bold tracking-tight" style={{ color: "hsl(var(--forge-text))" }}>
+              ModelForge
+            </span>
           </Link>
+
+          {/* Nav links */}
           <div className="hidden md:flex items-center gap-6">
-            <Link href="/#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              Features
-            </Link>
-            <Link href="/#pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              Pricing
-            </Link>
-            <Link href="/docs" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              Docs
-            </Link>
-            <Link href="/docs" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              Quick Start
-            </Link>
+            {[
+              { href: "/#features", label: "Features" },
+              { href: "/#pricing", label: "Pricing" },
+              { href: "/docs", label: "Docs" },
+              { href: "/docs", label: "Quick Start" },
+            ].map((link) => (
+              <Link
+                key={link.label}
+                href={link.href}
+                className="text-sm font-medium transition-colors hover:opacity-80"
+                style={{ color: "hsl(var(--forge-text-muted))" }}
+              >
+                {link.label}
+              </Link>
+            ))}
           </div>
         </div>
-        <div className="flex items-center gap-4">
+
+        {/* CTA */}
+        <div className="flex items-center gap-3">
           <Link href="/login">
-            <Button variant="ghost">Log in</Button>
+            <Button
+              variant="ghost"
+              className="text-sm font-medium rounded-full px-5"
+              style={{ color: "hsl(var(--forge-text-muted))" }}
+            >
+              Log in
+            </Button>
           </Link>
           <Link href="/signup">
-            <Button>Get Started</Button>
+            <Button
+              className="text-sm font-semibold rounded-full px-6"
+              style={{
+                backgroundColor: "hsl(var(--forge-accent))",
+                color: "white",
+                boxShadow: "0 2px 8px hsl(168 75% 32% / 0.25)",
+              }}
+            >
+              Get Started
+            </Button>
           </Link>
         </div>
       </div>
