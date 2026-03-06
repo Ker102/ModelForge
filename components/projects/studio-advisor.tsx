@@ -1,240 +1,224 @@
 "use client"
 
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useState, useRef, useEffect } from "react"
 import { cn } from "@/lib/utils"
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 interface AdvisorMessage {
-    id: string
-    role: "user" | "advisor"
+    role: "user" | "assistant"
     content: string
-    timestamp: string
 }
 
 interface StudioAdvisorProps {
+    open: boolean
+    onClose: () => void
     projectId: string
-    /** Current workflow context for smart recommendations */
-    workflowContext?: {
-        currentStep?: string
-        completedSteps?: string[]
-        lastError?: string
-    }
-    className?: string
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
+const SUGGESTION_CHIPS = [
+    "What tool should I use next?",
+    "What is UV unwrapping?",
+    "How do I make it look realistic?",
+    "Explain retopology",
+    "Help me set up lighting",
+]
 
-export function StudioAdvisor({
-    projectId,
-    workflowContext,
-    className,
-}: StudioAdvisorProps) {
-    const [messages, setMessages] = useState<AdvisorMessage[]>([
-        {
-            id: "welcome",
-            role: "advisor",
-            content:
-                "👋 Hi! I'm your ModelForge assistant. I can help you choose the right tools, explain concepts, troubleshoot errors, or suggest next steps. Ask me anything!",
-            timestamp: new Date().toISOString(),
-        },
-    ])
+export function StudioAdvisor({ open, onClose, projectId }: StudioAdvisorProps) {
+    const [messages, setMessages] = useState<AdvisorMessage[]>([])
     const [input, setInput] = useState("")
-    const [isLoading, setIsLoading] = useState(false)
-    const [isExpanded, setIsExpanded] = useState(true)
-    const messagesEndRef = useRef<HTMLDivElement>(null)
-    const inputRef = useRef<HTMLInputElement>(null)
+    const [loading, setLoading] = useState(false)
+    const scrollRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+        }
     }, [messages])
 
-    const handleSend = useCallback(
-        async (e: React.FormEvent) => {
-            e.preventDefault()
-            const trimmed = input.trim()
-            if (!trimmed || isLoading) return
+    const sendMessage = async (text: string) => {
+        if (!text.trim() || loading) return
 
-            const userMsg: AdvisorMessage = {
-                id: `user-${Date.now()}`,
-                role: "user",
-                content: trimmed,
-                timestamp: new Date().toISOString(),
-            }
+        const userMsg: AdvisorMessage = { role: "user", content: text.trim() }
+        setMessages((prev) => [...prev, userMsg])
+        setInput("")
+        setLoading(true)
 
-            setMessages((prev) => [...prev, userMsg])
-            setInput("")
-            setIsLoading(true)
+        try {
+            const res = await fetch("/api/ai/advisor", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message: text.trim(),
+                    projectId,
+                    context: messages.slice(-6).map((m) => `${m.role}: ${m.content}`).join("\n"),
+                }),
+            })
 
-            try {
-                const res = await fetch("/api/ai/advisor", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        projectId,
-                        message: trimmed,
-                        workflowContext,
-                    }),
-                })
-
-                if (!res.ok) throw new Error("Advisor request failed")
-
-                const data = await res.json()
-
-                const advisorMsg: AdvisorMessage = {
-                    id: `advisor-${Date.now()}`,
-                    role: "advisor",
-                    content: data.response ?? "I'm not sure about that. Could you rephrase?",
-                    timestamp: new Date().toISOString(),
-                }
-
-                setMessages((prev) => [...prev, advisorMsg])
-            } catch {
-                setMessages((prev) => [
-                    ...prev,
-                    {
-                        id: `error-${Date.now()}`,
-                        role: "advisor",
-                        content: "Sorry, I couldn't process that. Please try again.",
-                        timestamp: new Date().toISOString(),
-                    },
-                ])
-            } finally {
-                setIsLoading(false)
-            }
-        },
-        [input, isLoading, projectId, workflowContext]
-    )
-
-    if (!isExpanded) {
-        return (
-            <button
-                type="button"
-                onClick={() => setIsExpanded(true)}
-                className={cn(
-                    "flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border/60 bg-card/80 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-card transition-all shadow-sm",
-                    className
-                )}
-            >
-                <span className="text-lg">💬</span>
-                <span>Assistant</span>
-                {messages.length > 1 && (
-                    <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-violet-500/20 text-violet-400">
-                        {messages.length - 1}
-                    </span>
-                )}
-            </button>
-        )
+            if (!res.ok) throw new Error("Advisor request failed")
+            const data = await res.json()
+            setMessages((prev) => [
+                ...prev,
+                { role: "assistant", content: data.response ?? "I couldn't generate a response." },
+            ])
+        } catch {
+            setMessages((prev) => [
+                ...prev,
+                { role: "assistant", content: "Sorry, I couldn't process that. Try again." },
+            ])
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
         <div
             className={cn(
-                "flex flex-col rounded-xl border border-border/60 bg-card/80 shadow-sm overflow-hidden",
-                className
+                "flex flex-col border-l transition-all duration-300 overflow-hidden shrink-0",
+                open ? "w-80" : "w-0 border-l-0"
             )}
+            style={{
+                borderColor: "hsl(var(--forge-border))",
+                backgroundColor: "hsl(var(--forge-surface))",
+            }}
         >
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 bg-gradient-to-r from-violet-500/5 to-purple-500/5">
-                <div className="flex items-center gap-2">
-                    <span className="text-sm">💬</span>
-                    <span className="text-sm font-medium text-foreground">Assistant</span>
-                    <span className="text-[10px] text-muted-foreground/60 px-1.5 py-0.5 rounded bg-muted/50">
-                        Advisory only
-                    </span>
-                </div>
-                <button
-                    type="button"
-                    onClick={() => setIsExpanded(false)}
-                    className="text-muted-foreground hover:text-foreground text-xs transition-colors"
-                >
-                    ▼ Minimize
-                </button>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 max-h-[280px] min-h-[120px]">
-                {messages.map((msg) => (
+            {open && (
+                <>
+                    {/* Header */}
                     <div
-                        key={msg.id}
-                        className={cn(
-                            "flex",
-                            msg.role === "user" ? "justify-end" : "justify-start"
-                        )}
+                        className="flex items-center justify-between px-4 py-3 border-b"
+                        style={{ borderColor: "hsl(var(--forge-border))" }}
                     >
-                        <div
-                            className={cn(
-                                "max-w-[85%] rounded-lg px-3 py-2 text-sm",
-                                msg.role === "user"
-                                    ? "bg-violet-500/20 text-foreground"
-                                    : "bg-muted/40 text-foreground/90"
-                            )}
+                        <div className="flex items-center gap-2">
+                            <div
+                                className="w-2 h-2 rounded-full"
+                                style={{ backgroundColor: "hsl(var(--forge-accent))" }}
+                            />
+                            <h3
+                                className="text-sm font-semibold"
+                                style={{ color: "hsl(var(--forge-text))" }}
+                            >
+                                ModelForge Assistant
+                            </h3>
+                        </div>
+                        <button
+                            onClick={onClose}
+                            className="text-sm hover:opacity-70 transition"
+                            style={{ color: "hsl(var(--forge-text-muted))" }}
                         >
-                            {msg.content}
-                        </div>
+                            ✕
+                        </button>
                     </div>
-                ))}
 
-                {isLoading && (
-                    <div className="flex justify-start">
-                        <div className="bg-muted/40 rounded-lg px-3 py-2 text-sm text-muted-foreground">
-                            <span className="animate-pulse">Thinking...</span>
-                        </div>
+                    {/* Messages */}
+                    <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+                        {messages.length === 0 && (
+                            <div className="text-center py-8">
+                                <p
+                                    className="text-sm font-medium mb-1"
+                                    style={{ color: "hsl(var(--forge-text))" }}
+                                >
+                                    Need help?
+                                </p>
+                                <p
+                                    className="text-xs mb-4"
+                                    style={{ color: "hsl(var(--forge-text-muted))" }}
+                                >
+                                    Ask about tools, concepts, or get recommendations
+                                </p>
+                            </div>
+                        )}
+
+                        {messages.map((msg, index) => (
+                            <div
+                                key={index}
+                                className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
+                            >
+                                <div
+                                    className="max-w-[85%] px-3 py-2 rounded-2xl text-sm leading-relaxed"
+                                    style={
+                                        msg.role === "user"
+                                            ? {
+                                                backgroundColor: "hsl(var(--forge-accent))",
+                                                color: "white",
+                                                borderBottomRightRadius: "4px",
+                                            }
+                                            : {
+                                                backgroundColor: "hsl(var(--forge-surface-dim))",
+                                                color: "hsl(var(--forge-text))",
+                                                borderBottomLeftRadius: "4px",
+                                            }
+                                    }
+                                >
+                                    {msg.content}
+                                </div>
+                            </div>
+                        ))}
+
+                        {loading && (
+                            <div className="flex justify-start">
+                                <div
+                                    className="px-4 py-2 rounded-2xl text-sm"
+                                    style={{
+                                        backgroundColor: "hsl(var(--forge-surface-dim))",
+                                        color: "hsl(var(--forge-text-muted))",
+                                    }}
+                                >
+                                    <span className="animate-pulse">Thinking…</span>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                )}
 
-                <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input */}
-            <form onSubmit={handleSend} className="border-t border-border/40 p-3 flex gap-2">
-                <input
-                    ref={inputRef}
-                    type="text"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder="Ask about tools, concepts, or get suggestions..."
-                    disabled={isLoading}
-                    className="flex-1 rounded-lg border border-border/60 bg-background/80 px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500/50 disabled:opacity-50"
-                />
-                <button
-                    type="submit"
-                    disabled={!input.trim() || isLoading}
-                    className={cn(
-                        "px-3 py-2 rounded-lg text-sm font-medium transition-all",
-                        input.trim() && !isLoading
-                            ? "bg-violet-600 text-white hover:bg-violet-500"
-                            : "bg-muted/50 text-muted-foreground cursor-not-allowed"
+                    {/* Suggestion chips */}
+                    {messages.length === 0 && (
+                        <div className="px-4 pb-2 flex flex-wrap gap-1.5">
+                            {SUGGESTION_CHIPS.map((chip) => (
+                                <button
+                                    key={chip}
+                                    onClick={() => sendMessage(chip)}
+                                    className="px-2.5 py-1 rounded-full text-xs border transition hover:border-[hsl(var(--forge-accent))] hover:text-[hsl(var(--forge-accent))]"
+                                    style={{
+                                        borderColor: "hsl(var(--forge-border))",
+                                        color: "hsl(var(--forge-text-muted))",
+                                        backgroundColor: "hsl(var(--forge-surface-dim))",
+                                    }}
+                                >
+                                    {chip}
+                                </button>
+                            ))}
+                        </div>
                     )}
-                >
-                    Ask
-                </button>
-            </form>
 
-            {/* Suggestion chips */}
-            <div className="px-3 pb-3 flex flex-wrap gap-1.5">
-                {[
-                    "What tool should I use next?",
-                    "What is UV unwrapping?",
-                    "How do I make it look realistic?",
-                ].map((suggestion) => (
-                    <button
-                        key={suggestion}
-                        type="button"
-                        onClick={() => {
-                            setInput(suggestion)
-                            inputRef.current?.focus()
-                        }}
-                        className="px-2.5 py-1 rounded-full text-[11px] border border-border/40 text-muted-foreground/70 hover:text-foreground hover:border-violet-500/40 hover:bg-violet-500/5 transition-colors"
+                    {/* Input */}
+                    <div
+                        className="p-3 border-t"
+                        style={{ borderColor: "hsl(var(--forge-border))" }}
                     >
-                        {suggestion}
-                    </button>
-                ))}
-            </div>
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={(e) => e.key === "Enter" && sendMessage(input)}
+                                placeholder="Ask anything..."
+                                className="flex-1 text-sm px-3 py-2 rounded-xl border focus:outline-none focus:ring-2 transition"
+                                style={{
+                                    borderColor: "hsl(var(--forge-border))",
+                                    backgroundColor: "hsl(var(--forge-surface-dim))",
+                                    color: "hsl(var(--forge-text))",
+                                }}
+                            />
+                            <button
+                                onClick={() => sendMessage(input)}
+                                disabled={loading || !input.trim()}
+                                className="px-3 py-2 rounded-xl text-sm font-medium text-white shrink-0 transition disabled:opacity-40"
+                                style={{ backgroundColor: "hsl(var(--forge-accent))" }}
+                            >
+                                Ask
+                            </button>
+                        </div>
+                    </div>
+                </>
+            )}
         </div>
     )
 }
