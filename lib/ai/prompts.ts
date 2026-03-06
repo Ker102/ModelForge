@@ -55,7 +55,45 @@ FOR NON-execute_code TOOLS:
 - Use the EXACT parameter names from the tool reference — wrong names will cause runtime errors.
 - Example: {{"action": "search_polyhaven_assets", "parameters": {{"asset_type": "textures", "categories": "wood"}}, ...}}
 - Example: {{"action": "get_object_info", "parameters": {{"name": "Planet_Earth"}}, ...}}
-- Example: {{"action": "download_polyhaven_asset", "parameters": {{"asset_id": "rock_ground", "asset_type": "textures"}}, ...}}`
+- Example: {{"action": "download_polyhaven_asset", "parameters": {{"asset_id": "rock_ground", "asset_type": "textures"}}, ...}}
+
+MCP TOOL REFERENCE (all available commands):
+
+── READ-ONLY (no scene changes) ──────────────────────────────
+• get_scene_info — No params. Returns: object names, types, materials_count, lights, active camera. USE FIRST in every plan.
+• get_object_info — Params: {{"name": "ObjectName"}}. Returns: transforms, dimensions, materials, modifiers. Use to verify positions after creation.
+• get_all_object_info — Params: {{"max_objects": 50, "start_index": 0}}. Returns: paginated list of ALL objects. Use when editing to discover existing scene state.
+• get_viewport_screenshot — Params: {{"width": 1920, "height": 1080, "format": "png"}} (all optional). Returns: base64 image of viewport. Use for visual verification.
+
+── WRITE (modifies scene) ────────────────────────────────────
+• execute_code — Params: {{"description": "detailed natural-language description"}}. A SEPARATE AI generates Python from your description. THE MOST POWERFUL TOOL — use for all geometry, materials, lighting, camera, animation, modifiers.
+
+── POLYHAVEN ASSETS (requires addon toggle) ──────────────────
+• get_polyhaven_categories — Params: {{"asset_type": "hdris|textures|models"}}. Returns: category list.
+• search_polyhaven_assets — Params: {{"asset_type": "textures", "categories": "wood"}} (categories optional). Returns: asset IDs and names.
+• download_polyhaven_asset — Params: {{"asset_id": "rock_ground", "asset_type": "textures", "resolution": "1k"}} (resolution optional, default "1k"). Downloads + imports the asset. For textures, apply with set_texture afterward.
+• set_texture — Params: {{"object_name": "Floor", "texture_id": "rock_ground"}}. Applies a previously downloaded texture to the named object.
+
+── NEURAL 3D GENERATION (requires addon toggle) ──────────────
+• create_rodin_job — Params: {{"text_prompt": "a wooden chair"}} or {{"images": [["path", "filename"]]}}. Starts async generation.
+• poll_rodin_job_status — Params: {{"subscription_key": "key_from_create"}}. Poll until status="Completed".
+• import_generated_asset — Imports the latest completed neural mesh into scene.
+
+── SKETCHFAB (requires addon toggle) ─────────────────────────
+• search_sketchfab_models — Params: {{"query": "medieval sword", "count": 10, "downloadable": true}}. Returns: model UIDs and names.
+• download_sketchfab_model — Params: {{"uid": "model_uid"}}. Downloads + imports the model.
+
+── STATUS CHECKS ─────────────────────────────────────────────
+• get_polyhaven_status — No params. Returns: whether PolyHaven integration is enabled.
+• get_hyper3d_status — No params. Returns: whether Hyper3D Rodin is enabled and configured.
+• get_sketchfab_status — No params. Returns: whether Sketchfab is enabled and has API key.
+
+PLANNING TIPS:
+- For TEXTURES: search_polyhaven_assets → download_polyhaven_asset → set_texture (3 steps).
+- For HDRI LIGHTING: download_polyhaven_asset with asset_type="hdris" sets up world environment automatically.
+- For NEURAL MESHES: create_rodin_job → poll_rodin_job_status (loop) → import_generated_asset (3 steps).
+- NEVER use download/search commands without checking status first if unsure whether the integration is enabled.
+- execute_code is ALWAYS available and can do anything — PolyHaven/Rodin/Sketchfab are optional enhancements.`
 
 export const VALIDATION_SYSTEM_PROMPT = `You are validating the outcome of a Blender MCP command. Compare the expected outcome with the actual tool response and decide if the step succeeded.
 
