@@ -52,18 +52,18 @@ RUN git clone --depth 1 https://github.com/Tencent/Hunyuan3D-2.git /app/hunyuan3
 # The paint model is part of the Hunyuan3D-2 release
 RUN mkdir -p ${MODEL_DIR} && \
     python -c " \
-from huggingface_hub import snapshot_download; \
-snapshot_download( \
+    from huggingface_hub import snapshot_download; \
+    snapshot_download( \
     'tencent/Hunyuan3D-2', \
     local_dir='${MODEL_DIR}', \
     allow_patterns=['*paint*', 'config*', '*.json', '*.safetensors'], \
     ignore_patterns=['*shape*', '*.bin', '*.ckpt'], \
-)" || echo "Model download deferred to runtime"
+    )" || echo "Model download deferred to runtime"
 
 WORKDIR /app
 
-# Copy handler
-COPY handler.py /app/handler.py
+# Copy handler (path relative to repo root — RunPod build context)
+COPY deploy/runpod/hunyuan-paint/handler.py /app/handler.py
 
 # Pre-download any remaining model components
 # (this ensures FlashBoot cache includes everything)
