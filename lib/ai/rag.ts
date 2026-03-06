@@ -8,6 +8,7 @@
 
 import { createGeminiModel } from "./index"
 import { similaritySearch, type SearchResult } from "./vectorstore"
+import { correctiveRetrieve } from "./crag"
 import { HumanMessage, SystemMessage } from "@langchain/core/messages"
 
 export interface RAGOptions {
@@ -97,12 +98,20 @@ export async function generateBlenderCode(
     request: string,
     options: RAGOptions = {}
 ): Promise<RAGResult> {
-    // Search for relevant Blender API documentation
-    const sources = await similaritySearch(request, {
-        limit: options.topK ?? 8,
+    // Use CRAG pipeline for better relevance filtering
+    const cragResult = await correctiveRetrieve(request, {
+        topK: options.topK ?? 8,
         source: options.source ?? "blender-scripts",
         minSimilarity: options.minSimilarity ?? 0.4,
+        minRelevantDocs: 2,
     })
+
+    const sources = cragResult.documents
+    console.log(
+        `[CRAG] Retrieved ${cragResult.totalRetrieved}, ` +
+        `relevant: ${cragResult.totalRelevant}, ` +
+        `fallback: ${cragResult.usedFallback}`
+    )
 
     // Build context from Blender docs
     const contextParts: string[] = []
