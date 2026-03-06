@@ -113,8 +113,25 @@ export function selectBestProvider(
  *
  * Uses dynamic imports to avoid loading every provider's dependencies
  * upfront (they may have heavy optional packages like @gradio/client).
+ *
+ * Provider routing:
+ *  - If NEURAL_PROVIDER=fal (or FAL_KEY is set), uses fal.ai hosted APIs
+ *    for hunyuan-shape and trellis (serverless, pay-per-call, zero ops).
+ *  - If NEURAL_PROVIDER=self-hosted (or HUNYUAN_API_URL is set), uses
+ *    self-hosted endpoints for all providers.
+ *  - Default: fal.ai (recommended for launch/development).
  */
 export async function createNeuralClient(slug: ProviderSlug): Promise<Neural3DClient> {
+    const provider = process.env.NEURAL_PROVIDER ?? (process.env.FAL_KEY ? "fal" : "self-hosted")
+    const useFal = provider === "fal"
+
+    // fal.ai routing for supported providers
+    if (useFal && (slug === "hunyuan-shape" || slug === "trellis")) {
+        const { FalClient } = await import("./providers/fal-client")
+        return new FalClient(slug)
+    }
+
+    // Self-hosted / provider-specific routing
     switch (slug) {
         case "hunyuan-shape": {
             const { HunyuanShapeClient } = await import("./providers/hunyuan-shape")

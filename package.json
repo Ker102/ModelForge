@@ -21,6 +21,7 @@
     "mock:neural": "tsx scripts/mock-neural-server.ts"
   },
   "dependencies": {
+    "@fal-ai/client": "^1.9.4",
     "@google/generative-ai": "^0.24.1",
     "@langchain/core": "^0.3.0",
     "@langchain/google-genai": "^0.1.0",

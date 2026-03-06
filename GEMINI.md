@@ -122,6 +122,7 @@ npm run test:user        # Create test user
 | **MCP Tool Use Guide** | ✅ Complete | 17 commands documented in system prompt with params, returns, and planning tips |
 | **CRAG Pipeline** | ✅ Complete | LLM relevance grading + corrective fallback retrieval |
 | **Model Upgrade** | ✅ Complete | gemini-3.1-pro-preview-customtools + GTE-ModernBERT-base alignment |
+| **Hybrid Neural Deployment** | ✅ Complete | fal.ai client (Hunyuan $0.05, TRELLIS $0.25), env-based routing, Brave Search |
 
 ### Roadmap
 - [x] Gemini-backed conversational planning
@@ -139,14 +140,14 @@ npm run test:user        # Create test user
 - [x] **3D pipeline strategy (competitors, techniques, 7-phase plan)**
 - [x] **Phase 1: RAG scripts (retopology, rigging, animation, UV, PBR, export)**
 - [x] **Phase 2: Self-hosted neural 3D layer (Hunyuan Shape/Paint/Part, TRELLIS 2, YVO3D, hybrid pipeline)**
-- [ ] Phase 3: Deploy neural models (Azure ML/HF Inference Endpoints)
+- [x] **Phase 3: Deploy neural models — fal.ai serverless APIs (Hunyuan $0.05/gen, TRELLIS 2 $0.25/gen), HF Inference for scale-to-zero at volume**
 - [x] **Phase 4: AI strategy router (auto-select procedural vs neural vs hybrid)**
 - [x] **Phase 3: Guided workflow system (per-step tool recommendations, human-in-the-loop)**
 - [x] **Blender 5.x API compatibility (21 breaking changes, blend_method, EEVEE removals)**
 - [x] **Planner edit awareness (scene state → code gen, structured JSON, object referencing)**
-- [ ] 🟠 **Tool use guide in system prompt** — structured guide for all 14+ MCP commands and how they modify scene state
-- [ ] 🟡 **CRAG pipeline** — relevance grading + re-ranking for RAG retrieval quality
-- [ ] 🔵 Search engine integration (Brave Search API as in-agent tool) — only if testing reveals knowledge gaps
+- [x] **Tool use guide in system prompt** — 17 MCP commands with params, returns, tips
+- [x] **CRAG pipeline** — LLM relevance grading + corrective fallback retrieval
+- [x] **Search engine integration** — Brave Search API as knowledge fallback tool
 - [ ] Phase 5: Credit system + production export pipeline
 - [ ] Material/color quality enhancement
 - [ ] Production desktop app packaging
@@ -159,7 +160,7 @@ npm run test:user        # Create test user
 
 ## 📝 Session Log
 
-### 2026-03-06 (Model Upgrade + MCP Tool Guide + CRAG Pipeline + Neural Testing)
+### 2026-03-06 (Model Upgrade + MCP Tool Guide + CRAG Pipeline + Neural Testing + Hybrid Deployment)
 - **Model Upgrade**:
   - Switched DEFAULT_MODEL from `gemini-3.1-pro-preview` → `gemini-3.1-pro-preview-customtools` (optimized for agentic tool-use)
   - Fixed stale EMBEDDING_MODEL in `lib/ai/index.ts`: `m2-bert` → `gte-modernbert-base` (matching `embeddings.ts`)
@@ -177,9 +178,17 @@ npm run test:user        # Create test user
   - Mock neural server (port 8090) returns valid 772-byte GLB cube
   - `HunyuanShapeClient` → mock server via `HUNYUAN_API_URL` env var
   - All tests passed: health ✅, generate ✅, file saved ✅, GLB magic verified ✅
+- **Hybrid Neural Deployment**:
+  - New `lib/neural/providers/fal-client.ts`: unified fal.ai client for Hunyuan ($0.05) + TRELLIS 2 ($0.25-0.35)
+  - `registry.ts` updated: env-based routing (`NEURAL_PROVIDER=fal|self-hosted`, `FAL_KEY` auto-detect)
+  - Installed `@fal-ai/client` package
+  - Strategy: fal.ai APIs for launch → HF Inference Endpoints at volume → Azure at scale
+- **Brave Search Integration** (`lib/ai/brave-search.ts`):
+  - Typed Brave Web Search API wrapper
+  - `braveSearchBlender()` helper with Blender context + freshness filtering
 - **Verification**: `tsc --noEmit` = 0 errors
-- **Files Created**: `lib/ai/crag.ts`, `scripts/test-neural-pipeline.ts`
-- **Files Modified**: `lib/ai/index.ts`, `lib/gemini.ts`, `lib/ai/rag.ts`, `lib/ai/prompts.ts`, `GEMINI.md`
+- **Files Created**: `lib/ai/crag.ts`, `scripts/test-neural-pipeline.ts`, `lib/neural/providers/fal-client.ts`, `lib/ai/brave-search.ts`
+- **Files Modified**: `lib/ai/index.ts`, `lib/gemini.ts`, `lib/ai/rag.ts`, `lib/ai/prompts.ts`, `lib/neural/registry.ts`, `.env.example`, `GEMINI.md`
 
 ### 2026-02-21 (CodeRabbit PR Review Fixes)
 - **Triaged 125 CodeRabbit comments** from PR #20 — accepted 17 fixes, rejected ~95 noise
