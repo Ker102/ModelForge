@@ -1,5 +1,6 @@
 import type { StrategyDecision } from "./strategy-types"
 import type { WorkflowProposal, WorkflowStepStatus } from "./workflow-types"
+import type { LogEntry, SessionSummary } from "@/lib/monitoring"
 
 export interface PlanStep {
   stepNumber: number
@@ -106,6 +107,8 @@ interface AgentHybridPipeline extends AgentEventBase { type: "agent:hybrid_pipel
 interface AgentStrategyClassification extends AgentEventBase { type: "agent:strategy_classification"; strategy: string; confidence: number; reasoning: string; method: string }
 interface AgentWorkflowProposal extends AgentEventBase { type: "agent:workflow_proposal"; proposal: WorkflowProposal }
 interface AgentWorkflowStepUpdate extends AgentEventBase { type: "agent:workflow_step_update"; stepId: string; status: WorkflowStepStatus; message?: string; error?: string; durationMs?: number }
+interface AgentMonitoringLog extends AgentEventBase { type: "agent:monitoring_log"; entry: LogEntry }
+interface AgentMonitoringSummary extends AgentEventBase { type: "agent:monitoring_summary"; summary: SessionSummary }
 
 /**
  * Real-time stream event types sent during agent execution
@@ -130,6 +133,8 @@ export type AgentStreamEvent =
   | AgentStrategyClassification
   | AgentWorkflowProposal
   | AgentWorkflowStepUpdate
+  | AgentMonitoringLog
+  | AgentMonitoringSummary
 
 export interface PlanningMetadata {
   planSummary: string

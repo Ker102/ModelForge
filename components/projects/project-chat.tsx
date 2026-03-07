@@ -16,6 +16,7 @@ import type { WorkflowProposal } from "@/lib/orchestration/workflow-types"
 import { ModeSelector, type WorkflowMode } from "@/components/projects/mode-selector"
 import { StudioLayout } from "@/components/projects/studio-layout"
 import { CastleIcon, FoxIcon, RocketIcon, TreeIcon } from "@/components/projects/studio-icons"
+import { MonitoringPanel } from "@/components/projects/monitoring-panel"
 
 interface CommandStub {
   id: string
@@ -129,6 +130,14 @@ export function ProjectChat({
   const [activeWorkflow, setActiveWorkflow] = useState<WorkflowProposal | null>(null)
   const [mcpConnected, setMcpConnected] = useState<boolean | null>(null)
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode>("autopilot")
+  // Monitoring state
+  const [monitoringLogs, setMonitoringLogs] = useState<Array<{ timestamp: string; sessionId: string; namespace: string; level: "debug" | "info" | "warn" | "error"; message: string; data?: Record<string, unknown>; durationMs?: number }>>([])
+  const [monitoringSummary, setMonitoringSummary] = useState<{
+    sessionId: string; startedAt: string; endedAt: string; totalDurationMs: number;
+    timers: Record<string, number>; counts: { debug: number; info: number; warn: number; error: number };
+    neuralCosts: Array<{ provider: string; model: string; durationMs: number; estimatedCostUsd: number }>;
+    ragStats: { totalRetrieved: number; totalRelevant: number; fallbacksUsed: number };
+  } | null>(null)
   const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024
   const MAX_ATTACHMENTS = 4
 
@@ -669,6 +678,19 @@ export function ProjectChat({
                   if (agentEvent.type === "agent:planning_start") {
                     setAgentActive(true)
                     setAgentEvents([agentEvent])
+                    // Reset monitoring for new pipeline run
+                    setMonitoringLogs([])
+                    setMonitoringSummary(null)
+                  } else if (agentEvent.type === "agent:monitoring_log") {
+                    const logEvent = agentEvent as unknown as { entry: typeof monitoringLogs[0] }
+                    if (logEvent.entry) {
+                      setMonitoringLogs((prev) => [...prev, logEvent.entry])
+                    }
+                  } else if (agentEvent.type === "agent:monitoring_summary") {
+                    const summaryEvent = agentEvent as unknown as { summary: typeof monitoringSummary }
+                    if (summaryEvent.summary) {
+                      setMonitoringSummary(summaryEvent.summary)
+                    }
                   } else if (agentEvent.type === "agent:workflow_proposal") {
                     setActiveWorkflow((agentEvent as unknown as { proposal: WorkflowProposal }).proposal)
                     setAgentEvents((prev) => [...prev, agentEvent])
@@ -1223,6 +1245,17 @@ export function ProjectChat({
                             onStepAction={(stepId, action) => {
                               console.log(`[Workflow] Step ${stepId}: ${action}`)
                             }}
+                          />
+                        </div>
+                      )}
+                    {/* Pipeline monitoring panel */}
+                    {message.role === "assistant" &&
+                      index === messages.length - 1 &&
+                      monitoringLogs.length > 0 && (
+                        <div className="max-w-[90%]">
+                          <MonitoringPanel
+                            logs={monitoringLogs}
+                            summary={monitoringSummary}
                           />
                         </div>
                       )}

@@ -11,6 +11,7 @@
 import { createGeminiModel } from "./index"
 import { similaritySearch, type SearchResult } from "./vectorstore"
 import { HumanMessage, SystemMessage } from "@langchain/core/messages"
+import type { MonitoringSession } from "@/lib/monitoring"
 
 // ============================================================================
 // Types
@@ -123,11 +124,16 @@ export async function correctiveRetrieve(
         source?: string
         /** Minimum number of relevant docs before triggering fallback */
         minRelevantDocs?: number
+        /** Optional monitoring session for structured logging */
+        monitor?: MonitoringSession
     } = {}
 ): Promise<CRAGResult> {
     const topK = options.topK ?? 8
     const minSimilarity = options.minSimilarity ?? 0.4
     const minRelevant = options.minRelevantDocs ?? 2
+    const monitor = options.monitor
+
+    monitor?.startTimer("crag_retrieval")
 
     // Step 1: Initial retrieval
     const initialDocs = await similaritySearch(query, {
@@ -137,6 +143,8 @@ export async function correctiveRetrieve(
     })
 
     if (initialDocs.length === 0) {
+        monitor?.warn("crag", "No documents retrieved from vector store", { query: query.slice(0, 100) })
+        monitor?.endTimer("crag_retrieval")
         return {
             documents: [],
             totalRetrieved: 0,
@@ -145,8 +153,25 @@ export async function correctiveRetrieve(
         }
     }
 
+    monitor?.info("crag", `Retrieved ${initialDocs.length} initial documents`, {
+        topK,
+        minSimilarity,
+        docSources: initialDocs.map(d => d.source ?? "unknown"),
+    })
+
     // Step 2: Grade relevance
+    monitor?.startTimer("crag_grading")
     const graded = await gradeDocuments(query, initialDocs)
+    monitor?.endTimer("crag_grading")
+
+    // Log individual grades
+    for (const doc of graded) {
+        monitor?.debug("crag", `Grade: ${doc.grade} — ${doc.source ?? "unknown"}`, {
+            grade: doc.grade,
+            reason: doc.gradeReason,
+            similarity: doc.similarity,
+        })
+    }
 
     // Step 3: Filter to relevant + partially relevant
     const relevant = graded.filter(
@@ -155,9 +180,10 @@ export async function correctiveRetrieve(
 
     // Step 4: Fallback if not enough relevant docs
     if (relevant.length < minRelevant) {
-        console.log(
-            `[CRAG] Only ${relevant.length}/${minRelevant} relevant docs found — triggering broader search`
-        )
+        monitor?.warn("crag", `Only ${relevant.length}/${minRelevant} relevant docs — triggering broader search`, {
+            relevantCount: relevant.length,
+            minRequired: minRelevant,
+        })
 
         // Retry with lower threshold and more results
         const fallbackDocs = await similaritySearch(query, {

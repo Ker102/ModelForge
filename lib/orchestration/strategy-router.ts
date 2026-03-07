@@ -1,5 +1,6 @@
 import type { Strategy, StrategyDecision, StrategyOverride } from "./strategy-types"
 import type { ProviderSlug } from "@/lib/neural/types"
+import type { MonitoringSession } from "@/lib/monitoring"
 
 // ---------------------------------------------------------------------------
 // Keyword-based classification patterns
@@ -218,6 +219,8 @@ export interface ClassifyOptions {
     sceneContext?: string
     /** Skip LLM fallback — only use keyword classification (default: false) */
     keywordOnly?: boolean
+    /** Optional monitoring session for structured logging */
+    monitor?: MonitoringSession
 }
 
 /**
@@ -236,8 +239,16 @@ export async function classifyStrategy(
     userRequest: string,
     options: ClassifyOptions = {}
 ): Promise<StrategyDecision> {
+    const monitor = options.monitor
+    monitor?.startTimer("strategy_classification")
+
     // 1. User override — always wins
     if (options.override) {
+        monitor?.info("strategy", `User override: ${options.override.strategy}`, {
+            strategy: options.override.strategy,
+            providers: options.override.providers,
+        })
+        monitor?.endTimer("strategy_classification")
         return {
             strategy: options.override.strategy,
             confidence: 1.0,
@@ -249,22 +260,46 @@ export async function classifyStrategy(
 
     // 2. Keyword-based classification
     const score = scoreKeywords(userRequest)
+    monitor?.debug("strategy", "Keyword scores", {
+        procedural: score.procedural,
+        neural: score.neural,
+        hybrid: score.hybrid,
+    })
     const keywordResult = decideFromKeywords(score)
 
     if (keywordResult && keywordResult.confidence >= 0.6) {
+        monitor?.info("strategy", `Keyword classification: ${keywordResult.strategy} (${(keywordResult.confidence * 100).toFixed(0)}%)`, {
+            strategy: keywordResult.strategy,
+            confidence: keywordResult.confidence,
+            reasoning: keywordResult.reasoning,
+        })
+        monitor?.endTimer("strategy_classification")
         return keywordResult
     }
 
     // 3. LLM fallback (unless disabled)
     if (!options.keywordOnly) {
-        return classifyWithLLM(userRequest, options.sceneContext)
+        monitor?.info("strategy", "Keywords ambiguous — falling back to LLM classification")
+        const llmResult = await classifyWithLLM(userRequest, options.sceneContext)
+        monitor?.info("strategy", `LLM classification: ${llmResult.strategy} (${(llmResult.confidence * 100).toFixed(0)}%)`, {
+            strategy: llmResult.strategy,
+            confidence: llmResult.confidence,
+            reasoning: llmResult.reasoning,
+        })
+        monitor?.endTimer("strategy_classification")
+        return llmResult
     }
 
     // 4. Keyword-only mode with low confidence — default to procedural
-    return keywordResult ?? {
-        strategy: "procedural",
+    const fallback = keywordResult ?? {
+        strategy: "procedural" as Strategy,
         confidence: 0.4,
         reasoning: "Could not confidently classify; defaulting to procedural generation.",
-        classificationMethod: "keyword",
+        classificationMethod: "keyword" as const,
     }
+    monitor?.warn("strategy", `Low-confidence fallback: ${fallback.strategy}`, {
+        confidence: fallback.confidence,
+    })
+    monitor?.endTimer("strategy_classification")
+    return fallback
 }

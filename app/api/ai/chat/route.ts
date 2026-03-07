@@ -26,6 +26,7 @@ import { buildSystemPrompt } from "@/lib/orchestration/prompts"
 import { searchFirecrawl, type FirecrawlSearchResult } from "@/lib/firecrawl"
 import { classifyStrategy } from "@/lib/orchestration/strategy-router"
 import { generateWorkflowProposal } from "@/lib/orchestration/workflow-advisor"
+import { createMonitoringSession, type MonitoringSession } from "@/lib/monitoring"
 import { z } from "zod"
 
 const MAX_HISTORY_MESSAGES = 12
@@ -472,6 +473,26 @@ export async function POST(req: Request) {
 
         send({ type: "init", conversationId: resolvedConversationId })
 
+        // Create monitoring session for this request
+        const monitor = createMonitoringSession(
+          resolvedConversationId,
+          (entry) => {
+            // Stream each log entry to the UI in real-time
+            send({
+              type: "agent:monitoring_log",
+              timestamp: entry.timestamp,
+              entry,
+            })
+          }
+        )
+        monitor.info("system", "Pipeline started", {
+          conversationId: resolvedConversationId,
+          projectId,
+          userId: session.user.id,
+          workflowMode: workflowMode ?? "autopilot",
+        })
+        monitor.startTimer("total_pipeline")
+
         let assistantText = ""
         let tokenUsage: { promptTokens?: number | null; responseTokens?: number | null; totalTokens?: number | null } | undefined
 
@@ -500,8 +521,16 @@ export async function POST(req: Request) {
           const sceneSnapshotResult = await fetchSceneSummary()
 
           // Strategy classification: determine procedural vs neural vs hybrid
+          monitor.startTimer("strategy_classification")
           const strategyDecision = await classifyStrategy(message, {
             sceneContext: sceneSnapshotResult.summary ?? undefined,
+            monitor,
+          })
+          monitor.endTimer("strategy_classification")
+          monitor.info("strategy", `Strategy: ${strategyDecision.strategy} (${(strategyDecision.confidence * 100).toFixed(0)}% confidence)`, {
+            strategy: strategyDecision.strategy,
+            confidence: strategyDecision.confidence,
+            method: strategyDecision.classificationMethod,
           })
           send({
             type: "agent:strategy_classification",
@@ -566,6 +595,7 @@ export async function POST(req: Request) {
           if (!planningMetadata) {
 
             try {
+              monitor.startTimer("plan_generation")
               planResult = await planner.generatePlan(
                 message,
                 {
@@ -580,6 +610,14 @@ export async function POST(req: Request) {
               )
 
               if (planResult && planResult.plan) {
+                monitor.endTimer("plan_generation")
+                monitor.info("planner", `Plan generated: ${planResult.plan.steps.length} steps`, {
+                  summary: planResult.plan.planSummary,
+                  stepCount: planResult.plan.steps.length,
+                  retries: planResult.retries ?? 0,
+                })
+
+                monitor.startTimer("plan_execution")
                 const executionResult = await planExecutor.executePlan(
                   planResult.plan,
                   message,
@@ -593,6 +631,11 @@ export async function POST(req: Request) {
                   llmProvider
                 )
                 executionLogs = executionResult.logs
+                monitor.endTimer("plan_execution")
+                monitor.info("executor", `Execution complete: ${executionResult.success ? "SUCCESS" : "FAILED"}`, {
+                  completedSteps: executionResult.completedSteps.length,
+                  failedSteps: executionResult.failedSteps.length,
+                })
                 executedCommands = buildExecutedCommandsFromPlan(planResult.plan, executionResult)
                 planningMetadata = {
                   planSummary: planResult.plan.planSummary,
@@ -633,6 +676,9 @@ export async function POST(req: Request) {
                 throw new Error("Planner returned no result")
               }
             } catch (error) {
+              monitor.error("planner", "Planning pipeline error", {
+                error: error instanceof Error ? error.message : String(error),
+              })
               console.error("Planning pipeline error:", error)
               const messageText =
                 error instanceof Error ? error.message : "Unknown planning error"
@@ -763,6 +809,21 @@ export async function POST(req: Request) {
             session.user.subscriptionTier
           )
 
+          // Emit monitoring summary
+          monitor.endTimer("total_pipeline")
+          const summary = monitor.getSummary()
+          monitor.info("system", `Pipeline complete: ${summary.counts.error} errors, ${Object.keys(summary.timers).length} timed stages`, {
+            totalDurationMs: summary.totalDurationMs,
+            timers: summary.timers,
+            counts: summary.counts,
+          })
+          send({
+            type: "agent:monitoring_summary",
+            timestamp: new Date().toISOString(),
+            summary,
+          })
+          monitor.persistSummary()
+
           send({
             type: "complete",
             conversationId: resolvedConversationId,
@@ -773,6 +834,11 @@ export async function POST(req: Request) {
             planning: planningMetadata,
           })
         } catch (error) {
+          monitor.error("system", "AI chat stream error", {
+            error: error instanceof Error ? error.message : String(error),
+          })
+          monitor.endTimer("total_pipeline")
+          monitor.persistSummary()
           console.error("AI chat stream error:", error)
           send({
             type: "error",
