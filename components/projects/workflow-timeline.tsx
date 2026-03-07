@@ -2,22 +2,76 @@
 
 import { cn } from "@/lib/utils"
 
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface StepSessionMessage {
+    role: "user" | "assistant"
+    content: string
+}
+
+export interface StepMonitoringLog {
+    timestamp: string
+    sessionId: string
+    namespace: string
+    level: "debug" | "info" | "warn" | "error"
+    message: string
+    data?: Record<string, unknown>
+    durationMs?: number
+}
+
+export interface StepMonitoringSummary {
+    sessionId: string
+    startedAt: string
+    endedAt: string
+    totalDurationMs: number
+    timers: Record<string, number>
+    counts: { debug: number; info: number; warn: number; error: number }
+    neuralCosts: Array<{ provider: string; model: string; durationMs: number; estimatedCostUsd: number }>
+    ragStats: { totalRetrieved: number; totalRelevant: number; fallbacksUsed: number }
+}
+
 export interface WorkflowTimelineStep {
     id: string
     title: string
     toolName: string
     status: "pending" | "running" | "done" | "failed"
+    /** The user's inputs for this step */
+    inputs?: Record<string, string>
+    /** Conversation ID returned by the API */
+    conversationId?: string
+    /** Messages in this step's session */
+    messages?: StepSessionMessage[]
+    /** Monitoring logs streamed during execution */
+    monitoringLogs?: StepMonitoringLog[]
+    /** Final monitoring summary */
+    monitoringSummary?: StepMonitoringSummary | null
+    /** Error message if failed */
+    error?: string
 }
+
+// ============================================================================
+// Props
+// ============================================================================
 
 interface WorkflowTimelineProps {
     steps: WorkflowTimelineStep[]
+    selectedStepId?: string | null
     onRemoveStep: (stepId: string) => void
+    onStepClick: (stepId: string) => void
     onRunAll: () => void
 }
 
+// ============================================================================
+// Component
+// ============================================================================
+
 export function WorkflowTimeline({
     steps,
+    selectedStepId,
     onRemoveStep,
+    onStepClick,
     onRunAll,
 }: WorkflowTimelineProps) {
     if (steps.length === 0) return null
@@ -38,72 +92,91 @@ export function WorkflowTimeline({
             </span>
 
             <div className="flex items-center gap-1.5 overflow-x-auto">
-                {steps.map((step, index) => (
-                    <div key={step.id} className="flex items-center gap-1.5 shrink-0">
-                        {/* Step pill */}
-                        <div
-                            className={cn(
-                                "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
-                                step.status === "done" && "opacity-60 line-through",
-                                step.status === "running" && "animate-pulse",
-                            )}
-                            style={{
-                                borderColor:
-                                    step.status === "running"
-                                        ? "hsl(var(--forge-accent))"
-                                        : "hsl(var(--forge-border))",
-                                backgroundColor:
-                                    step.status === "running"
-                                        ? "hsl(var(--forge-accent-subtle))"
-                                        : "hsl(var(--forge-surface))",
-                                color:
-                                    step.status === "running"
-                                        ? "hsl(var(--forge-accent))"
-                                        : "hsl(var(--forge-text))",
-                            }}
-                        >
-                            {/* Status dot */}
-                            <span
-                                className="w-1.5 h-1.5 rounded-full shrink-0"
+                {steps.map((step, index) => {
+                    const isSelected = selectedStepId === step.id
+                    return (
+                        <div key={step.id} className="flex items-center gap-1.5 shrink-0">
+                            {/* Step pill — clickable */}
+                            <button
+                                onClick={() => onStepClick(step.id)}
+                                className={cn(
+                                    "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer",
+                                    "hover:brightness-110",
+                                    step.status === "done" && "opacity-60",
+                                    step.status === "running" && "animate-pulse",
+                                    isSelected && "ring-2 ring-offset-1",
+                                )}
                                 style={{
-                                    backgroundColor:
-                                        step.status === "done"
+                                    borderColor:
+                                        step.status === "running" || isSelected
                                             ? "hsl(var(--forge-accent))"
                                             : step.status === "failed"
                                                 ? "hsl(0 84% 60%)"
-                                                : step.status === "running"
-                                                    ? "hsl(var(--forge-accent))"
-                                                    : "hsl(var(--forge-text-subtle))",
+                                                : "hsl(var(--forge-border))",
+                                    backgroundColor:
+                                        step.status === "running" || isSelected
+                                            ? "hsl(var(--forge-accent-subtle))"
+                                            : "hsl(var(--forge-surface))",
+                                    color:
+                                        step.status === "running" || isSelected
+                                            ? "hsl(var(--forge-accent))"
+                                            : step.status === "failed"
+                                                ? "hsl(0 84% 60%)"
+                                                : "hsl(var(--forge-text))",
+                                    ...(isSelected ? { ringColor: "hsl(var(--forge-accent))" } : {}),
                                 }}
-                            />
-                            <span>
-                                {index + 1}. {step.title}
-                            </span>
-                            <button
-                                onClick={() => onRemoveStep(step.id)}
-                                className="ml-1 opacity-50 hover:opacity-100 transition text-base leading-none"
-                                style={{ color: "hsl(var(--forge-text-muted))" }}
                             >
-                                ×
+                                {/* Status dot */}
+                                <span
+                                    className={cn(
+                                        "w-1.5 h-1.5 rounded-full shrink-0",
+                                        step.status === "running" && "animate-ping",
+                                    )}
+                                    style={{
+                                        backgroundColor:
+                                            step.status === "done"
+                                                ? "hsl(var(--forge-accent))"
+                                                : step.status === "failed"
+                                                    ? "hsl(0 84% 60%)"
+                                                    : step.status === "running"
+                                                        ? "hsl(var(--forge-accent))"
+                                                        : "hsl(var(--forge-text-subtle))",
+                                    }}
+                                />
+                                <span>
+                                    {index + 1}. {step.title}
+                                </span>
+                                {/* Remove button — stop propagation so click doesn't open drawer */}
+                                <span
+                                    role="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        onRemoveStep(step.id)
+                                    }}
+                                    className="ml-1 opacity-50 hover:opacity-100 transition text-base leading-none"
+                                    style={{ color: "hsl(var(--forge-text-muted))" }}
+                                >
+                                    ×
+                                </span>
                             </button>
-                        </div>
 
-                        {/* Connector arrow */}
-                        {index < steps.length - 1 && (
-                            <svg
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="hsl(var(--forge-text-subtle))"
-                                strokeWidth="2"
-                                className="shrink-0"
-                            >
-                                <polyline points="9 18 15 12 9 6" />
-                            </svg>
-                        )}
-                    </div>
-                ))}
+                            {/* Connector arrow */}
+                            {index < steps.length - 1 && (
+                                <svg
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="hsl(var(--forge-text-subtle))"
+                                    strokeWidth="2"
+                                    className="shrink-0"
+                                >
+                                    <polyline points="9 18 15 12 9 6" />
+                                </svg>
+                            )}
+                        </div>
+                    )
+                })}
             </div>
 
             <div className="flex-1" />
