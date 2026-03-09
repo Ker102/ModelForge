@@ -724,6 +724,7 @@ export async function POST(req: Request) {
 
           // ── Generate post-execution summary + follow-up ──
           try {
+            console.log("[Chat] Generating post-execution follow-up...", { overallSuccess, executedCommandsCount: executedCommands.length })
             const completedList = executedCommands
               .filter(c => c.status === "executed")
               .map(c => c.tool)
@@ -749,13 +750,23 @@ export async function POST(req: Request) {
               }
             }
 
-            // Append follow-up to the assistant text so it's saved to DB
+            console.log("[Chat] Follow-up generated:", followUpText.length, "chars")
+
+            // Replace assistant text with follow-up so it's saved to DB
             if (followUpText.trim()) {
               assistantText = followUpText.trim()
             }
           } catch (followUpError) {
-            // Non-fatal — don't block the pipeline if follow-up generation fails
-            console.warn("[Chat] Post-execution follow-up generation failed:", followUpError)
+            console.error("[Chat] Post-execution follow-up generation FAILED:", followUpError)
+            // Make the error visible in the UI + send a fallback follow-up
+            const errMsg = followUpError instanceof Error ? followUpError.message : String(followUpError)
+            const fallbackText = overallSuccess
+              ? `I've completed the task. Would you like me to refine anything?`
+              : `The execution encountered some issues. Would you like me to try a different approach?`
+            send({ type: "followup_delta", delta: `\n\n${fallbackText}` })
+            assistantText += `\n\n${fallbackText}`
+            // Log the error in monitoring for the session log
+            monitor.error("followup", `Follow-up generation failed: ${errMsg}`)
           }
 
           await recordExecutionLog({
