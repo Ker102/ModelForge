@@ -15,8 +15,7 @@ import type { McpResponse, ViewportScreenshotResponse } from "./types"
  * @returns Base64-encoded PNG image data
  */
 export async function getViewportScreenshot(options: {
-    width?: number
-    height?: number
+    maxSize?: number
     format?: "png" | "jpeg"
 } = {}): Promise<ViewportScreenshotResponse> {
     const client = createMcpClient()
@@ -25,8 +24,7 @@ export async function getViewportScreenshot(options: {
         const response = await client.execute<ViewportScreenshotResponse>({
             type: "get_viewport_screenshot",
             params: {
-                ...(options.width && { width: options.width }),
-                ...(options.height && { height: options.height }),
+                ...(options.maxSize && { max_size: options.maxSize }),
                 ...(options.format && { format: options.format }),
             },
         })
@@ -44,8 +42,8 @@ export async function getViewportScreenshot(options: {
 
         return {
             image: result.image,
-            width: result.width ?? options.width ?? 1920,
-            height: result.height ?? options.height ?? 1080,
+            width: result.width ?? options.maxSize ?? 800,
+            height: result.height ?? options.maxSize ?? 800,
             format: result.format ?? options.format ?? "png",
             timestamp: new Date().toISOString(),
         }

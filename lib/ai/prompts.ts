@@ -63,7 +63,7 @@ MCP TOOL REFERENCE (all available commands):
 • get_scene_info — No params. Returns: object names, types, materials_count, lights, active camera. USE FIRST in every plan.
 • get_object_info — Params: {{"name": "ObjectName"}}. Returns: transforms, dimensions, materials, modifiers. Use to verify positions after creation.
 • get_all_object_info — Params: {{"max_objects": 50, "start_index": 0}}. Returns: paginated list of ALL objects. Use when editing to discover existing scene state.
-• get_viewport_screenshot — Params: {{"width": 1920, "height": 1080, "format": "png"}} (all optional). Returns: base64 image of viewport. Use for visual verification.
+• get_viewport_screenshot — Params: {{"max_size": 800, "format": "png"}} (all optional). Returns: base64 image of viewport. Use for visual verification. WARNING: Do NOT use 'width' or 'height' — they are not valid parameters.
 
 ── WRITE (modifies scene) ────────────────────────────────────
 • execute_code — Params: {{"description": "detailed natural-language description"}}. A SEPARATE AI generates Python from your description. THE MOST POWERFUL TOOL — use for all geometry, materials, lighting, camera, animation, modifiers.

@@ -722,6 +722,42 @@ export async function POST(req: Request) {
           const overallSuccess =
             planningMetadata.executionSuccess ?? failedCommands.length === 0
 
+          // ── Generate post-execution summary + follow-up ──
+          try {
+            const completedList = executedCommands
+              .filter(c => c.status === "executed")
+              .map(c => c.tool)
+              .join(", ")
+            const failedList = failedCommands
+              .map(c => `${c.tool}: ${c.error?.substring(0, 80)}`)
+              .join("; ")
+
+            const summaryPromptText = overallSuccess
+              ? `The Blender scene has been created successfully. Commands executed: ${completedList || "none"}. User's original request: "${message}". Write a brief 2-3 sentence summary of what was done, then ask a short follow-up question suggesting a possible refinement or next step (e.g. "Would you like to adjust the lighting?" or "I can add textures if you'd like"). Keep it conversational and helpful.`
+              : `The Blender operation partially failed. Succeeded: ${completedList || "none"}. Failed: ${failedList || "none"}. User's request was: "${message}". Write a brief 2-3 sentence summary explaining what happened and what failed. Then suggest what the user could try next. Keep it conversational.`
+
+            let followUpText = ""
+            for await (const chunk of streamLlmResponse(llmProvider, {
+              history: [],
+              messages: [{ role: "user", content: summaryPromptText }],
+              maxOutputTokens: 256,
+              systemPrompt: "You are ModelForge, a helpful Blender assistant. Respond conversationally. Do NOT use markdown headers. Keep your response to 2-4 sentences.",
+            })) {
+              if (chunk.textDelta) {
+                followUpText += chunk.textDelta
+                send({ type: "followup_delta", delta: chunk.textDelta })
+              }
+            }
+
+            // Append follow-up to the assistant text so it's saved to DB
+            if (followUpText.trim()) {
+              assistantText = followUpText.trim()
+            }
+          } catch (followUpError) {
+            // Non-fatal — don't block the pipeline if follow-up generation fails
+            console.warn("[Chat] Post-execution follow-up generation failed:", followUpError)
+          }
+
           await recordExecutionLog({
             timestamp: new Date().toISOString(),
             conversationId: resolvedConversationId,

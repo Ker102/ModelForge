@@ -740,6 +740,18 @@ function normalizeParameters(action: string, parameters: Record<string, unknown>
     }
   }
 
+  // The Blender addon accepts max_size/format, NOT width/height
+  if (action === "get_viewport_screenshot") {
+    if (clone.width || clone.height) {
+      // LLM may hallucinate width/height — convert to max_size
+      const w = typeof clone.width === "number" ? clone.width : 800
+      const h = typeof clone.height === "number" ? clone.height : 800
+      clone.max_size = clone.max_size ?? Math.max(w, h)
+      delete clone.width
+      delete clone.height
+    }
+  }
+
   return clone
 }
 
