@@ -4,7 +4,7 @@ import { useState, useCallback, useRef } from "react"
 import { StudioSidebar } from "./studio-sidebar"
 import { StudioWorkspace } from "./studio-workspace"
 import { StudioAdvisor } from "./studio-advisor"
-import { WorkflowTimeline, type WorkflowTimelineStep, type StepMonitoringLog } from "./workflow-timeline"
+import { WorkflowTimeline, type WorkflowTimelineStep, type StepMonitoringLog, type StepPlanData, type StepCommandResult } from "./workflow-timeline"
 import { StepSessionDrawer } from "./step-session-drawer"
 import type { ToolEntry } from "@/lib/orchestration/tool-catalog"
 
@@ -97,7 +97,9 @@ export function StudioLayout({ projectId }: StudioLayoutProps) {
                         projectId,
                         conversationId: streamConversationId,
                         message,
-                        workflowMode: "studio",
+                        // Use autopilot mode so the API runs the planner+executor pipeline
+                        // (studio mode only generates a workflow proposal without executing)
+                        workflowMode: "autopilot",
                     }),
                     signal: abort.signal,
                 })
@@ -157,7 +159,35 @@ export function StudioLayout({ projectId }: StudioLayoutProps) {
                                 if (cid) {
                                     updateStep(stepId, { conversationId: cid })
                                 }
-                                updateStep(stepId, { status: "done" })
+
+                                // Extract plan data from the planning metadata
+                                const planning = event.planning as Record<string, unknown> | undefined
+                                let planData: StepPlanData | null = null
+                                if (planning) {
+                                    planData = {
+                                        planSummary: typeof planning.planSummary === "string" ? planning.planSummary : "No summary",
+                                        stepCount: Array.isArray(planning.planSteps) ? planning.planSteps.length : 0,
+                                        executionSuccess: planning.executionSuccess === true,
+                                        errors: Array.isArray(planning.errors) ? planning.errors as string[] : undefined,
+                                    }
+                                }
+
+                                // Extract command results
+                                const rawCommands = Array.isArray(event.commandSuggestions) ? event.commandSuggestions as Record<string, unknown>[] : []
+                                const commandResults: StepCommandResult[] = rawCommands.map((cmd) => ({
+                                    id: String(cmd.id ?? ""),
+                                    tool: String(cmd.tool ?? ""),
+                                    status: (cmd.status as StepCommandResult["status"]) ?? "pending",
+                                    confidence: typeof cmd.confidence === "number" ? cmd.confidence : undefined,
+                                    description: typeof cmd.description === "string" ? cmd.description : undefined,
+                                    error: typeof cmd.error === "string" ? cmd.error : undefined,
+                                }))
+
+                                updateStep(stepId, {
+                                    status: "done",
+                                    planData,
+                                    commandResults: commandResults.length > 0 ? commandResults : undefined,
+                                })
                                 done = true
                                 break
                             }

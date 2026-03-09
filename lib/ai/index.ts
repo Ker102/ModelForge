@@ -15,7 +15,7 @@ import OpenAI from "openai"
 // Configuration
 // ============================================================================
 
-const DEFAULT_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.1-pro-preview-customtools"
+const DEFAULT_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.1-pro-preview"
 const EMBEDDING_MODEL = "Alibaba-NLP/gte-modernbert-base"
 const EMBEDDING_DIMENSIONS = 768
 

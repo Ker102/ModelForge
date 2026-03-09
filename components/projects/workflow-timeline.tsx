@@ -32,6 +32,22 @@ export interface StepMonitoringSummary {
     ragStats: { totalRetrieved: number; totalRelevant: number; fallbacksUsed: number }
 }
 
+export interface StepCommandResult {
+    id: string
+    tool: string
+    status: "pending" | "ready" | "executed" | "failed"
+    confidence?: number
+    description?: string
+    error?: string
+}
+
+export interface StepPlanData {
+    planSummary: string
+    stepCount: number
+    executionSuccess: boolean
+    errors?: string[]
+}
+
 export interface WorkflowTimelineStep {
     id: string
     title: string
@@ -47,6 +63,10 @@ export interface WorkflowTimelineStep {
     monitoringLogs?: StepMonitoringLog[]
     /** Final monitoring summary */
     monitoringSummary?: StepMonitoringSummary | null
+    /** Execution plan data */
+    planData?: StepPlanData | null
+    /** Executed command results */
+    commandResults?: StepCommandResult[]
     /** Error message if failed */
     error?: string
 }

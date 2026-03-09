@@ -212,6 +212,96 @@ export function StepSessionDrawer({
                     </div>
                 )}
 
+                {/* Plan Summary */}
+                {step.planData && (
+                    <div
+                        className="rounded-xl border px-4 py-3 space-y-2"
+                        style={{
+                            borderColor: step.planData.executionSuccess
+                                ? "hsl(153 60% 53% / 0.3)"
+                                : "hsl(0 84% 60% / 0.3)",
+                            backgroundColor: step.planData.executionSuccess
+                                ? "rgba(52,211,153,0.08)"
+                                : "rgba(248,113,113,0.08)",
+                        }}
+                    >
+                        <div className="flex items-center justify-between">
+                            <span
+                                className="text-xs font-semibold uppercase tracking-wider"
+                                style={{ color: "hsl(var(--forge-text-subtle))" }}
+                            >
+                                Execution Plan
+                            </span>
+                            <span
+                                className="text-xs font-medium px-2 py-0.5 rounded-full"
+                                style={{
+                                    backgroundColor: step.planData.executionSuccess
+                                        ? "rgba(52,211,153,0.2)"
+                                        : "rgba(248,113,113,0.2)",
+                                    color: step.planData.executionSuccess
+                                        ? "hsl(153 60% 53%)"
+                                        : "hsl(0 84% 60%)",
+                                }}
+                            >
+                                {step.planData.executionSuccess ? "✓ Success" : "✕ Failed"} · {step.planData.stepCount} step{step.planData.stepCount !== 1 ? "s" : ""}
+                            </span>
+                        </div>
+                        <p className="text-sm" style={{ color: "hsl(var(--forge-text))" }}>
+                            {step.planData.planSummary}
+                        </p>
+                        {step.planData.errors && step.planData.errors.length > 0 && (
+                            <div className="text-xs space-y-1" style={{ color: "hsl(0 84% 60%)" }}>
+                                {step.planData.errors.map((err, i) => (
+                                    <p key={i}>⚠ {err}</p>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Command Results */}
+                {step.commandResults && step.commandResults.length > 0 && (
+                    <div className="space-y-1.5">
+                        <span
+                            className="text-xs font-semibold uppercase tracking-wider"
+                            style={{ color: "hsl(var(--forge-text-subtle))" }}
+                        >
+                            Executed Commands ({step.commandResults.length})
+                        </span>
+                        <div className="space-y-1">
+                            {step.commandResults.map((cmd) => (
+                                <div
+                                    key={cmd.id}
+                                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-mono"
+                                    style={{
+                                        backgroundColor: "hsl(var(--forge-surface-dim))",
+                                        border: "1px solid hsl(var(--forge-border))",
+                                        color: "hsl(var(--forge-text))",
+                                    }}
+                                >
+                                    <span className="shrink-0">
+                                        {cmd.status === "executed" ? "✅" : cmd.status === "failed" ? "❌" : "⏳"}
+                                    </span>
+                                    <span className="truncate flex-1">{cmd.tool}</span>
+                                    {cmd.description && (
+                                        <span
+                                            className="text-[10px] truncate max-w-[40%]"
+                                            style={{ color: "hsl(var(--forge-text-subtle))" }}
+                                        >
+                                            {cmd.description}
+                                        </span>
+                                    )}
+                                    {cmd.error && (
+                                        <span className="text-[10px] truncate max-w-[40%]" style={{ color: "hsl(0 84% 60%)" }}>
+                                            {cmd.error}
+                                        </span>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {/* Pipeline Monitor */}
                 {logs.length > 0 && (
                     <MonitoringPanel logs={logs} summary={summary} />
