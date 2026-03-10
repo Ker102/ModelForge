@@ -1,42 +1,5 @@
 {
-  "message": "400 Unable to access non-serverless model togethercomputer/m2-bert-80M-32k-retrieval. Please visit https://api.together.ai/models/togethercomputer/m2-bert-80M-32k-retrieval to create and start a new dedicated endpoint for the model.",
-  "code": "model_not_available",
-  "stack": "Error: 400 Unable to access non-serverless model togethercomputer/m2-bert-80M-32k-retrieval. Please visit https://api.together.ai/models/togethercomputer/m2-bert-80M-32k-retrieval to create and start a new dedicated endpoint for the model.\n    at Function.generate (/media/krist/CrucialX9/cursor-projects/projects/project02/BlenderAI/node_modules/openai/src/error.ts:72:14)\n    at OpenAI.makeStatusError (/media/krist/CrucialX9/cursor-projects/projects/project02/BlenderAI/node_modules/openai/src/core.ts:462:21)\n    at OpenAI.makeRequest (/media/krist/CrucialX9/cursor-projects/projects/project02/BlenderAI/node_modules/openai/src/core.ts:526:24)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async embedTexts (/media/krist/CrucialX9/cursor-projects/projects/project02/BlenderAI/lib/ai/embeddings.ts:51:26)\n    at async addDocuments (/media/krist/CrucialX9/cursor-projects/projects/project02/BlenderAI/lib/ai/vectorstore.ts:51:22)\n    at async ingest (/media/krist/CrucialX9/cursor-projects/projects/project02/BlenderAI/scripts/ingest-blender-docs.ts:114:25)",
-  "error": {
-    "status": 400,
-    "headers": {
-      "access-control-allow-origin": "*",
-      "alt-svc": "h3=\":443\"; ma=86400",
-      "cf-cache-status": "DYNAMIC",
-      "cf-ray": "9cbca10fc8337122-TLL",
-      "connection": "keep-alive",
-      "content-length": "400",
-      "content-type": "application/json; charset=utf-8",
-      "date": "Tue, 10 Feb 2026 15:27:13 GMT",
-      "etag": "W/\"190-oVQ8W47NePIU7/SEdtJPLNSlchs\"",
-      "retry-after": "2",
-      "server": "cloudflare",
-      "strict-transport-security": "max-age=15552000; includeSubDomains",
-      "vary": "Accept-Encoding",
-      "x-amzn-trace-id": "7d8f5a65-17d2-4eb8-a397-02a6e560a3e9-noamzn",
-      "x-api-received": "2026-02-10T15:27:12.131Z",
-      "x-ratelimit": "false",
-      "x-ratelimit-limit": "50",
-      "x-ratelimit-limit-tokens": "0",
-      "x-ratelimit-remaining": "99",
-      "x-ratelimit-remaining-tokens": "0",
-      "x-ratelimit-reset": "2",
-      "x-request-id": "oWpzAYx-4msxKE-9cbca10fc8337122"
-    },
-    "request_id": "oWpzAYx-4msxKE-9cbca10fc8337122",
-    "error": {
-      "message": "Unable to access non-serverless model togethercomputer/m2-bert-80M-32k-retrieval. Please visit https://api.together.ai/models/togethercomputer/m2-bert-80M-32k-retrieval to create and start a new dedicated endpoint for the model.",
-      "type": "invalid_request_error",
-      "param": null,
-      "code": "model_not_available"
-    },
-    "code": "model_not_available",
-    "param": null,
-    "type": "invalid_request_error"
-  }
+  "message": "Gemini Embedding API error 404: {\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"models/text-embedding-004 is not found for API version v1beta, or is not supported for embedContent. Call ListModels to see the list of available models and their supported methods.\",\n    \"status\": \"NOT_FOUND\"\n  }\n}\n",
+  "stack": "Error: Gemini Embedding API error 404: {\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"models/text-embedding-004 is not found for API version v1beta, or is not supported for embedContent. Call ListModels to see the list of available models and their supported methods.\",\n    \"status\": \"NOT_FOUND\"\n  }\n}\n\n    at embedTexts (C:\\Users\\krist\\Desktop\\Cursor-Projects\\Projects\\modelforge\\ModelForge\\lib\\ai\\embeddings.ts:61:19)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async addDocuments (C:\\Users\\krist\\Desktop\\Cursor-Projects\\Projects\\modelforge\\ModelForge\\lib\\ai\\vectorstore.ts:67:22)\n    at async ingest (C:\\Users\\krist\\Desktop\\Cursor-Projects\\Projects\\modelforge\\ModelForge\\scripts\\ingest-blender-docs.ts:114:25)",
+  "error": {}
 }

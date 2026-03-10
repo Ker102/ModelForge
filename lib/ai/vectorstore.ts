@@ -1,9 +1,14 @@
 /**
  * Vector Store Module
  * 
- * Provides vector storage and retrieval using Neon PostgreSQL with pgvector
+ * Provides vector storage and retrieval using Neon PostgreSQL with pgvector.
+ *
+ * IMPORTANT: Prisma tagged template literals do NOT support type modifiers
+ * like ::vector(768) because PostgreSQL rejects parameterized type modifiers.
+ * We use Prisma.sql / Prisma.raw to inject the dimension as literal SQL.
  */
 
+import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db"
 import { embedText, embedTexts, EMBEDDING_DIMENSIONS } from "./embeddings"
 
@@ -21,19 +26,30 @@ export interface SearchResult {
   similarity: number
 }
 
+// Build the vector cast string as raw SQL (e.g. "::vector(768)")
+// This MUST be Prisma.raw so it is injected as literal SQL, not a parameter.
+const VECTOR_CAST = Prisma.raw(`::vector(${EMBEDDING_DIMENSIONS})`)
+
+/**
+ * Helper: format a number[] as a Prisma-safe SQL fragment "[1.0,2.0,...]::vector(768)"
+ */
+function vectorLiteral(embedding: number[]) {
+  return Prisma.sql`${`[${embedding.join(",")}]`}${VECTOR_CAST}`
+}
+
 /**
  * Add a single document to the vector store
  */
 export async function addDocument(doc: Document): Promise<string> {
   const embedding = await embedText(doc.content)
 
-  // Use raw SQL for vector insertion since Prisma doesn't support vector type directly
+  const vec = vectorLiteral(embedding)
   const result = await prisma.$queryRaw<{ id: string }[]>`
     INSERT INTO document_embeddings (id, content, embedding, metadata, source, "createdAt")
     VALUES (
       gen_random_uuid(),
       ${doc.content},
-      ${`[${embedding.join(",")}]`}::vector(768),
+      ${vec},
       ${JSON.stringify(doc.metadata ?? {})}::jsonb,
       ${doc.source ?? null},
       NOW()
@@ -55,12 +71,13 @@ export async function addDocuments(docs: Document[]): Promise<string[]> {
     const doc = docs[i]
     const embedding = embeddings[i].embedding
 
+    const vec = vectorLiteral(embedding)
     const result = await prisma.$queryRaw<{ id: string }[]>`
       INSERT INTO document_embeddings (id, content, embedding, metadata, source, "createdAt")
       VALUES (
         gen_random_uuid(),
         ${doc.content},
-        ${`[${embedding.join(",")}]`}::vector(768),
+        ${vec},
         ${JSON.stringify(doc.metadata ?? {})}::jsonb,
         ${doc.source ?? null},
         NOW()
@@ -88,6 +105,7 @@ export async function similaritySearch(
   const queryEmbedding = await embedText(query)
   const limit = options?.limit ?? 5
   const minSimilarity = options?.minSimilarity ?? 0.5
+  const vec = vectorLiteral(queryEmbedding)
 
   let results: SearchResult[]
 
@@ -98,11 +116,11 @@ export async function similaritySearch(
         content,
         metadata,
         source,
-        1 - (embedding <=> ${`[${queryEmbedding.join(",")}]`}::vector(768)) as similarity
+        1 - (embedding <=> ${vec}) as similarity
       FROM document_embeddings
       WHERE source = ${options.source}
-        AND 1 - (embedding <=> ${`[${queryEmbedding.join(",")}]`}::vector(768)) >= ${minSimilarity}
-      ORDER BY embedding <=> ${`[${queryEmbedding.join(",")}]`}::vector(768)
+        AND 1 - (embedding <=> ${vec}) >= ${minSimilarity}
+      ORDER BY embedding <=> ${vec}
       LIMIT ${limit}
     `
   } else {
@@ -112,10 +130,10 @@ export async function similaritySearch(
         content,
         metadata,
         source,
-        1 - (embedding <=> ${`[${queryEmbedding.join(",")}]`}::vector(768)) as similarity
+        1 - (embedding <=> ${vec}) as similarity
       FROM document_embeddings
-      WHERE 1 - (embedding <=> ${`[${queryEmbedding.join(",")}]`}::vector(768)) >= ${minSimilarity}
-      ORDER BY embedding <=> ${`[${queryEmbedding.join(",")}]`}::vector(768)
+      WHERE 1 - (embedding <=> ${vec}) >= ${minSimilarity}
+      ORDER BY embedding <=> ${vec}
       LIMIT ${limit}
     `
   }

@@ -1,4 +1,6 @@
 import { randomUUID } from "crypto"
+import { tmpdir } from "os"
+import path from "path"
 
 import { createBlenderAgent, type AgentLog } from "@/lib/ai/agents"
 import { type Plan, type PlanStep, generateCode } from "@/lib/ai/chains"
@@ -265,11 +267,12 @@ export class PlanExecutor {
       if (options.enableVisualFeedback !== false) {
         try {
           for (let vIter = 0; vIter < maxVisualIter; vIter++) {
-            // Capture viewport screenshot via the existing MCP client
-            // Note: No params — the Blender MCP addon doesn't accept width/height/format
+            // Capture viewport screenshot via MCP
+            // The Blender MCP server requires a filepath parameter
+            const screenshotPath = path.join(tmpdir(), `modelforge_viewport_${Date.now()}.png`)
             const screenshotResult = await client.execute({
               type: "get_viewport_screenshot",
-              params: {},
+              params: { filepath: screenshotPath },
             })
 
             // The MCP client returns McpResponse<T> where .result contains the data.
@@ -277,12 +280,39 @@ export class PlanExecutor {
             const topLevel = screenshotResult as Record<string, unknown>
             const resultLevel = screenshotResult?.result as Record<string, unknown> | undefined
 
+            // Check for nested error first
+            if (resultLevel?.error) {
+              console.warn('[Executor] Screenshot MCP returned nested error:', resultLevel.error)
+              logs.push({
+                timestamp: new Date().toISOString(),
+                tool: "visual_feedback",
+                parameters: { iteration: vIter + 1, error: String(resultLevel.error) },
+                error: String(resultLevel.error),
+                logType: "vision",
+                detail: `Viewport screenshot MCP error: ${String(resultLevel.error)}`,
+              })
+              break
+            }
+
             // Try: result.image (standard), then top-level image, then result.result.image (double-nested)
-            const imageBase64 = (
+            let imageBase64 = (
               resultLevel?.image ??
               topLevel?.image ??
               (resultLevel?.result as Record<string, unknown> | undefined)?.image
             ) as string | undefined
+
+            // If no inline image, try reading from the saved filepath
+            if (!imageBase64) {
+              try {
+                const { readFile, unlink } = await import("fs/promises")
+                const buffer = await readFile(screenshotPath)
+                imageBase64 = buffer.toString("base64")
+                // Clean up temp file
+                await unlink(screenshotPath).catch(() => { })
+              } catch {
+                // File not found — screenshot wasn't saved
+              }
+            }
 
             if (!imageBase64) {
               // Log the actual response shape for debugging
@@ -740,8 +770,12 @@ function normalizeParameters(action: string, parameters: Record<string, unknown>
     }
   }
 
-  // The Blender addon accepts max_size/format, NOT width/height
+  // The Blender MCP server requires a filepath, and accepts max_size/format, NOT width/height
   if (action === "get_viewport_screenshot") {
+    // Always ensure a filepath is provided (required by MCP server)
+    if (!clone.filepath) {
+      clone.filepath = path.join(tmpdir(), `modelforge_viewport_${Date.now()}.png`)
+    }
     if (clone.width || clone.height) {
       // LLM may hallucinate width/height — convert to max_size
       const w = typeof clone.width === "number" ? clone.width : 800

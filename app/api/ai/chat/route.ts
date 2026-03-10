@@ -766,7 +766,7 @@ export async function POST(req: Request) {
             send({ type: "followup_delta", delta: `\n\n${fallbackText}` })
             assistantText += `\n\n${fallbackText}`
             // Log the error in monitoring for the session log
-            monitor.error("followup", `Follow-up generation failed: ${errMsg}`)
+            monitor.error("system", `Follow-up generation failed: ${errMsg}`)
           }
 
           await recordExecutionLog({

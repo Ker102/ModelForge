@@ -2,8 +2,12 @@
  * Viewport Screenshot Module
  * 
  * Retrieves screenshots from Blender's viewport via MCP for visual analysis.
+ * The Blender MCP server requires a filepath param and saves the screenshot there.
  */
 
+import { tmpdir } from "os"
+import path from "path"
+import { readFile, unlink } from "fs/promises"
 import { createMcpClient } from "./client"
 import type { McpResponse, ViewportScreenshotResponse } from "./types"
 
@@ -19,11 +23,13 @@ export async function getViewportScreenshot(options: {
     format?: "png" | "jpeg"
 } = {}): Promise<ViewportScreenshotResponse> {
     const client = createMcpClient()
+    const filepath = path.join(tmpdir(), `modelforge_viewport_${Date.now()}.png`)
 
     try {
         const response = await client.execute<ViewportScreenshotResponse>({
             type: "get_viewport_screenshot",
             params: {
+                filepath,
                 ...(options.maxSize && { max_size: options.maxSize }),
                 ...(options.format && { format: options.format }),
             },
@@ -33,18 +39,32 @@ export async function getViewportScreenshot(options: {
             throw new Error(response.message ?? "Failed to capture viewport screenshot")
         }
 
-        // The MCP server returns the screenshot in the result field
-        const result = response.result
+        // Check for nested error in result
+        const result = response.result as Record<string, unknown> | undefined
+        if (result?.error) {
+            throw new Error(String(result.error))
+        }
 
-        if (!result?.image) {
-            throw new Error("No image data received from Blender MCP")
+        // Try to get image from response first (some servers return inline base64)
+        let imageBase64 = result?.image as string | undefined
+
+        // If not inline, read from the saved filepath
+        if (!imageBase64) {
+            try {
+                const buffer = await readFile(filepath)
+                imageBase64 = buffer.toString("base64")
+                // Clean up temp file
+                await unlink(filepath).catch(() => { })
+            } catch {
+                throw new Error("Screenshot file not found - Blender MCP may not have saved it")
+            }
         }
 
         return {
-            image: result.image,
-            width: result.width ?? options.maxSize ?? 800,
-            height: result.height ?? options.maxSize ?? 800,
-            format: result.format ?? options.format ?? "png",
+            image: imageBase64,
+            width: (result?.width as number) ?? options.maxSize ?? 800,
+            height: (result?.height as number) ?? options.maxSize ?? 800,
+            format: ((result?.format as string) ?? options.format ?? "png") as "png" | "jpeg",
             timestamp: new Date().toISOString(),
         }
     } finally {

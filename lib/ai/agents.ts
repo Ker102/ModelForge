@@ -169,19 +169,19 @@ export class BlenderAgent {
             return false
         }
 
-        const status = typeof r.status === "string" ? r.status.toLowerCase() : ""
-        if (status === "success" || status === "ok") return true
-
-        // Check nested result
+        // Check nested result for errors BEFORE trusting top-level status
         const inner = r.result
         if (inner && typeof inner === "object") {
             const innerObj = inner as Record<string, unknown>
-            // Check for error indicators on inner object
             if (innerObj.error || innerObj.errors || (typeof innerObj.message === "string" && innerObj.message.toLowerCase().includes("error"))) {
                 return false
             }
             if (innerObj.executed === true) return true
         }
+
+        const status = typeof r.status === "string" ? r.status.toLowerCase() : ""
+        if (status === "success" || status === "ok") return true
+
         return false
     }
 
