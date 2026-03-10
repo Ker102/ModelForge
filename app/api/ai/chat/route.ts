@@ -755,6 +755,14 @@ export async function POST(req: Request) {
             // Replace assistant text with follow-up so it's saved to DB
             if (followUpText.trim()) {
               assistantText = followUpText.trim()
+            } else {
+              // The LLM yielded 0 chunks — send a fallback so the UI isn't empty
+              console.warn("[Chat] Follow-up stream returned empty text, sending fallback")
+              const emptyFallback = overallSuccess
+                ? `Done! I've completed the task. Would you like me to refine anything?`
+                : `The execution encountered some issues. Would you like me to try a different approach?`
+              send({ type: "followup_delta", delta: emptyFallback })
+              assistantText = emptyFallback
             }
           } catch (followUpError) {
             console.error("[Chat] Post-execution follow-up generation FAILED:", followUpError)

@@ -260,6 +260,7 @@ Respond in this exact JSON format:
 
         return parseJsonResponse(content)
     } catch (error) {
+        console.error('[Vision] suggestImprovements FAILED:', error instanceof Error ? error.message : String(error))
         return {
             currentState: "Failed to analyze",
             missingElements: [],
