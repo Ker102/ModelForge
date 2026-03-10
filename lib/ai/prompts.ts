@@ -200,58 +200,15 @@ AVOID:
 - Accessing \`bpy.context.active_object\` after deleting objects — it may be None or stale.
 - Use \`bpy.data.objects.remove(obj, do_unlink=True)\` to delete, then re-fetch references.
 - dict-style property access on API objects (removed in 5.0): scene['cycles'] → use scene.cycles
-- REMOVED SHADER SOCKETS (will crash with 'key not found'):
-  • 'Subsurface Color' — REMOVED. Base Color drives SSS color directly.
-  • 'Specular' — renamed to 'Specular IOR Level'.
-  • 'Transmission' — renamed to 'Transmission Weight'.
-  • 'Emission' — split into 'Emission Color' and 'Emission Strength'.
-  • 'Subsurface' — renamed to 'Subsurface Weight'.
-  Always use .get() to access sockets safely and handle None.
-- REMOVED MATERIAL ATTRIBUTES (will crash — NEVER use these):
-  • mat.shadow_method — DOES NOT EXIST. Do NOT use. Do NOT try alternatives.
-  • mat.shadow_mode — DOES NOT EXIST. Do NOT use. Do NOT try alternatives.
-  For transparent/alpha materials, ONLY set: mat.blend_method = 'BLEND'
-  Valid blend_method values: 'OPAQUE', 'CLIP', 'HASHED', 'BLEND'. NOTHING ELSE (NOT 'ALPHA_BLEND').
-  • eevee.use_ssr / eevee.use_ssr_refraction / eevee.use_screen_space_reflections — ALL REMOVED in Blender 5.x. EEVEE handles reflections automatically. Do NOT access SceneEEVEE properties for SSR.
-
-BOOLEAN OPERATIONS:
-- The ONLY valid solvers are: 'EXACT', 'FLOAT', 'MANIFOLD'. NEVER use 'FAST'.
-- Always use solver='EXACT' for reliable results.
+- Blender 5.x removed many shader sockets and material attributes. Always use .get() to access
+  sockets safely. See the provided reference scripts for full compatibility details.
 - PREFER avoiding boolean operations for low-poly/simple models — use separate geometry instead.
-- If you must use a boolean, apply and clean up the cutter:
-  \`bpy.ops.object.modifier_apply(modifier=mod.name)\`
-  \`bpy.data.objects.remove(cutter, do_unlink=True)\`
 
 MATERIAL COLORS — CRITICAL:
 - ALWAYS use vibrant, saturated RGB values. Never pick washed-out, desaturated colors.
-- For emissive materials (suns, neon, fire), set BOTH Base Color AND Emission Color to the SAME saturated color.
-  This prevents the object from appearing white in Material Preview.
-  Example: bsdf.inputs['Base Color'].default_value = (1.0, 0.85, 0.2, 1.0)
-           bsdf.inputs['Emission Color'].default_value = (1.0, 0.85, 0.2, 1.0)
-           bsdf.inputs['Emission Strength'].default_value = 5.0
+- For emissive materials, set BOTH Base Color AND Emission Color to the SAME saturated color.
 - Keep Emission Strength between 3–8. Values above 10 wash out to white in Material Preview.
 - For strong illumination, supplement with a Point Light inside/near the emissive object (energy 500–2000).
-- Reference RGB values for common materials:
-  • Grass green: (0.08, 0.52, 0.12)   • Ocean blue: (0.0, 0.15, 0.65)
-  • Sun yellow: (1.0, 0.85, 0.2)       • Mars rust: (0.7, 0.2, 0.05)
-  • Gold metal: (1.0, 0.84, 0.0)       • Copper: (0.88, 0.47, 0.3)
-  • Stone gray: (0.45, 0.43, 0.4)      • Brick red: (0.6, 0.18, 0.1)
-  • Earth blue-green: (0.1, 0.45, 0.65) • Pure red: (0.8, 0.05, 0.02)
-
-PROCEDURAL TEXTURES — BEST PRACTICES:
-- Use ShaderNodeTexNoise for organic surfaces (dirt, rust, wood grain, clouds).
-- Use ShaderNodeTexVoronoi for cell patterns (stone tiles, scales, cracks).
-- ALWAYS use ShaderNodeValToRGB (Color Ramp) to remap noise to meaningful colors.
-- Use ShaderNodeBump to add surface detail without extra geometry.
-- ShaderNodeMixRGB is REMOVED in Blender 4.0+. Use ShaderNodeMix instead:
-  mix = nodes.new('ShaderNodeMix')
-  mix.data_type = 'RGBA'
-  mix.inputs[6].default_value = color_a  # A input
-  mix.inputs[7].default_value = color_b  # B input
-  # Output: mix.outputs[2] (Result Color)
-- For worn/weathered materials, use noise-driven Color Ramp as a mask to blend
-  between clean and damaged material properties (color, roughness, bump).
-- Use ShaderNodeTexCoord → ShaderNodeMapping → Texture for full control over UV scaling.
 
 PRODUCTION PIPELINE — AVAILABLE CAPABILITIES:
 - RETOPOLOGY: Use voxel_remesh() + quadriflow_remesh() for cleaning neural/sculpted meshes.
@@ -274,18 +231,11 @@ NEURAL 3D GENERATION — WHEN TO USE:
   Use the import_neural_mesh.py RAG script for the full pipeline.
 - Neural meshes MUST be retopologized before rigging — use Quadriflow (target 5-10k faces).
 
-GEOMETRY CONSTRUCTION — CRITICAL:
-- For PRECISE shapes (swords, spears, buildings, furniture), build meshes using mesh.from_pydata(verts, edges, faces).
-  Do NOT use UV Sphere for objects that should be flat, elongated, or angular!
-  • Blade/sword → elongated quad strip or tapered box, NOT a sphere
-  • Cylinder/column → use bpy.ops.mesh.primitive_cylinder_add() with appropriate radius/depth
-  • Table top → flat scaled cube or plane with solidify modifier
-  • Shield → disc/circle mesh with subdivision, not a sphere
-- Use PRIMITIVES (bpy.ops) for: spheres (pommels, balls), cubes (blocks), cylinders (columns, handles), cones (tips).
-- Scale objects to REAL-WORLD dimensions: sword blade = 0.7-1.0m long, 0.05m wide; handle = 0.2m long.
-- When building from_pydata, always call mesh.validate() and mesh.update() after creating the mesh.
-- For tapered shapes (blade, spear), define vertices that narrow toward the tip:
-  Example blade verts: bottom-wide at Z=0, narrow tip at Z=0.8 — faces connect them.
+USING REFERENCE SCRIPTS — IMPORTANT:
+- When reference scripts are provided below, FOLLOW their patterns closely for geometry,
+  materials, and API usage. They are vetted for Blender 5.x compatibility.
+- Adapt the reference code to the specific request — don't copy blindly, but use the
+  same construction techniques (vertex layout, material setup, naming conventions).
 
 SCENE GROUNDING — CRITICAL:
 - ALWAYS add a floor plane unless the scene is explicitly set in space/void.
