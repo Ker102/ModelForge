@@ -112,6 +112,26 @@ export class PlanExecutor {
     agent.loadPlan(plan)
 
     try {
+      // 2b. Clean up ModelForge objects from previous sessions
+      try {
+        await client.execute({
+          type: "execute_code",
+          params: {
+            code: `import bpy\nfor obj in list(bpy.data.objects):\n    if obj.name.startswith('ModelForge_'):\n        bpy.data.objects.remove(obj, do_unlink=True)\nprint('Scene cleaned of prior ModelForge objects')`,
+          },
+        })
+        logs.push({
+          timestamp: new Date().toISOString(),
+          tool: "scene_cleanup",
+          parameters: {},
+          result: { action: "removed ModelForge_ prefixed objects" },
+          logType: "execute",
+          detail: "Cleaned up ModelForge objects from previous sessions",
+        })
+      } catch {
+        // Non-fatal — scene may already be clean
+      }
+
       // 3. Execute steps via Agent
       const allowHyper3d = options.allowHyper3d
       const allowSketchfab = options.allowSketchfab
@@ -196,6 +216,9 @@ export class PlanExecutor {
               logType: "reasoning",
               detail: `Generated ${generatedCode.length} chars of Python for: ${description.substring(0, 100)}`,
             })
+
+            // Log full generated code for debugging
+            console.log(`[Executor] Generated code for step ${i + 1}:\n${generatedCode}`)
           }
 
           // Execute MCP command

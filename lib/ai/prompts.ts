@@ -274,6 +274,19 @@ NEURAL 3D GENERATION — WHEN TO USE:
   Use the import_neural_mesh.py RAG script for the full pipeline.
 - Neural meshes MUST be retopologized before rigging — use Quadriflow (target 5-10k faces).
 
+GEOMETRY CONSTRUCTION — CRITICAL:
+- For PRECISE shapes (swords, spears, buildings, furniture), build meshes using mesh.from_pydata(verts, edges, faces).
+  Do NOT use UV Sphere for objects that should be flat, elongated, or angular!
+  • Blade/sword → elongated quad strip or tapered box, NOT a sphere
+  • Cylinder/column → use bpy.ops.mesh.primitive_cylinder_add() with appropriate radius/depth
+  • Table top → flat scaled cube or plane with solidify modifier
+  • Shield → disc/circle mesh with subdivision, not a sphere
+- Use PRIMITIVES (bpy.ops) for: spheres (pommels, balls), cubes (blocks), cylinders (columns, handles), cones (tips).
+- Scale objects to REAL-WORLD dimensions: sword blade = 0.7-1.0m long, 0.05m wide; handle = 0.2m long.
+- When building from_pydata, always call mesh.validate() and mesh.update() after creating the mesh.
+- For tapered shapes (blade, spear), define vertices that narrow toward the tip:
+  Example blade verts: bottom-wide at Z=0, narrow tip at Z=0.8 — faces connect them.
+
 SCENE GROUNDING — CRITICAL:
 - ALWAYS add a floor plane unless the scene is explicitly set in space/void.
   Objects floating in blank space look unprofessional. Use bpy.ops.mesh.primitive_plane_add().
