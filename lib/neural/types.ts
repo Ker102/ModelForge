@@ -16,6 +16,9 @@ export type ProviderSlug =
     | "hunyuan-part"
     | "trellis"
     | "yvo3d"
+    | "unirig"
+    | "momask"
+    | "meshanything-v2"
 
 /** Stages of the full 3D production pipeline */
 export type PipelineStage =
@@ -33,6 +36,9 @@ export type GenerationMode =
     | "image_to_3d"
     | "mesh_to_texture"
     | "mesh_to_parts"
+    | "mesh_to_rig"
+    | "text_to_motion"
+    | "mesh_to_retopo"
 
 // ---------------------------------------------------------------------------
 // Provider Metadata
@@ -65,8 +71,14 @@ export interface GenerationRequest {
     prompt?: string
     /** Reference image — base64-encoded data URI or public URL */
     imageUrl?: string
-    /** Existing mesh URL or local path (for mesh_to_texture / mesh_to_parts) */
+    /** Existing mesh URL or local path (for mesh_to_texture / mesh_to_parts / mesh_to_rig / mesh_to_retopo) */
     meshUrl?: string
+    /** Motion duration in seconds (for text_to_motion — MoMask) */
+    motionDuration?: number
+    /** Motion format preference: "bvh" | "fbx" (MoMask output) */
+    motionFormat?: "bvh" | "fbx"
+    /** Target face count for retopology (MeshAnything V2, max 1600) */
+    targetFaces?: number
     /** Provider to use */
     provider: ProviderSlug
     /** Generation mode */
@@ -87,6 +99,12 @@ export interface GenerationResult {
     progress?: number
     /** Local file path to the downloaded output model */
     modelPath?: string
+    /** Path to rigged model output — GLB with embedded armature (UniRig) */
+    riggedModelPath?: string
+    /** Path to motion data file — BVH/FBX (MoMask) */
+    motionPath?: string
+    /** Path to retopologized mesh (MeshAnything V2) */
+    retopologyPath?: string
     /** Which provider produced this result */
     provider: ProviderSlug
     /** Which pipeline stage was executed */

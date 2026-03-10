@@ -205,23 +205,59 @@ export const TOOLS: Record<string, ToolEntry> = {
         name: "Blender Agent",
         category: "cleanup",
         type: "blender_agent",
-        tagline: "Optimize and fix mesh quality automatically",
+        tagline: "Fix, optimize, and polish your mesh",
         description:
-            "The AI can reduce polygon count, repair holes, smooth surfaces, and segment your model into parts. Essential after neural generation to make models game/animation-ready.",
-        bestFor: ["Reducing file size", "Fixing broken meshes", "Game-ready optimization"],
-        notFor: ["Adding new geometry", "Texturing"],
-        difficulty: "intermediate",
+            "Clean up mesh issues — decimate high-poly models, fix normals, merge vertices, smooth surfaces, and optimize for your target platform.",
+        bestFor: ["Reducing poly count", "Fixing normals", "Merging vertices", "Smoothing"],
+        notFor: ["Creating new geometry", "Texturing"],
+        difficulty: "beginner",
         inputs: [
             {
                 key: "prompt",
-                label: "What cleanup do you need?",
+                label: "Describe what needs cleaning",
                 type: "text",
                 required: true,
-                placeholder: "e.g. Reduce polygons to under 10k and fix any holes",
+                placeholder: "e.g. Reduce polygon count and fix normals",
                 helpText: "Describe what needs fixing — polygon count, holes, smoothing, etc.",
             },
         ],
         estimatedTime: "5–30 seconds",
+    },
+
+    "meshanything-v2": {
+        id: "meshanything-v2",
+        name: "MeshAnything V2",
+        category: "cleanup",
+        type: "neural",
+        tagline: "AI-powered auto-retopology for clean quad meshes",
+        description:
+            "Converts messy neural-generated or sculpted meshes into clean, artist-grade quad-dominant topology. Perfect for turning raw AI geometry into animation-ready meshes with up to 1,600 faces.",
+        bestFor: ["Neural mesh cleanup", "Quad remesh", "Animation-ready topology", "Game-ready meshes"],
+        notFor: ["High-poly sculpts (>50K faces)", "Simple primitive shapes"],
+        difficulty: "beginner",
+        provider: "meshanything-v2",
+        inputs: [
+            {
+                key: "meshUrl",
+                label: "Select mesh to retopologize",
+                type: "mesh",
+                required: true,
+                helpText: "Pick the 3D model you want to retopologize into clean quads.",
+            },
+            {
+                key: "targetFaces",
+                label: "Target face count",
+                type: "slider",
+                required: false,
+                min: 100,
+                max: 1600,
+                step: 100,
+                defaultValue: 800,
+                helpText: "How many faces the output mesh should have (max 1,600).",
+            },
+        ],
+        estimatedTime: "10–45 seconds",
+        cost: "RunPod usage",
     },
 
     "hunyuan-part": {
@@ -396,6 +432,31 @@ export const TOOLS: Record<string, ToolEntry> = {
         estimatedTime: "10–30 seconds",
     },
 
+    unirig: {
+        id: "unirig",
+        name: "UniRig AI",
+        category: "skeleton",
+        type: "neural",
+        tagline: "AI auto-rigging with skeleton + skin weights",
+        description:
+            "Uses a GPT-like transformer (SIGGRAPH 2025) to automatically generate a skeleton and compute skinning weights for any 3D model. Works on humanoids, animals, and objects — no manual bone placement needed.",
+        bestFor: ["Characters", "Creatures", "Any organic shape", "Batch auto-rigging"],
+        notFor: ["Mechanical rigs with IK", "Custom control shapes"],
+        difficulty: "beginner",
+        provider: "unirig",
+        inputs: [
+            {
+                key: "meshUrl",
+                label: "Select mesh to auto-rig",
+                type: "mesh",
+                required: true,
+                helpText: "Pick the 3D model you want to add a skeleton to.",
+            },
+        ],
+        estimatedTime: "15–60 seconds",
+        cost: "RunPod usage",
+    },
+
     // ── Motion tools ─────────────────────────────────────────────────
     "blender-agent-motion": {
         id: "blender-agent-motion",
@@ -419,6 +480,43 @@ export const TOOLS: Record<string, ToolEntry> = {
             },
         ],
         estimatedTime: "5–30 seconds",
+    },
+
+    momask: {
+        id: "momask",
+        name: "MoMask AI",
+        category: "motion",
+        type: "neural",
+        tagline: "AI text-to-motion — describe any human movement",
+        description:
+            "Generate realistic human motion data from text descriptions using MoMask (CVPR 2024). Outputs BVH motion capture files that can be applied to rigged characters. Supports walking, running, dancing, gestures, and more.",
+        bestFor: ["Walk cycles", "Dance moves", "Gestures", "Action sequences"],
+        notFor: ["Camera animation", "Object motion", "Facial animation"],
+        difficulty: "beginner",
+        provider: "momask",
+        inputs: [
+            {
+                key: "prompt",
+                label: "Describe the motion",
+                type: "text",
+                required: true,
+                placeholder: "e.g. A person walks forward casually then waves hello",
+                helpText: "Describe the human motion you want — actions, speed, style.",
+            },
+            {
+                key: "motionDuration",
+                label: "Duration (seconds)",
+                type: "slider",
+                required: false,
+                min: 1,
+                max: 10,
+                step: 1,
+                defaultValue: 4,
+                helpText: "How long the generated motion should last.",
+            },
+        ],
+        estimatedTime: "5–30 seconds",
+        cost: "RunPod usage",
     },
 
     // ── Effects tools ────────────────────────────────────────────────
@@ -568,7 +666,7 @@ export const CATEGORIES: CategoryMeta[] = [
         description: "Optimize and fix mesh quality",
         helpText: "After creating a shape, you may need to clean it up — reduce the number of polygons for better performance, fix any holes or broken surfaces, or split it into separate parts.",
         order: 2,
-        toolIds: ["blender-agent-cleanup", "hunyuan-part"],
+        toolIds: ["blender-agent-cleanup", "hunyuan-part", "meshanything-v2"],
     },
     {
         id: "unwrap",
@@ -595,7 +693,7 @@ export const CATEGORIES: CategoryMeta[] = [
         description: "Add bones so your model can move",
         helpText: "Like a real skeleton inside a body, a 3D rig gives your model joints and bones. This step is required before you can animate characters or creatures.",
         order: 5,
-        toolIds: ["blender-agent-skeleton"],
+        toolIds: ["blender-agent-skeleton", "unirig"],
     },
     {
         id: "motion",
@@ -604,7 +702,7 @@ export const CATEGORIES: CategoryMeta[] = [
         description: "Animate — movement, cameras, physics",
         helpText: "Make things move! Create walk cycles, camera orbits, physics simulations, or any kind of animation. Requires a skeleton for character animation.",
         order: 6,
-        toolIds: ["blender-agent-motion"],
+        toolIds: ["blender-agent-motion", "momask"],
     },
     {
         id: "effects",
