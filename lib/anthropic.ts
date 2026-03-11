@@ -76,7 +76,7 @@ function getAdcToken(): string {
   try {
     const token = execSync(
       "gcloud auth application-default print-access-token",
-      { encoding: "utf-8", timeout: 15_000 }
+      { encoding: "utf-8", timeout: 60_000 }
     ).trim()
 
     if (!token || !token.startsWith("ya29.")) {
@@ -111,7 +111,12 @@ function getApiConfig(model: string): ApiConfig {
     const vertexToken = process.env.VERTEX_AI_ACCESS_TOKEN || getAdcToken()
 
     // Vertex AI endpoint for Claude
-    const baseUrl = `https://${vertexLocation}-aiplatform.googleapis.com/v1/projects/${vertexProject}/locations/${vertexLocation}/publishers/anthropic/models/${model}`
+    // 'global' region uses aiplatform.googleapis.com (no prefix)
+    // Regional endpoints use {region}-aiplatform.googleapis.com
+    const host = vertexLocation === "global"
+      ? "aiplatform.googleapis.com"
+      : `${vertexLocation}-aiplatform.googleapis.com`
+    const baseUrl = `https://${host}/v1/projects/${vertexProject}/locations/${vertexLocation}/publishers/anthropic/models/${model}`
 
     return {
       url: baseUrl, // :rawPredict or :streamRawPredict appended below
@@ -187,9 +192,11 @@ function buildRequestBody(
   extras: Record<string, unknown>
 ) {
   const messages = buildMessages(options.history ?? [], options.messages)
+  const vertex = isVertexMode()
 
   return {
-    model,
+    // Vertex AI: model is in the URL, not the body
+    ...(vertex ? {} : { model }),
     max_tokens: options.maxOutputTokens ?? 4096,
     temperature: options.temperature ?? 0.4,
     ...(options.topP !== undefined ? { top_p: options.topP } : {}),
