@@ -3,17 +3,22 @@
  *
  * Raw fetch-based integration (no SDK dependency) supporting:
  * - Direct Anthropic API (api.anthropic.com)
- * - Google Vertex AI (Claude on Vertex)
+ * - Google Vertex AI (Claude on Vertex) with auto-ADC token refresh
  *
  * Uses the Anthropic Messages API with SSE streaming.
- * Env vars:
- *   ANTHROPIC_API_KEY       — direct API key
- *   ANTHROPIC_MODEL         — model name (default: claude-opus-4-20250514)
+ *
+ * Env vars (Direct Anthropic):
+ *   ANTHROPIC_API_KEY       — direct API key (sk-ant-...)
+ *   ANTHROPIC_MODEL         — model name (default: claude-opus-4-6)
  *   ANTHROPIC_BASE_URL      — optional custom base URL
- *   VERTEX_AI_PROJECT       — GCP project for Vertex AI
- *   VERTEX_AI_LOCATION      — GCP region (default: us-east5)
- *   VERTEX_AI_ACCESS_TOKEN  — OAuth2 token for Vertex
+ *
+ * Env vars (Vertex AI — preferred):
+ *   VERTEX_AI_PROJECT       — GCP project ID (e.g. "modelsandtraining")
+ *   VERTEX_AI_LOCATION      — GCP region (default: "global")
+ *   VERTEX_AI_ACCESS_TOKEN  — optional static token (auto-fetched via gcloud if omitted)
  */
+
+import { execSync } from "child_process"
 
 export interface AnthropicMessage {
   role: "user" | "assistant"
@@ -50,8 +55,45 @@ interface AnthropicGenerateOptions {
 // Configuration helpers
 // ============================================================================
 
-const DEFAULT_ANTHROPIC_MODEL = "claude-opus-4-20250514"
+const DEFAULT_ANTHROPIC_MODEL = "claude-opus-4-6"
 const ANTHROPIC_API_VERSION = "2023-06-01"
+
+// ADC token cache — Google OAuth2 tokens expire in 60 min, refresh at 50 min
+let cachedAdcToken: string | null = null
+let adcTokenExpiry = 0
+const ADC_TOKEN_TTL_MS = 50 * 60 * 1000 // 50 minutes
+
+/**
+ * Fetch Application Default Credentials token via gcloud CLI.
+ * Caches the token for 50 minutes to avoid shelling out on every request.
+ */
+function getAdcToken(): string {
+  const now = Date.now()
+  if (cachedAdcToken && now < adcTokenExpiry) {
+    return cachedAdcToken
+  }
+
+  try {
+    const token = execSync(
+      "gcloud auth application-default print-access-token",
+      { encoding: "utf-8", timeout: 15_000 }
+    ).trim()
+
+    if (!token || !token.startsWith("ya29.")) {
+      throw new Error(`Unexpected token format: ${token.slice(0, 10)}...`)
+    }
+
+    cachedAdcToken = token
+    adcTokenExpiry = now + ADC_TOKEN_TTL_MS
+    console.log("[Anthropic] ADC token refreshed (expires in 50 min)")
+    return token
+  } catch (error) {
+    throw new Error(
+      `Failed to fetch ADC token via gcloud. Run 'gcloud auth application-default login' first. ` +
+      `Error: ${error instanceof Error ? error.message : String(error)}`
+    )
+  }
+}
 
 interface ApiConfig {
   url: string
@@ -60,14 +102,15 @@ interface ApiConfig {
 }
 
 function getApiConfig(model: string): ApiConfig {
-  // Check for Vertex AI first
+  // Check for Vertex AI first (project ID is the trigger)
   const vertexProject = process.env.VERTEX_AI_PROJECT
-  const vertexLocation = process.env.VERTEX_AI_LOCATION ?? "us-east5"
-  const vertexToken = process.env.VERTEX_AI_ACCESS_TOKEN
+  const vertexLocation = process.env.VERTEX_AI_LOCATION ?? "global"
 
-  if (vertexProject && vertexToken) {
+  if (vertexProject) {
+    // Get token: prefer static env var, fallback to ADC auto-fetch
+    const vertexToken = process.env.VERTEX_AI_ACCESS_TOKEN || getAdcToken()
+
     // Vertex AI endpoint for Claude
-    // Format: https://{LOCATION}-aiplatform.googleapis.com/v1/projects/{PROJECT}/locations/{LOCATION}/publishers/anthropic/models/{MODEL}:streamRawPredict
     const baseUrl = `https://${vertexLocation}-aiplatform.googleapis.com/v1/projects/${vertexProject}/locations/${vertexLocation}/publishers/anthropic/models/${model}`
 
     return {
@@ -86,7 +129,7 @@ function getApiConfig(model: string): ApiConfig {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
     throw new Error(
-      "ANTHROPIC_API_KEY is not configured (or set VERTEX_AI_PROJECT + VERTEX_AI_ACCESS_TOKEN for Vertex)"
+      "ANTHROPIC_API_KEY is not configured (or set VERTEX_AI_PROJECT for Vertex AI with gcloud ADC)"
     )
   }
 
@@ -104,7 +147,7 @@ function getApiConfig(model: string): ApiConfig {
 }
 
 function isVertexMode(): boolean {
-  return !!(process.env.VERTEX_AI_PROJECT && process.env.VERTEX_AI_ACCESS_TOKEN)
+  return !!process.env.VERTEX_AI_PROJECT
 }
 
 // ============================================================================
