@@ -400,7 +400,13 @@ export async function POST(req: Request) {
       }
       llmProvider = localProviderSpec
     } else {
-      llmProvider = { type: "gemini" }
+      // Cloud provider: check AI_PROVIDER env var (default: gemini)
+      const aiProvider = (process.env.AI_PROVIDER ?? "gemini").toLowerCase()
+      if (aiProvider === "anthropic" || aiProvider === "claude") {
+        llmProvider = { type: "anthropic" }
+      } else {
+        llmProvider = { type: "gemini" }
+      }
     }
 
     const chatSystemPrompt = buildSystemPrompt()
