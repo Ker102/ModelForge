@@ -195,7 +195,7 @@ function buildExecutedCommandsFromPlan(
   // Build lookup maps using action string as key (steps don't have stepNumber)
   const completedMap = new Map<string, { step: Record<string, unknown>; result: unknown }>()
   for (const entry of execution.completedSteps) {
-    completedMap.set(entry.step.action, entry as { step: Record<string, unknown>; result: unknown })
+    completedMap.set(entry.step.action, entry as unknown as { step: Record<string, unknown>; result: unknown })
   }
 
   const failedMap = new Map<string, string>()

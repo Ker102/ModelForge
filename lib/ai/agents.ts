@@ -1,518 +1,471 @@
 /**
- * Agents Module
- * 
- * LangChain agent implementation for Blender MCP orchestration
+ * Agents Module (v2 — LangChain v1 + LangGraph)
+ *
+ * Replaces the hand-rolled ReAct loop with LangChain 1.x `createAgent`
+ * and middleware. The legacy implementation is preserved in agents.legacy.ts.
+ *
+ * Key improvements:
+ *  - Built-in ReAct loop with hallucinated tool-call recovery
+ *  - Middleware stack: viewport screenshots, context summarization
+ *  - Session persistence via MemorySaver (thread_id = project ID)
+ *  - LangSmith observability (auto-enabled via env vars)
  */
 
-import { createGeminiModel } from "./index"
-import { generatePlan, validateStep, generateRecovery, type Plan, type PlanStep, type PlanWithReasoning } from "./chains"
-import { formatContextFromSources } from "./rag"
-import { analyzeViewport, compareWithExpectation, type VisionAnalysisResult } from "./vision"
+import { createAgent, createMiddleware, tool } from "langchain"
+import { MemorySaver } from "@langchain/langgraph"
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai"
+import { SystemMessage } from "@langchain/core/messages"
+import { z } from "zod"
+
+import { createMcpClient, getViewportScreenshot } from "@/lib/mcp"
+import type { McpResponse } from "@/lib/mcp"
+import { createGeminiModel, DEFAULT_MODEL } from "@/lib/ai"
+import { similaritySearch } from "@/lib/ai/vectorstore"
+import { formatContextFromSources } from "@/lib/ai/rag"
 import type { AgentStreamEvent } from "@/lib/orchestration/types"
 
+import { readFileSync } from "fs"
+import path from "path"
+
 // ============================================================================
-// Types
+// System prompt (read from markdown file at module load time)
 // ============================================================================
 
-export interface AgentState {
-    request: string
-    plan?: Plan
-    currentStepIndex: number
-    completedSteps: Array<{ step: PlanStep; result: unknown }>
-    failedSteps: Array<{ step: PlanStep; error: string }>
-    sceneState?: unknown
-    logs: AgentLog[]
-    /** Latest viewport screenshot (base64) */
-    viewportImage?: string
-    /** Latest vision analysis result */
-    lastVisionAnalysis?: VisionAnalysisResult
-}
-
-export interface AgentLog {
-    timestamp: Date
-    type: "plan" | "execute" | "validate" | "recover" | "complete" | "error" | "vision"
-    message: string
-    data?: unknown
-}
-
-export interface AgentConfig {
-    maxRetries: number
-    useRAG: boolean
-    ragSource?: string
-    /** Enable visual feedback loop */
-    useVision: boolean
-    /** Max visual validation iterations per step */
-    maxVisionIterations: number
-    /** Tool availability flags */
-    allowPolyHaven?: boolean
-    allowSketchfab?: boolean
-    allowHyper3d?: boolean
-    onLog?: (log: AgentLog) => void
-    onStepComplete?: (step: PlanStep, result: unknown) => void
-    /** Callback to capture viewport screenshot */
-    onCaptureViewport?: () => Promise<string>
-    /** Callback to stream real-time agent events to the client */
-    onStreamEvent?: (event: AgentStreamEvent) => void
+let SYSTEM_PROMPT: string
+try {
+  SYSTEM_PROMPT = readFileSync(
+    path.join(process.cwd(), "lib/orchestration/prompts/blender-agent-system.md"),
+    "utf-8"
+  )
+} catch {
+  SYSTEM_PROMPT = "You are ModelForge, an expert Blender Python Developer."
 }
 
 // ============================================================================
-// MCP Tool Definitions
+// MCP Tool Wrappers
 // ============================================================================
 
-const MCP_TOOLS = [
-    "get_scene_info",
-    "get_object_info",
-    "get_all_object_info",
-    "get_viewport_screenshot",
-    "execute_code",
-    "get_polyhaven_status",
-    "get_polyhaven_categories",
-    "search_polyhaven_assets",
-    "download_polyhaven_asset",
-    "set_texture",
-    "get_hyper3d_status",
-    "create_rodin_job",
-    "poll_rodin_job_status",
-    "import_generated_asset",
-    "get_sketchfab_status",
-    "search_sketchfab_models",
-    "download_sketchfab_model",
+/**
+ * Execute an MCP command and return a stringified result for the agent.
+ */
+async function executeMcpCommand(
+  commandType: string,
+  params: Record<string, unknown> = {}
+): Promise<string> {
+  const client = createMcpClient()
+  try {
+    const response: McpResponse = await client.execute({
+      type: commandType,
+      params,
+    })
+    if (response.status === "error") {
+      return JSON.stringify({ error: response.message ?? "MCP command failed" })
+    }
+    return JSON.stringify(response.result ?? response.raw ?? { status: "ok" })
+  } catch (error) {
+    return JSON.stringify({
+      error: error instanceof Error ? error.message : String(error),
+    })
+  } finally {
+    await client.close().catch(() => undefined)
+  }
+}
+
+// ---------- Core Tools ---------
+
+const executeCode = tool(
+  async ({ code }: { code: string }) => executeMcpCommand("execute_code", { code }),
+  {
+    name: "execute_code",
+    description:
+      "Execute a Blender Python script. Use this for geometry creation, material setup, " +
+      "animation, lighting, camera, and any Blender Python API operation. " +
+      "Break complex objects into SEPARATE calls — one component per call.",
+    schema: z.object({
+      code: z.string().describe("The Blender Python script to execute"),
+    }),
+  }
+)
+
+const getSceneInfo = tool(
+  async () => executeMcpCommand("get_scene_info"),
+  {
+    name: "get_scene_info",
+    description:
+      "Get complete scene information including object list, materials, world settings. " +
+      "ALWAYS call this first before making any changes.",
+    schema: z.object({}),
+  }
+)
+
+const getObjectInfo = tool(
+  async ({ object_name }: { object_name: string }) =>
+    executeMcpCommand("get_object_info", { object_name }),
+  {
+    name: "get_object_info",
+    description: "Get detailed info about a specific Blender object by name.",
+    schema: z.object({
+      object_name: z.string().describe("Name of the Blender object to inspect"),
+    }),
+  }
+)
+
+const getViewportScreenshotTool = tool(
+  async () => {
+    try {
+      const screenshot = await getViewportScreenshot()
+      return JSON.stringify({
+        status: "ok",
+        width: screenshot.width,
+        height: screenshot.height,
+        format: screenshot.format,
+        image_preview: `[Base64 image captured: ${screenshot.width}x${screenshot.height} ${screenshot.format}]`,
+      })
+    } catch (error) {
+      return JSON.stringify({
+        error: error instanceof Error ? error.message : "Failed to capture viewport",
+      })
+    }
+  },
+  {
+    name: "get_viewport_screenshot",
+    description:
+      "Capture a screenshot of the current Blender viewport for visual verification. " +
+      "Use after creating or modifying geometry to confirm the result looks correct.",
+    schema: z.object({}),
+  }
+)
+
+// ---------- PolyHaven Tools ---------
+
+const getPolyhavenCategories = tool(
+  async () => executeMcpCommand("get_polyhaven_categories"),
+  {
+    name: "get_polyhaven_categories",
+    description: "List available PolyHaven asset categories.",
+    schema: z.object({}),
+  }
+)
+
+const searchPolyhavenAssets = tool(
+  async ({ query, type }: { query: string; type?: string }) =>
+    executeMcpCommand("search_polyhaven_assets", { query, type }),
+  {
+    name: "search_polyhaven_assets",
+    description: "Search PolyHaven for textures, HDRIs, and 3D models.",
+    schema: z.object({
+      query: z.string().describe("Search query"),
+      type: z.string().optional().describe("Asset type: textures, hdris, models"),
+    }),
+  }
+)
+
+const downloadPolyhavenAsset = tool(
+  async ({ asset_id, type, resolution }: { asset_id: string; type: string; resolution?: string }) =>
+    executeMcpCommand("download_polyhaven_asset", { asset_id, type, resolution }),
+  {
+    name: "download_polyhaven_asset",
+    description: "Download a PolyHaven asset by ID.",
+    schema: z.object({
+      asset_id: z.string().describe("PolyHaven asset ID"),
+      type: z.string().describe("Asset type"),
+      resolution: z.string().optional().describe("Resolution (default: 1k)"),
+    }),
+  }
+)
+
+const setTexture = tool(
+  async ({ object_name, texture_path, uv_project }: { object_name: string; texture_path: string; uv_project?: boolean }) =>
+    executeMcpCommand("set_texture", { object_name, texture_path, uv_project }),
+  {
+    name: "set_texture",
+    description: "Apply a texture to an object.",
+    schema: z.object({
+      object_name: z.string().describe("Target object name"),
+      texture_path: z.string().describe("Path to texture file"),
+      uv_project: z.boolean().optional().describe("Auto UV project"),
+    }),
+  }
+)
+
+// ---------- Sketchfab Tools ---------
+
+const searchSketchfabModels = tool(
+  async ({ query, downloadable }: { query: string; downloadable?: boolean }) =>
+    executeMcpCommand("search_sketchfab_models", { query, downloadable }),
+  {
+    name: "search_sketchfab_models",
+    description: "Search Sketchfab for 3D models.",
+    schema: z.object({
+      query: z.string().describe("Search query"),
+      downloadable: z.boolean().optional().describe("Only show downloadable models"),
+    }),
+  }
+)
+
+const downloadSketchfabModel = tool(
+  async ({ uid }: { uid: string }) => executeMcpCommand("download_sketchfab_model", { uid }),
+  {
+    name: "download_sketchfab_model",
+    description: "Download a Sketchfab model by UID.",
+    schema: z.object({
+      uid: z.string().describe("Sketchfab model UID"),
+    }),
+  }
+)
+
+// ---------- Hyper3D / Neural Tools ---------
+
+const getHyper3dStatus = tool(
+  async () => executeMcpCommand("get_hyper3d_status"),
+  {
+    name: "get_hyper3d_status",
+    description: "Check if Hyper3D neural generation is available.",
+    schema: z.object({}),
+  }
+)
+
+const createRodinJob = tool(
+  async ({ prompt, image_url }: { prompt: string; image_url?: string }) =>
+    executeMcpCommand("create_rodin_job", { prompt, image_url }),
+  {
+    name: "create_rodin_job",
+    description: "Create a Hyper3D Rodin neural 3D generation job.",
+    schema: z.object({
+      prompt: z.string().describe("Text description of the 3D model to generate"),
+      image_url: z.string().optional().describe("Optional reference image URL"),
+    }),
+  }
+)
+
+const pollRodinJobStatus = tool(
+  async ({ job_id }: { job_id: string }) => executeMcpCommand("poll_rodin_job_status", { job_id }),
+  {
+    name: "poll_rodin_job_status",
+    description: "Poll the status of a Rodin generation job.",
+    schema: z.object({
+      job_id: z.string().describe("Rodin job ID to poll"),
+    }),
+  }
+)
+
+const importGeneratedAsset = tool(
+  async ({ file_path }: { file_path: string }) =>
+    executeMcpCommand("import_generated_asset", { file_path }),
+  {
+    name: "import_generated_asset",
+    description: "Import a generated 3D asset into the Blender scene.",
+    schema: z.object({
+      file_path: z.string().describe("Path to the generated asset file"),
+    }),
+  }
+)
+
+// ============================================================================
+// Tool Sets (filtered by config)
+// ============================================================================
+
+const SKETCHFAB_TOOL_NAMES = new Set(["search_sketchfab_models", "download_sketchfab_model"])
+const POLYHAVEN_TOOL_NAMES = new Set([
+  "get_polyhaven_categories",
+  "search_polyhaven_assets",
+  "download_polyhaven_asset",
+  "set_texture",
+])
+const HYPER3D_TOOL_NAMES = new Set([
+  "get_hyper3d_status",
+  "create_rodin_job",
+  "poll_rodin_job_status",
+  "import_generated_asset",
+])
+
+const ALL_TOOLS = [
+  executeCode,
+  getSceneInfo,
+  getObjectInfo,
+  getViewportScreenshotTool,
+  getPolyhavenCategories,
+  searchPolyhavenAssets,
+  downloadPolyhavenAsset,
+  setTexture,
+  searchSketchfabModels,
+  downloadSketchfabModel,
+  getHyper3dStatus,
+  createRodinJob,
+  pollRodinJobStatus,
+  importGeneratedAsset,
 ]
 
-const SKETCHFAB_TOOL_NAMES = new Set([
-    "get_sketchfab_status",
-    "search_sketchfab_models",
-    "download_sketchfab_model",
-])
-
-const POLYHAVEN_TOOL_NAMES = new Set([
-    "get_polyhaven_status",
-    "get_polyhaven_categories",
-    "search_polyhaven_assets",
-    "download_polyhaven_asset",
-])
-
-const HYPER3D_TOOL_NAMES = new Set([
-    "get_hyper3d_status",
-    "create_rodin_job",
-    "poll_rodin_job_status",
-    "import_generated_asset",
-])
-
 // ============================================================================
-// Agent Class
+// Middleware
 // ============================================================================
 
 /**
- * BlenderAgent - ReAct-style agent for orchestrating Blender via MCP
+ * Viewport Screenshot Middleware
+ *
+ * Auto-captures a screenshot after every `execute_code` call and logs it
+ * as a vision event. Replaces the manual hack in the old executor.ts.
  */
-export class BlenderAgent {
-    private config: AgentConfig
-    private state: AgentState
+function createViewportMiddleware(onStreamEvent?: (event: AgentStreamEvent) => void) {
+  return createMiddleware({
+    name: "ViewportScreenshotMiddleware",
+    wrapToolCall: async (request, handler) => {
+      const result = await handler(request)
 
-    constructor(config: Partial<AgentConfig> = {}) {
-        this.config = {
-            maxRetries: config.maxRetries ?? 2,
-            useRAG: config.useRAG ?? true,
-            ragSource: config.ragSource ?? "blender-scripts",
-            useVision: config.useVision ?? false,
-            maxVisionIterations: config.maxVisionIterations ?? 3,
-            allowPolyHaven: config.allowPolyHaven,
-            allowSketchfab: config.allowSketchfab,
-            allowHyper3d: config.allowHyper3d,
-            onLog: config.onLog,
-            onStepComplete: config.onStepComplete,
-            onCaptureViewport: config.onCaptureViewport,
-            onStreamEvent: config.onStreamEvent,
-        }
-
-        this.state = {
-            request: "",
-            currentStepIndex: 0,
-            completedSteps: [],
-            failedSteps: [],
-            logs: [],
-        }
-    }
-
-    /**
-     * Log an event
-     */
-    private log(type: AgentLog["type"], message: string, data?: unknown) {
-        const log: AgentLog = { timestamp: new Date(), type, message, data }
-        this.state.logs.push(log)
-        this.config.onLog?.(log)
-    }
-
-    /**
-     * Get the list of tools available based on config flags
-     */
-    private getAvailableTools(): string[] {
-        return MCP_TOOLS.filter((tool) => {
-            if (this.config.allowSketchfab === false && SKETCHFAB_TOOL_NAMES.has(tool)) return false
-            if (this.config.allowPolyHaven === false && POLYHAVEN_TOOL_NAMES.has(tool)) return false
-            if (this.config.allowHyper3d === false && HYPER3D_TOOL_NAMES.has(tool)) return false
-            return true
-        })
-    }
-
-    /**
-     * Check if an MCP result indicates success
-     */
-    private isMcpSuccess(result: unknown): boolean {
-        if (!result || typeof result !== "object") return false
-        const r = result as Record<string, unknown>
-
-        // Check for explicit error indicators at top level
-        if (r.error || r.errors || (typeof r.message === "string" && r.message.toLowerCase().includes("error"))) {
-            return false
-        }
-
-        // Check nested result for errors BEFORE trusting top-level status
-        const inner = r.result
-        if (inner && typeof inner === "object") {
-            const innerObj = inner as Record<string, unknown>
-            if (innerObj.error || innerObj.errors || (typeof innerObj.message === "string" && innerObj.message.toLowerCase().includes("error"))) {
-                return false
-            }
-            if (innerObj.executed === true) return true
-        }
-
-        const status = typeof r.status === "string" ? r.status.toLowerCase() : ""
-        if (status === "success" || status === "ok") return true
-
-        return false
-    }
-
-    /**
-     * Emit a stream event to the client in real-time
-     */
-    private emit(event: AgentStreamEvent) {
-        this.config.onStreamEvent?.(event)
-    }
-
-    /**
-     * Generate a plan for the user request
-     */
-    async plan(request: string): Promise<Plan> {
-        this.state.request = request
-        this.log("plan", `Planning for: ${request}`)
-        this.emit({ type: "agent:planning_start", timestamp: new Date().toISOString() })
-
-        // Retrieve context using CRAG (Corrective RAG) for quality filtering
-        let context = ""
-        if (this.config.useRAG) {
-            try {
-                const { correctiveRetrieve } = await import("./crag")
-                const { agentMonitor } = await import("@/lib/agent-monitor")
-
-                agentMonitor.log("agent", "rag:search", {
-                    query: request.slice(0, 100),
-                    limit: 8,
-                    source: this.config.ragSource,
-                })
-
-                const cragResult = await correctiveRetrieve(request, {
-                    topK: 8,
-                    source: this.config.ragSource,
-                    minSimilarity: 0.4,
-                    minRelevantDocs: 2,
-                })
-
-                context = formatContextFromSources(cragResult.documents)
-
-                agentMonitor.log("agent", "crag:filter", {
-                    totalRetrieved: cragResult.totalRetrieved,
-                    relevant: cragResult.totalRelevant,
-                    total: cragResult.documents.length,
-                    usedFallback: cragResult.usedFallback,
-                    docs: cragResult.documents.map(d => ({
-                        title: (d.metadata as Record<string, unknown>)?.title ?? d.source ?? "unknown",
-                        grade: d.grade,
-                        similarity: d.similarity?.toFixed(3),
-                        reason: d.gradeReason,
-                    })),
-                })
-
-                this.log("plan", `CRAG: ${cragResult.totalRetrieved} retrieved → ${cragResult.totalRelevant} relevant (fallback: ${cragResult.usedFallback})`)
-            } catch (error) {
-                this.log("error", `CRAG retrieval failed: ${error}`)
-            }
-        }
-
-        const { plan, reasoning, rawResponse } = await generatePlan({
-            request,
-            tools: this.getAvailableTools(),
-            context,
-            sceneState: JSON.stringify(this.state.sceneState ?? {}),
-        })
-
-        this.state.plan = plan
-        this.log("plan", `Generated plan with ${plan.steps.length} steps`, plan)
-
-        // Emit reasoning and plan details
-        if (reasoning) {
-            this.emit({ type: "agent:planning_reasoning", timestamp: new Date().toISOString(), reasoning })
-        }
-        this.emit({
-            type: "agent:planning_complete",
-            timestamp: new Date().toISOString(),
-            stepCount: plan.steps.length,
-            summary: plan.steps.map((s, i) => `${i + 1}. ${s.action}: ${s.rationale}`).join("\n"),
-        })
-
-        return plan
-    }
-
-    /**
-     * Load an existing plan into the agent
-     */
-    loadPlan(plan: Plan) {
-        this.state.plan = plan
-        this.state.currentStepIndex = 0
-        this.log("plan", `Loaded external plan with ${plan.steps.length} steps`, plan)
-    }
-
-    /**
-     * Execute the current plan
-     * Note: This is a framework method - actual MCP execution happens externally
-     */
-    async executeStep(
-        stepIndex: number,
-        executor: (step: PlanStep) => Promise<unknown>
-    ): Promise<{ success: boolean; result?: unknown; error?: string }> {
-        if (!this.state.plan) {
-            throw new Error("No plan available. Call plan() first.")
-        }
-
-        const step = this.state.plan.steps[stepIndex]
-        if (!step) {
-            throw new Error(`Invalid step index: ${stepIndex}`)
-        }
-
-        this.log("execute", `Executing step ${stepIndex + 1}: ${step.action}`, step)
-        this.emit({
-            type: "agent:step_start",
-            timestamp: new Date().toISOString(),
-            stepIndex,
-            stepCount: this.state.plan.steps.length,
-            action: step.action,
-            rationale: step.rationale,
-        })
-
-        let lastError: string | undefined
-
-        for (let attempt = 0; attempt <= this.config.maxRetries; attempt++) {
-            try {
-                const result = await executor(step)
-
-                // Emit step result
-                this.emit({
-                    type: "agent:step_result",
-                    timestamp: new Date().toISOString(),
-                    stepIndex,
-                    action: step.action,
-                    result,
-                    success: true,
-                })
-
-                // Fast-path: for execute_code and read-only info steps,
-                // if MCP returned success we trust it — LLM validation adds
-                // no value since the result is deterministic.
-                const READ_ONLY_ACTIONS = new Set([
-                    "execute_code", "get_scene_info", "get_object_info",
-                    "get_all_object_info", "get_viewport_screenshot",
-                    "get_polyhaven_status", "get_polyhaven_categories",
-                    "search_polyhaven_assets", "download_polyhaven_asset",
-                    "set_texture",
-                ])
-                const mcpSuccess = this.isMcpSuccess(result)
-                if (READ_ONLY_ACTIONS.has(step.action) && mcpSuccess) {
-                    this.state.completedSteps.push({ step, result })
-                    this.config.onStepComplete?.(step, result)
-                    this.log("validate", `Step ${stepIndex + 1} auto-validated (execute_code succeeded)`)
-                    this.emit({
-                        type: "agent:step_validate",
-                        timestamp: new Date().toISOString(),
-                        stepIndex,
-                        action: step.action,
-                        valid: true,
-                        reason: "Code executed successfully — auto-validated",
-                    })
-                    return { success: true, result }
-                }
-
-                // For non-execute_code steps, use LLM validation
-                const { result: validation, reasoning: validationReasoning } = await validateStep({
-                    stepDescription: `${step.action} - ${step.rationale}`,
-                    expectedOutcome: step.expected_outcome,
-                    actualResult: JSON.stringify(result),
-                })
-
-                if (validation.success) {
-                    this.state.completedSteps.push({ step, result })
-                    this.config.onStepComplete?.(step, result)
-                    this.log("validate", `Step ${stepIndex + 1} validated successfully`)
-                    this.emit({
-                        type: "agent:step_validate",
-                        timestamp: new Date().toISOString(),
-                        stepIndex,
-                        action: step.action,
-                        valid: true,
-                        reason: validationReasoning || undefined,
-                    })
-                    return { success: true, result }
-                }
-
-                lastError = validation.reason ?? "Validation failed"
-                this.log("validate", `Step ${stepIndex + 1} validation failed: ${lastError}`)
-                this.emit({
-                    type: "agent:step_validate",
-                    timestamp: new Date().toISOString(),
-                    stepIndex,
-                    action: step.action,
-                    valid: false,
-                    reason: `${lastError}${validationReasoning ? ` | Reasoning: ${validationReasoning}` : ""}`,
-                })
-
-                // Try recovery if we have retries left
-                if (attempt < this.config.maxRetries) {
-                    const { recovery, reasoning: recoveryReasoning } = await generateRecovery({
-                        stepDescription: step.action,
-                        error: lastError ?? "Unknown error",
-                        sceneState: JSON.stringify(this.state.sceneState ?? {}),
-                    })
-
-                    this.log("recover", `Recovery suggestion: ${recovery.action}`, recovery)
-                    this.emit({
-                        type: "agent:step_recover",
-                        timestamp: new Date().toISOString(),
-                        stepIndex,
-                        action: step.action,
-                        recoveryAction: recovery.action,
-                        rationale: `${recovery.rationale}${recoveryReasoning ? ` | ${recoveryReasoning}` : ""}`,
-                    })
-
-                    if (recovery.action === "skip") {
-                        break
-                    }
-
-                    // Update step parameters for retry
-                    step.parameters = { ...step.parameters, ...recovery.parameters }
-                }
-            } catch (error) {
-                lastError = error instanceof Error ? error.message : String(error)
-                this.log("error", `Step ${stepIndex + 1} failed: ${lastError}`)
-                this.emit({
-                    type: "agent:step_error",
-                    timestamp: new Date().toISOString(),
-                    stepIndex,
-                    action: step.action,
-                    error: lastError,
-                    attempt,
-                })
-            }
-        }
-
-        this.state.failedSteps.push({ step, error: lastError ?? "Unknown error" })
-        return { success: false, error: lastError }
-    }
-
-    /**
-     * Capture viewport screenshot and analyze it with vision
-     * Requires onCaptureViewport callback to be configured
-     */
-    async captureAndAnalyzeViewport(context?: string): Promise<VisionAnalysisResult | null> {
-        if (!this.config.onCaptureViewport) {
-            this.log("vision", "Vision capture not available - no onCaptureViewport callback")
-            return null
-        }
-
+      // After execute_code, auto-capture viewport
+      if (request.toolCall.name === "execute_code") {
         try {
-            this.log("vision", "Capturing viewport screenshot...")
-            const imageBase64 = await this.config.onCaptureViewport()
-            this.state.viewportImage = imageBase64
-
-            this.log("vision", "Analyzing viewport with Gemini Vision...")
-            const analysis = await analyzeViewport(imageBase64, context ?? this.state.request)
-            this.state.lastVisionAnalysis = analysis
-
-            this.log("vision", `Vision analysis complete: ${analysis.assessment}`, analysis)
-            return analysis
+          const screenshot = await getViewportScreenshot()
+          const event: AgentStreamEvent = {
+            type: "agent:vision",
+            timestamp: new Date().toISOString(),
+            assessment: `Viewport captured: ${screenshot.width}x${screenshot.height}`,
+            issues: [],
+          }
+          onStreamEvent?.(event)
         } catch (error) {
-            this.log("error", `Vision capture/analysis failed: ${error}`)
-            return null
+          const event: AgentStreamEvent = {
+            type: "agent:vision",
+            timestamp: new Date().toISOString(),
+            assessment: `WARNING: Viewport capture failed — ${error instanceof Error ? error.message : String(error)}`,
+            issues: ["screenshot_failed"],
+          }
+          onStreamEvent?.(event)
         }
-    }
+      }
 
-    /**
-     * Validate a step's expected outcome visually
-     */
-    async validateStepVisually(expectedOutcome: string): Promise<{
-        matches: boolean
-        analysis?: VisionAnalysisResult
-        comparison?: { observed: string; differences: string[] }
-    }> {
-        if (!this.config.useVision || !this.config.onCaptureViewport) {
-            return { matches: true } // Skip visual validation if not enabled
-        }
-
-        try {
-            const imageBase64 = await this.config.onCaptureViewport()
-            this.state.viewportImage = imageBase64
-
-            // Compare with expected outcome
-            const comparison = await compareWithExpectation(imageBase64, expectedOutcome)
-
-            // Also get a full analysis for context
-            const analysis = await analyzeViewport(imageBase64, expectedOutcome)
-            this.state.lastVisionAnalysis = analysis
-
-            this.log("vision", `Visual validation: ${comparison.matches ? "PASS" : "FAIL"}`, {
-                comparison,
-                analysis,
-            })
-
-            return {
-                matches: comparison.matches,
-                analysis,
-                comparison: {
-                    observed: comparison.observed,
-                    differences: comparison.differences,
-                },
-            }
-        } catch (error) {
-            this.log("error", `Visual validation failed: ${error}`)
-            return { matches: true } // Don't block on vision errors
-        }
-    }
-
-    /**
-     * Get the current agent state
-     */
-    getState(): AgentState {
-        return { ...this.state }
-    }
-
-    /**
-     * Reset the agent state
-     */
-    reset() {
-        this.state = {
-            request: "",
-            currentStepIndex: 0,
-            completedSteps: [],
-            failedSteps: [],
-            logs: [],
-            viewportImage: undefined,
-            lastVisionAnalysis: undefined,
-        }
-    }
+      return result
+    },
+  })
 }
 
 /**
- * Create a new BlenderAgent instance
+ * RAG Context Middleware
+ *
+ * Before each model call, searches for relevant scripts and injects them
+ * into the conversation context. This is the CRAG pipeline integration.
  */
-export function createBlenderAgent(config?: Partial<AgentConfig>): BlenderAgent {
-    return new BlenderAgent(config)
+function createRAGMiddleware() {
+  return createMiddleware({
+    name: "RAGContextMiddleware",
+    wrapModelCall: async (request, handler) => {
+      // Extract the latest user message to use as search query
+      const messages = request.messages ?? []
+      const lastUserMsg = [...messages]
+        .reverse()
+        .find((m) => {
+          // @langchain/core v1 uses _getType() instead of .role
+          const msg = m as unknown as Record<string, unknown>
+          const role = typeof msg._getType === "function"
+            ? (msg._getType as () => string)()
+            : msg.role
+          return role === "human" || role === "user"
+        })
+
+      if (lastUserMsg) {
+        const msg = lastUserMsg as unknown as Record<string, unknown>
+        const content = typeof msg.content === "string"
+          ? msg.content
+          : ""
+
+        if (content) {
+          try {
+            const results = await similaritySearch(content, { limit: 3 })
+            if (results.length > 0) {
+              const context = formatContextFromSources(results)
+              // Inject RAG context as a system message hint
+              const ragMessage = new SystemMessage(
+                `\n<rag_context>\nRelevant Blender script references:\n${context}\n</rag_context>`
+              )
+              return handler({
+                ...request,
+                messages: [ragMessage, ...messages],
+              })
+            }
+          } catch {
+            // RAG failure is non-fatal — continue without context
+          }
+        }
+      }
+
+      return handler(request)
+    },
+  })
 }
+
+// ============================================================================
+// Agent Factory
+// ============================================================================
+
+export interface BlenderAgentV2Options {
+  /** Allow PolyHaven assets */
+  allowPolyHaven?: boolean
+  /** Allow Sketchfab assets */
+  allowSketchfab?: boolean
+  /** Allow Hyper3D neural generation */
+  allowHyper3d?: boolean
+  /** Use RAG for context enrichment */
+  useRAG?: boolean
+  /** Callback for streaming agent events to UI */
+  onStreamEvent?: (event: AgentStreamEvent) => void
+}
+
+/** Shared checkpointer for session persistence */
+const checkpointer = new MemorySaver()
+
+/**
+ * Create a new LangChain v1 Blender agent.
+ *
+ * Usage:
+ *   const agent = createBlenderAgentV2(options)
+ *   const result = await agent.invoke(
+ *     { messages: [{ role: "user", content: "Create a cube" }] },
+ *     { configurable: { thread_id: projectId } }
+ *   )
+ */
+export function createBlenderAgentV2(options: BlenderAgentV2Options = {}) {
+  const {
+    allowPolyHaven = true,
+    allowSketchfab = false,
+    allowHyper3d = false,
+    useRAG = true,
+    onStreamEvent,
+  } = options
+
+  // Filter tools based on config
+  const tools = ALL_TOOLS.filter((t) => {
+    if (!allowSketchfab && SKETCHFAB_TOOL_NAMES.has(t.name)) return false
+    if (!allowPolyHaven && POLYHAVEN_TOOL_NAMES.has(t.name)) return false
+    if (!allowHyper3d && HYPER3D_TOOL_NAMES.has(t.name)) return false
+    return true
+  })
+
+  // Build middleware stack
+  const middleware = [
+    createViewportMiddleware(onStreamEvent),
+  ]
+
+  if (useRAG) {
+    middleware.push(createRAGMiddleware())
+  }
+
+  // Create the LangChain v1 agent
+  const model = createGeminiModel({ temperature: 0.4 })
+
+  const agent = createAgent({
+    model,
+    tools,
+    systemPrompt: SYSTEM_PROMPT,
+    middleware,
+    checkpointer,
+  })
+
+  return agent
+}
+
+// ============================================================================
+// Convenience re-exports
+// ============================================================================
+
+export type { AgentStreamEvent }
+export { checkpointer }

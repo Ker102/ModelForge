@@ -1,32 +1,36 @@
 # gemini.md — ModelForge Dev Tracker
 
 ## Current Task
-Agent Iteration Behavior & Viewport Screenshot Observability
+LangChain v1 Migration & Agent Refactoring
 
 ## What Changed (Latest)
-- **System Prompt Rewrite** (`blender-agent-system.md`):
-  - Rewrote Example 1 from "one go" → iterative with viewport verification
-  - Added Example 4: Complex forge scene built component-by-component with 3 screenshot checkpoints
-  - Added "Iterative Refinement" rule: unlimited execute_code calls, quality over speed
-  - Every example now includes `get_viewport_screenshot` verification
-- **Planner Prompt Fixes** (`lib/ai/prompts.ts`):
-  - Rule #8: Changed from "Prefer fewer steps" → "Break into SEPARATE execute_code steps"
-  - Added Rule #13: Viewport verification after major geometry creation
-- **Orchestration Prompts** (`lib/orchestration/prompts.ts`):
-  - Rule #2: Changed from "tackle explicitly" → "tackle in SEPARATE execute_code call"
-  - Rule #6: Changed from "confirm progress" → "use get_viewport_screenshot to verify"
-  - Added viewport verification steps to Examples 1 and 3
-- **Screenshot Observability** (`executor.ts`):
-  - Added automatic viewport screenshot after every execute_code step
-  - Screenshots logged as vision events and streamed to client
-  - Failures logged as WARNING (visible) instead of silently swallowed
+- **LangChain v1 Migration**: Upgraded entire LangChain stack to v1:
+  - `langchain@^1.2.0`, `@langchain/core@^1.1.0`, `@langchain/google-genai@^2.1.0`
+  - `@langchain/langgraph@^1.2.0`, `@langchain/anthropic@^1.3.0`, `langsmith@^0.5.0`
+- **New Agent** (`lib/ai/agents.ts`):
+  - LangChain v1 `createAgent` with middleware stack
+  - 14 MCP tools wrapped as LangChain `tool()` with Zod schemas
+  - Viewport screenshot middleware (auto-capture after `execute_code`)
+  - RAG context middleware using `SystemMessage` injection
+  - Session persistence via `MemorySaver` (thread_id = projectId)
+- **New Executor** (`lib/orchestration/executor.ts`):
+  - `PlanExecutor` wraps LangChain v1 agent, compatible interface for API routes
+  - Passes plan context + projectId for session persistence
+- **Legacy Preservation**:
+  - `agents.legacy.ts` and `executor.legacy.ts` preserved as dead code
+  - All legacy importers updated to reference `.legacy` modules
+- **Type Fixes** for `@langchain/core` v1:
+  - `BaseMessage` type casts updated for new API surface
+  - Added `AgentStepScreenshot` to `AgentStreamEvent` union
+  - Fixed `visualValidation.screenshot` property name
 
 ## Previous Changes
+- Agent Iteration Behavior & Viewport Screenshot Observability
 - Migrated 3 animation scripts to Blender 5.0+ Slotted Actions API
-- Added new animation functions (scale_pulse, shake, ensure_fcurve, etc.)
 - Deep research: 64 sources from NotebookLM on Blender 5.0 animation API
 
 ## Next Steps
-- Re-embed ALL scripts into vector DB
-- Re-test Motion category — verify no fcurves errors
-- Visual verification in Blender with new iterative behavior
+- Add LangSmith env vars (`LANGSMITH_TRACING`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT`)
+- Run full build (`npm run build`) to verify no runtime issues
+- Test agent end-to-end in Blender
+- Consider session persistence DB upgrade (MemorySaver → PostgreSQL)
