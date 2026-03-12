@@ -23,9 +23,10 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { generatePlan, generateCode } from "@/lib/ai/chains"
-import { similaritySearch } from "@/lib/ai/vectorstore"
+import { correctiveRetrieve } from "@/lib/ai/crag"
 import { formatContextFromSources } from "@/lib/ai/rag"
 import { createMcpClient, checkMcpConnection } from "@/lib/mcp"
+import { agentMonitor } from "@/lib/agent-monitor"
 
 // Define the tools available (same as BlenderAgent)
 const MCP_TOOLS = [
@@ -87,11 +88,9 @@ async function runPipeline(prompt: string, skipExecution = false) {
   const timings: Record<string, number> = {}
   const results: Record<string, unknown> = {}
 
-  console.log(`\n${"=".repeat(60)}`)
-  console.log(`[TEST] Pipeline Test — Provider: ${provider}, Model: ${model}`)
-  console.log(`[TEST] Prompt: "${prompt}"`)
-  console.log(`[TEST] Execute in Blender: ${!skipExecution}`)
-  console.log(`${"=".repeat(60)}\n`)
+  // Start monitor session
+  const sessionId = `test-${Date.now()}`
+  agentMonitor.startSession(sessionId, prompt, provider, model)
 
   try {
     // ── Step 0: Check Blender MCP connection ──────────────────
@@ -133,34 +132,57 @@ async function runPipeline(prompt: string, skipExecution = false) {
       }
     }
 
-    // ── Step 1: RAG Retrieval ──────────────────────────────
+    // ── Step 1: CRAG Retrieval (Corrective RAG) ──────────────
     let ragContext = ""
     const ragStart = Date.now()
     try {
-      const sources = await similaritySearch(prompt, {
-        limit: 5,
+      agentMonitor.log(sessionId, "rag:search", {
+        query: prompt.slice(0, 100),
+        limit: 8,
+        source: "blender-scripts",
+      })
+
+      const cragResult = await correctiveRetrieve(prompt, {
+        topK: 8,
         source: "blender-scripts",
         minSimilarity: 0.4,
+        minRelevantDocs: 2,
       })
-      ragContext = formatContextFromSources(sources)
+
+      ragContext = formatContextFromSources(cragResult.documents)
       timings.rag_ms = Date.now() - ragStart
+
+      const docSummaries = cragResult.documents.map(d => ({
+        title: (d.metadata as Record<string, unknown>)?.title ?? d.source ?? "unknown",
+        grade: d.grade,
+        similarity: d.similarity?.toFixed(3),
+        reason: d.gradeReason,
+      }))
+
       results.rag = {
-        documentsFound: sources.length,
+        documentsFound: cragResult.totalRetrieved,
+        documentsRelevant: cragResult.totalRelevant,
+        usedFallback: cragResult.usedFallback,
         contextLength: ragContext.length,
-        sources: sources.map(s => ({
-          title: s.metadata?.title ?? s.metadata?.source ?? "unknown",
-          similarity: s.similarity?.toFixed(3),
-        })),
+        sources: docSummaries,
       }
-      console.log(`[TEST] RAG: ${sources.length} documents, ${ragContext.length} chars (${timings.rag_ms}ms)`)
+
+      agentMonitor.log(sessionId, "crag:filter", {
+        totalRetrieved: cragResult.totalRetrieved,
+        relevant: cragResult.totalRelevant,
+        total: cragResult.documents.length,
+        usedFallback: cragResult.usedFallback,
+        docs: docSummaries,
+      }, timings.rag_ms)
     } catch (ragErr) {
       timings.rag_ms = Date.now() - ragStart
       results.rag = { error: String(ragErr) }
-      console.log(`[TEST] RAG failed: ${ragErr}`)
+      agentMonitor.log(sessionId, "pipeline:error", { stage: "crag", error: String(ragErr) })
     }
 
     // ── Step 2: Plan Generation ──────────────────────────────
     const planStart = Date.now()
+    agentMonitor.log(sessionId, "plan:start", { promptChars: prompt.length, contextChars: ragContext.length })
     const planResult = await generatePlan({
       request: prompt,
       tools: MCP_TOOLS,
@@ -168,6 +190,12 @@ async function runPipeline(prompt: string, skipExecution = false) {
       sceneState,
     })
     timings.plan_ms = Date.now() - planStart
+
+    agentMonitor.log(sessionId, "plan:steps", {
+      stepCount: planResult.plan.steps.length,
+      summary: planResult.plan.steps.map((s, i) => `${i + 1}. ${s.action}: ${s.rationale.slice(0, 80)}`).join("\n"),
+    }, timings.plan_ms)
+
     results.plan = {
       steps: planResult.plan.steps.map((s, i) => ({
         step: i + 1,
@@ -181,10 +209,6 @@ async function runPipeline(prompt: string, skipExecution = false) {
       dependencies: planResult.plan.dependencies,
       warnings: planResult.plan.warnings,
       reasoning: planResult.reasoning?.slice(0, 500),
-    }
-    console.log(`[TEST] Plan: ${planResult.plan.steps.length} steps (${timings.plan_ms}ms)`)
-    for (const [i, step] of planResult.plan.steps.entries()) {
-      console.log(`  ${i + 1}. ${step.action}: ${step.rationale.slice(0, 100)}`)
     }
 
     // ── Step 3: Code Generation for each execute_code step ──
@@ -207,6 +231,7 @@ async function runPipeline(prompt: string, skipExecution = false) {
       }
 
       const codeStart = Date.now()
+      agentMonitor.log(sessionId, "codegen:start", { step: idx + 1, descriptionChars: codeDescription.length })
       const code = await generateCode({
         request: codeDescription,
         context: ragContext,
@@ -216,7 +241,7 @@ async function runPipeline(prompt: string, skipExecution = false) {
       const codeMs = Date.now() - codeStart
       timings[`codegen_step${idx + 1}_ms`] = codeMs
       generatedCodes.push({ description: codeDescription, code, lines: code.split("\n").length })
-      console.log(`[TEST] CodeGen step ${idx + 1}/${codeSteps.length}: ${code.split("\n").length} lines, ${code.length} chars (${codeMs}ms)`)
+      agentMonitor.log(sessionId, "codegen:complete", { step: idx + 1, lines: code.split("\n").length, chars: code.length }, codeMs)
     }
 
     results.code = generatedCodes.map((gc, i) => ({
@@ -247,7 +272,7 @@ async function runPipeline(prompt: string, skipExecution = false) {
       for (const [idx, gc] of generatedCodes.entries()) {
         const execStart = Date.now()
         try {
-          console.log(`[TEST] Executing step ${idx + 1}/${generatedCodes.length}...`)
+          agentMonitor.log(sessionId, "mcp:execute", { step: idx + 1, command: "execute_code", codeChars: gc.code.length })
           const execResult = await client.execute({
             type: "execute_code",
             params: { code: gc.code },
@@ -262,13 +287,13 @@ async function runPipeline(prompt: string, skipExecution = false) {
             time_ms: execMs,
           }
           executionResults.push(stepResult)
-          console.log(`[TEST] ✓ Step ${idx + 1} executed (${execMs}ms): ${JSON.stringify(execResult.result ?? execResult.message).slice(0, 200)}`)
+          agentMonitor.log(sessionId, "mcp:result", { step: idx + 1, status: stepResult.status, result: JSON.stringify(stepResult.output).slice(0, 200) }, execMs)
         } catch (execErr) {
           const execMs = Date.now() - execStart
           timings[`exec_step${idx + 1}_ms`] = execMs
           const errMsg = execErr instanceof Error ? execErr.message : String(execErr)
           executionResults.push({ step: idx + 1, status: "error", error: errMsg, time_ms: execMs })
-          console.log(`[TEST] ✗ Step ${idx + 1} failed (${execMs}ms): ${errMsg}`)
+          agentMonitor.log(sessionId, "mcp:error", { step: idx + 1, error: errMsg }, execMs)
         }
       }
 
@@ -292,19 +317,11 @@ async function runPipeline(prompt: string, skipExecution = false) {
     }
 
     results.execution = executionResults
+    results.monitorSessionId = sessionId
 
     // ── Summary ──────────────────────────────────────────
     timings.total_ms = Object.values(timings).reduce((a, b) => a + b, 0)
-    console.log(`\n[TEST] ${"─".repeat(40)}`)
-    console.log(`[TEST] ✅ Pipeline complete`)
-    console.log(`[TEST] Provider: ${provider} | Model: ${model}`)
-    console.log(`[TEST] Total: ${timings.total_ms}ms`)
-    console.log(`[TEST] Code steps: ${generatedCodes.length} | Executed: ${executionResults.length}`)
-    if (executionResults.length > 0) {
-      const successes = executionResults.filter(r => r.status !== "error").length
-      console.log(`[TEST] Execution: ${successes}/${executionResults.length} succeeded`)
-    }
-    console.log(`${"=".repeat(60)}\n`)
+    agentMonitor.completeSession(sessionId, true)
 
     return NextResponse.json({
       success: true,
@@ -313,14 +330,15 @@ async function runPipeline(prompt: string, skipExecution = false) {
       prompt,
       blenderConnected: mcpConnected,
       timings,
+      monitorSessionId: sessionId,
       ...results,
     }, { status: 200 })
 
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err)
     const stack = err instanceof Error ? err.stack : undefined
-    console.error(`[TEST] ❌ Pipeline error: ${errorMsg}`)
-    if (stack) console.error(stack)
+    agentMonitor.log(sessionId, "pipeline:error", { error: errorMsg, stack })
+    agentMonitor.completeSession(sessionId, false)
     return NextResponse.json({
       success: false,
       provider,
@@ -328,6 +346,7 @@ async function runPipeline(prompt: string, skipExecution = false) {
       prompt,
       error: errorMsg,
       timings,
+      monitorSessionId: sessionId,
       ...results,
     }, { status: 500 })
   }

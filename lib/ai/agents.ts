@@ -6,8 +6,7 @@
 
 import { createGeminiModel } from "./index"
 import { generatePlan, validateStep, generateRecovery, type Plan, type PlanStep, type PlanWithReasoning } from "./chains"
-import { formatContextFromSources, type RAGResult } from "./rag"
-import { similaritySearch } from "./vectorstore"
+import { formatContextFromSources } from "./rag"
 import { analyzeViewport, compareWithExpectation, type VisionAnalysisResult } from "./vision"
 import type { AgentStreamEvent } from "@/lib/orchestration/types"
 
@@ -200,19 +199,44 @@ export class BlenderAgent {
         this.log("plan", `Planning for: ${request}`)
         this.emit({ type: "agent:planning_start", timestamp: new Date().toISOString() })
 
-        // Optionally retrieve context from RAG
+        // Retrieve context using CRAG (Corrective RAG) for quality filtering
         let context = ""
         if (this.config.useRAG) {
             try {
-                const sources = await similaritySearch(request, {
-                    limit: 5,
+                const { correctiveRetrieve } = await import("./crag")
+                const { agentMonitor } = await import("@/lib/agent-monitor")
+
+                agentMonitor.log("agent", "rag:search", {
+                    query: request.slice(0, 100),
+                    limit: 8,
+                    source: this.config.ragSource,
+                })
+
+                const cragResult = await correctiveRetrieve(request, {
+                    topK: 8,
                     source: this.config.ragSource,
                     minSimilarity: 0.4,
+                    minRelevantDocs: 2,
                 })
-                context = formatContextFromSources(sources)
-                this.log("plan", `Retrieved ${sources.length} relevant documents for context`)
+
+                context = formatContextFromSources(cragResult.documents)
+
+                agentMonitor.log("agent", "crag:filter", {
+                    totalRetrieved: cragResult.totalRetrieved,
+                    relevant: cragResult.totalRelevant,
+                    total: cragResult.documents.length,
+                    usedFallback: cragResult.usedFallback,
+                    docs: cragResult.documents.map(d => ({
+                        title: (d.metadata as Record<string, unknown>)?.title ?? d.source ?? "unknown",
+                        grade: d.grade,
+                        similarity: d.similarity?.toFixed(3),
+                        reason: d.gradeReason,
+                    })),
+                })
+
+                this.log("plan", `CRAG: ${cragResult.totalRetrieved} retrieved → ${cragResult.totalRelevant} relevant (fallback: ${cragResult.usedFallback})`)
             } catch (error) {
-                this.log("error", `RAG retrieval failed: ${error}`)
+                this.log("error", `CRAG retrieval failed: ${error}`)
             }
         }
 
