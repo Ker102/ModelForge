@@ -1,41 +1,14 @@
 """
 {
-  "title": "Procedural Animation Patterns (Blender 5.0+)",
+  "title": "Procedural Animation Patterns",
   "category": "animation",
-  "tags": ["procedural", "keyframe", "NLA", "orbit", "wave", "pendulum", "spring", "math", "camera", "dolly-zoom", "channelbag", "slotted-actions"],
-  "description": "Math-driven keyframe animation patterns for common motion types: orbit, wave, pendulum, spring, camera dolly zoom, NLA composition, and ease-in-out animations. Uses Blender 5.0+ Slotted Actions API with channelbag-based F-Curve access.",
-  "blender_version": "5.0+"
+  "tags": ["procedural", "keyframe", "NLA", "orbit", "wave", "pendulum", "spring", "math", "camera", "dolly-zoom"],
+  "description": "Math-driven keyframe animation patterns for common motion types: orbit, wave, pendulum, spring, camera dolly zoom. Also includes NLA track composition for layering animations and production animation setup.",
+  "blender_version": "4.0+"
 }
 """
 import bpy
 import math
-from bpy_extras import anim_utils
-
-
-# =============================================================================
-# HELPER: Access F-Curves via Channelbag (Blender 5.0+)
-# =============================================================================
-# In Blender 5.0, action.fcurves was REMOVED.
-# Use channelbag.fcurves instead (accessed through action slots).
-#
-#   action = obj.animation_data.action
-#   slot = obj.animation_data.action_slot
-#   channelbag = anim_utils.action_get_channelbag_for_slot(action, slot)
-#   for fcurve in channelbag.fcurves:
-#       ...
-# =============================================================================
-
-
-def _get_channelbag_fcurves(obj: bpy.types.Object) -> list:
-    """Internal helper to get FCurves from channelbag."""
-    if not obj.animation_data or not obj.animation_data.action:
-        return []
-    action = obj.animation_data.action
-    slot = obj.animation_data.action_slot
-    if not slot:
-        return []
-    cb = anim_utils.action_get_channelbag_for_slot(action, slot)
-    return list(cb.fcurves) if cb else []
 
 
 def orbit_animation(
@@ -245,15 +218,16 @@ def follow_path_with_banking(
     constraint.offset = -100
     constraint.keyframe_insert('offset', frame=start_frame + duration)
 
-    # Set linear interpolation using channelbag API (Blender 5.0+)
-    fcurves = _get_channelbag_fcurves(obj)
-    for fcurve in fcurves:
-        for kf in fcurve.keyframe_points:
-            kf.interpolation = 'LINEAR'
+    # Set linear interpolation for smooth motion
+    if obj.animation_data and obj.animation_data.action:
+        for fcurve in obj.animation_data.action.fcurves:
+            for kf in fcurve.keyframe_points:
+                kf.interpolation = 'LINEAR'
 
     # Add banking via tilt on the curve
     if bank_angle > 0:
         curve.data.twist_mode = 'MINIMUM'
+        # Banking is handled by the Follow Path constraint's tilt
 
     return constraint
 
@@ -300,6 +274,7 @@ def camera_dolly_zoom(
         cam_data.keyframe_insert(data_path="lens", frame=frame)
 
         # Adjust distance to keep subject same apparent size
+        # Distance proportional to focal length
         new_distance = initial_distance * (focal / start_focal)
 
         # Move camera along its forward axis
@@ -317,9 +292,6 @@ def nla_compose(
     Push multiple actions to NLA tracks for layered animation.
     NLA lets you combine, blend, and sequence multiple animations
     (e.g., walk cycle + arm wave + procedural noise).
-    
-    In Blender 5.0+, NLA strips are slot-aware. Each strip has an
-    action_slot property that maps to the correct channelbag.
 
     Args:
         obj: Animated object
@@ -353,10 +325,6 @@ def nla_compose(
 
         # Push action to track
         strip = track.strips.new(name, start, action)
-
-        # In Blender 5.0+, auto-assign a suitable slot for the strip
-        if hasattr(strip, 'action_suitable_slots') and strip.action_suitable_slots:
-            strip.action_slot = strip.action_suitable_slots[0]
 
         # Set blend mode
         if blend_modes and i < len(blend_modes):
@@ -437,102 +405,11 @@ def ease_in_out_animation(
         setattr(obj, data_path, end_value)
     obj.keyframe_insert(data_path=data_path, frame=end_frame, index=index)
 
-    # Set Bezier interpolation using channelbag API (Blender 5.0+)
-    fcurves = _get_channelbag_fcurves(obj)
-    for fcurve in fcurves:
-        if fcurve.data_path == data_path and (index < 0 or fcurve.array_index == index):
-            for kf in fcurve.keyframe_points:
-                kf.interpolation = 'BEZIER'
-                kf.handle_left_type = 'AUTO_CLAMPED'
-                kf.handle_right_type = 'AUTO_CLAMPED'
-
-
-def scale_pulse_animation(
-    obj: bpy.types.Object,
-    min_scale: float = 0.9,
-    max_scale: float = 1.1,
-    duration: int = 30,
-    start_frame: int = 1,
-    cycles: int = 3
-) -> None:
-    """
-    Pulsing scale animation — heartbeat, breathing, glow pulse.
-    
-    Args:
-        obj: Object to animate
-        min_scale: Minimum uniform scale
-        max_scale: Maximum uniform scale
-        duration: Frames per cycle
-        start_frame: Starting frame
-        cycles: Number of pulse cycles
-    
-    Example:
-        >>> scale_pulse_animation(heart, min_scale=0.85, max_scale=1.15, cycles=5)
-    """
-    for cycle in range(cycles):
-        cycle_start = start_frame + (cycle * duration)
-        
-        # Min scale
-        obj.scale = (min_scale, min_scale, min_scale)
-        obj.keyframe_insert(data_path="scale", frame=cycle_start)
-        
-        # Max scale (midpoint)
-        mid_frame = cycle_start + duration // 2
-        obj.scale = (max_scale, max_scale, max_scale)
-        obj.keyframe_insert(data_path="scale", frame=mid_frame)
-        
-        # Back to min
-        end_frame = cycle_start + duration
-        obj.scale = (min_scale, min_scale, min_scale)
-        obj.keyframe_insert(data_path="scale", frame=end_frame)
-    
-    # Set smooth bezier for natural breathing feel
-    fcurves = _get_channelbag_fcurves(obj)
-    for fcurve in fcurves:
-        if fcurve.data_path == 'scale':
-            for kf in fcurve.keyframe_points:
-                kf.interpolation = 'BEZIER'
-                kf.handle_left_type = 'AUTO_CLAMPED'
-                kf.handle_right_type = 'AUTO_CLAMPED'
-
-
-def shake_animation(
-    obj: bpy.types.Object,
-    intensity: float = 0.1,
-    duration: int = 30,
-    start_frame: int = 1,
-    frequency: float = 5.0,
-    decay: float = 0.05
-) -> None:
-    """
-    Camera shake or impact vibration effect.
-    Uses high-frequency damped sine wave on location.
-    
-    Args:
-        obj: Object to shake (usually camera)
-        intensity: Maximum displacement
-        duration: Total frames
-        start_frame: Starting frame
-        frequency: Shake speed (higher = more violent)
-        decay: How fast the shake dies out
-    
-    Example:
-        >>> shake_animation(camera, intensity=0.2, duration=20, frequency=8)
-    """
-    base_loc = list(obj.location)
-    
-    for frame in range(start_frame, start_frame + duration + 1):
-        t = frame - start_frame
-        d = math.exp(-decay * t)
-        
-        # Pseudo-random shake using offset sine waves
-        dx = intensity * d * math.sin(frequency * t * 1.0)
-        dy = intensity * d * math.sin(frequency * t * 1.3 + 0.7)
-        dz = intensity * d * math.sin(frequency * t * 0.8 + 1.4) * 0.5
-        
-        obj.location = (base_loc[0] + dx, base_loc[1] + dy, base_loc[2] + dz)
-        obj.keyframe_insert(data_path="location", frame=frame)
-    
-    # Restore original location at end
-    obj.location = base_loc
-    obj.keyframe_insert(data_path="location", frame=start_frame + duration)
+    # Set Bezier interpolation (default ease-in-out)
+    if obj.animation_data and obj.animation_data.action:
+        for fcurve in obj.animation_data.action.fcurves:
+            if fcurve.data_path == data_path and (index < 0 or fcurve.array_index == index):
+                for kf in fcurve.keyframe_points:
+                    kf.interpolation = 'BEZIER'
+                    kf.handle_left_type = 'AUTO_CLAMPED'
+                    kf.handle_right_type = 'AUTO_CLAMPED'

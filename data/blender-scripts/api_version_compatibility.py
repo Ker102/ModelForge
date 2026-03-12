@@ -111,14 +111,83 @@ import bpy
 # Use the gpu module for all GPU operations.
 
 
-# --- 11. Action / Animation API Changes (5.0) ---
-# action.fcurves, action.groups, action.id_root → REMOVED
-# Access FCurves via Channelbags: channelbag.fcurves
-# Bone.hide now only affects edit bone visibility.
-#   For Object/Pose mode, use PoseBone.hide
-# Bone.select, select_head, select_tail → REMOVED
-#   Use EditBone properties or PoseBone.select
-# INSERTKEY_XYZ_TO_RGB flag fully removed.
+# --- 11. Action / Animation API Changes (5.0) — CRITICAL ---
+#
+# The ENTIRE legacy Action API was REMOVED in Blender 5.0.
+# This is the most impactful breaking change for animation scripts.
+#
+# REMOVED properties (will raise AttributeError):
+#   action.fcurves  → use channelbag.fcurves
+#   action.groups   → use channelbag.groups
+#   action.id_root  → use action_slot.target_id_type
+#
+# NEW architecture: "Slotted Actions"
+#   Action → Layers → Strips → Channelbag(per slot) → FCurves
+#
+# Each ActionSlot identifies which data-block the animation targets.
+# Each Channelbag contains the FCurves and Groups for that slot.
+#
+# MIGRATION PATTERN — Finding FCurves:
+#
+#   # OLD (REMOVED in 5.0):
+#   for fcurve in action.fcurves:
+#       for kf in fcurve.keyframe_points:
+#           kf.interpolation = 'BEZIER'
+#
+#   # NEW (5.0+):
+#   from bpy_extras import anim_utils
+#   action = obj.animation_data.action
+#   slot = obj.animation_data.action_slot
+#   channelbag = anim_utils.action_get_channelbag_for_slot(action, slot)
+#   for fcurve in channelbag.fcurves:
+#       for kf in fcurve.keyframe_points:
+#           kf.interpolation = 'BEZIER'
+#
+# MIGRATION PATTERN — Creating FCurves:
+#
+#   # OLD (REMOVED):
+#   fcurve = action.fcurves.new("location", index=2, action_group="Position")
+#
+#   # NEW (5.0+):
+#   channelbag = anim_utils.action_ensure_channelbag_for_slot(action, slot)
+#   fcurve = channelbag.fcurves.new("location", index=2, group_name="Position")
+#   # NOTE: parameter renamed from 'action_group' to 'group_name'
+#
+# MIGRATION PATTERN — Ensuring FCurve exists (find or create):
+#
+#   # OLD (REMOVED):
+#   fcurve = action.fcurves.find("location", index=2)
+#   if not fcurve:
+#       fcurve = action.fcurves.new("location", index=2)
+#
+#   # NEW (5.0+):
+#   channelbag = anim_utils.action_ensure_channelbag_for_slot(action, slot)
+#   fcurve = channelbag.fcurves.ensure("location", index=2)
+#
+# IMPORTANT: keyframe_insert() is UNCHANGED in 5.0.
+#   obj.keyframe_insert(data_path="location", frame=1)
+#   This still works exactly as before — it auto-creates slots, layers,
+#   strips, and channelbags as needed.
+#
+# HELPER FUNCTIONS (from bpy_extras.anim_utils):
+#   action_get_channelbag_for_slot(action, slot)    → read existing data
+#   action_ensure_channelbag_for_slot(action, slot)  → create if missing
+#
+# DIRECT STRIP KEYING (new in 5.0):
+#   strip.key_insert(slot=slot, data_path="location", array_index=2,
+#                    value=5.0, time=24.0)
+#
+# NLA CHANGES:
+#   NlaStrip now has 'action_slot' property for slot binding.
+#   Use strip.action_suitable_slots to find compatible slots.
+#
+# BONE SELECTION REFACTOR:
+#   Bone.hide → now only affects Edit Mode visibility
+#   PoseBone.hide → controls Pose/Object Mode visibility (NEW)
+#   Bone.select, select_head, select_tail → REMOVED
+#   Use EditBone.select (Edit Mode) or PoseBone.select (Pose Mode)
+#
+# REMOVED: INSERTKEY_XYZ_TO_RGB flag (auto-coloring is now built-in)
 
 
 # --- 12. UV Selection Changes (5.0) ---
