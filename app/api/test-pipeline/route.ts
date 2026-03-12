@@ -71,17 +71,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Test endpoint disabled in production" }, { status: 403 })
   }
 
-  const body = await req.json().catch(() => ({})) as { prompt?: string; skipExecution?: boolean }
+  const body = await req.json().catch(() => ({})) as { prompt?: string; skipExecution?: boolean; provider?: string }
   const prompt = body.prompt
   if (!prompt) {
     return NextResponse.json({ error: "Missing 'prompt' in body" }, { status: 400 })
   }
 
-  return runPipeline(prompt, body.skipExecution ?? false)
+  return runPipeline(prompt, body.skipExecution ?? false, body.provider)
 }
 
-async function runPipeline(prompt: string, skipExecution = false) {
-  const provider = (process.env.AI_PROVIDER ?? "gemini").toLowerCase()
+async function runPipeline(prompt: string, skipExecution = false, providerOverride?: string) {
+  const provider = (providerOverride ?? process.env.AI_PROVIDER ?? "gemini").toLowerCase()
   const model = provider === "anthropic" || provider === "claude"
     ? (process.env.ANTHROPIC_MODEL ?? "claude-opus-4-6")
     : (process.env.GEMINI_MODEL ?? "gemini-2.5-pro")
