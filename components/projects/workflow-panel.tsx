@@ -21,7 +21,7 @@ const TOOL_ICONS: Record<string, string> = {
 
 const TOOL_LABELS: Record<string, string> = {
     neural: "Neural AI",
-    blender_agent: "Blender Agent",
+    blender_agent: "Blender Agent β",
     manual: "Manual",
 }
 
