@@ -84,7 +84,7 @@ async function runPipeline(prompt: string, skipExecution = false, providerOverri
   const provider = (providerOverride ?? process.env.AI_PROVIDER ?? "gemini").toLowerCase()
   const model = provider === "anthropic" || provider === "claude"
     ? (process.env.ANTHROPIC_MODEL ?? "claude-opus-4-6")
-    : (process.env.GEMINI_MODEL ?? "gemini-2.5-pro")
+    : (process.env.GEMINI_MODEL ?? "gemini-3.1-pro-preview")
   const timings: Record<string, number> = {}
   const results: Record<string, unknown> = {}
 
