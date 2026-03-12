@@ -75,7 +75,7 @@ function getAdcToken(): string {
 
   try {
     const token = execSync(
-      "gcloud auth application-default print-access-token",
+      "gcloud auth print-access-token",
       { encoding: "utf-8", timeout: 60_000 }
     ).trim()
 
