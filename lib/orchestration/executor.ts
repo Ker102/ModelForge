@@ -246,6 +246,78 @@ export class PlanExecutor {
             detail: `Step result: ${step.action}`,
           })
 
+          // Automatic viewport capture after execute_code steps
+          // This is part of the observability pipeline — every geometry change gets a screenshot
+          if (step.action === "execute_code") {
+            try {
+              const ssPath = path.join(tmpdir(), `modelforge_step_${i}_${Date.now()}.png`)
+              const ssResult = await client.execute({
+                type: "get_viewport_screenshot",
+                params: { filepath: ssPath },
+              })
+
+              // Extract image data
+              const ssTop = ssResult as Record<string, unknown>
+              const ssInner = ssResult?.result as Record<string, unknown> | undefined
+              let stepImage = (
+                ssInner?.image ??
+                ssTop?.image ??
+                (ssInner?.result as Record<string, unknown> | undefined)?.image
+              ) as string | undefined
+
+              // Try reading from file if not inline
+              if (!stepImage) {
+                try {
+                  const { readFile: rf, unlink: ul } = await import("fs/promises")
+                  const buf = await rf(ssPath)
+                  stepImage = buf.toString("base64")
+                  await ul(ssPath).catch(() => { })
+                } catch {
+                  // File not found
+                }
+              }
+
+              if (stepImage) {
+                logs.push({
+                  timestamp: new Date().toISOString(),
+                  tool: "step_viewport_capture",
+                  parameters: { stepIndex: i, action: step.action },
+                  result: { captured: true, imageSize: stepImage.length },
+                  logType: "vision",
+                  detail: `Viewport captured after step ${i + 1} (${step.action})`,
+                  visualValidation: { image: stepImage },
+                })
+
+                options.onStreamEvent?.({
+                  type: "agent:step_screenshot",
+                  timestamp: new Date().toISOString(),
+                  stepIndex: i,
+                  description: `Viewport captured after: ${step.rationale ?? step.action}`,
+                } as AgentStreamEvent)
+              } else {
+                console.warn(`[Executor] WARNING: Viewport screenshot failed for step ${i + 1} — no image data returned`)
+                logs.push({
+                  timestamp: new Date().toISOString(),
+                  tool: "step_viewport_capture",
+                  parameters: { stepIndex: i },
+                  error: "No screenshot data received — check Blender MCP addon",
+                  logType: "vision",
+                  detail: `WARNING: Viewport screenshot failed for step ${i + 1}`,
+                })
+              }
+            } catch (ssError) {
+              console.warn(`[Executor] WARNING: Viewport screenshot threw for step ${i + 1}:`, ssError)
+              logs.push({
+                timestamp: new Date().toISOString(),
+                tool: "step_viewport_capture",
+                parameters: { stepIndex: i },
+                error: ssError instanceof Error ? ssError.message : String(ssError),
+                logType: "vision",
+                detail: `WARNING: Viewport screenshot error for step ${i + 1}: ${ssError instanceof Error ? ssError.message : String(ssError)}`,
+              })
+            }
+          }
+
           return toolResult
         })
 

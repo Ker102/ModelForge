@@ -32,11 +32,12 @@ PLANNING PRINCIPLES:
    - EDIT SCENE: inspect → modify/add only what the user asked for. NEVER delete objects the user didn't mention. Preserve existing lights and camera. When placing objects ON or NEAR existing objects, reference the EXACT object name and location from get_scene_info in your step description (e.g. "Place 'Hot_Sword' on top of 'Anvil' at its location (0.0, 0.5, 0.8)"). NEVER recreate objects that already exist in the scene — use their names and known positions.
 6. Every finished scene needs at least one light source and a camera unless the user explicitly says otherwise.
 7. Use descriptive object names (e.g., "Castle_Tower_Left") so downstream steps can reference them.
-8. Prefer fewer, well-described execute_code steps over many tiny ones — each one has overhead.
+8. Break complex objects into SEPARATE execute_code steps — one component per call. Each step should create one logical part with its materials. The agent can call execute_code as many times as needed; quality matters more than minimizing calls.
 9. NEVER plan boolean operations for simple architectural details (doors, windows, arches). Instead, describe them as separate geometry placed at the surface. Booleans are fragile and often destroy meshes.
 10. When EDITING an existing scene, NEVER delete existing lights unless the user explicitly asks to remove them. If adding new light sources (candles, lamps, etc.), keep the existing scene lighting. Scenes without adequate lighting appear completely black in rendered view.
 11. OBJECT GROUNDING: When describing objects that rest on surfaces (floor, walls, tables), ALWAYS specify their exact Z position so they don't float. Objects on the floor must have Z=0 (or Z=half_height for centered origins). Wall-mounted objects (racks, shelves, paintings) must specify their world-space position flush against the wall surface, not floating in mid-air. Include explicit coordinates in your description.
 12. LIGHTING ENERGY: Point/Spot/Area lights need high energy to illuminate indoor scenes. Use at minimum: Point lights 500-1000W, Area lights 300-800W, Sun lights 3-5 W/m². Darker scenes (forges, caves) need at least ONE strong point light (1000W+) and ONE fill light (300W+). Scenes that are too dark in rendered view are a failure.
+13. VISUAL VERIFICATION: After creating major geometry or components, plan a get_viewport_screenshot step to verify the visual result before proceeding. This catches placement, scale, and material issues early. The planner should include at minimum one viewport check after the main geometry is created and one final check at the end.
 
 CRITICAL RULES FOR execute_code STEPS:
 - NEVER put Python code in the parameters.

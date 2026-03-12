@@ -1,35 +1,32 @@
 # gemini.md — ModelForge Dev Tracker
 
 ## Current Task
-Blender 5.0+ Animation Script Migration — Slotted Actions API Update
+Agent Iteration Behavior & Viewport Screenshot Observability
 
-## What Changed
-- **Animation Scripts**: Migrated 3 scripts to Blender 5.0+ Slotted Actions API
-  - `animation_utils.py` → `animation_utils_legacy.py` + new 5.0+ version
-  - `procedural_animation.py` → `procedural_animation_legacy.py` + new 5.0+ version
-  - `action_utils.py` → `action_utils_legacy.py` + new 5.0+ version
-- **Root Cause**: `action.fcurves`, `action.groups`, `action.id_root` removed in Blender 5.0
-- **Fix**: All fcurve access now uses `channelbag.fcurves` via `bpy_extras.anim_utils`
-- **New Functions Added**:
-  - `get_fcurves()` — channelbag-based fcurve retrieval
-  - `ensure_fcurve()` — create fcurve in channelbag
-  - `set_handle_type()` — keyframe handle control
-  - `scale_pulse_animation()` — heartbeat/breathing effect
-  - `shake_animation()` — camera shake/impact
-  - `create_action_with_slot()` — slot-aware action creation
-  - `list_action_slots()` — inspect action slots
-  - `get_action_info()` — debug action hierarchy
-- **api_version_compatibility.py**: Expanded section 11 with 70+ lines of Slotted Actions migration patterns
-- **Deep Research**: 64 sources imported into NotebookLM on Blender 5.0 animation API
+## What Changed (Latest)
+- **System Prompt Rewrite** (`blender-agent-system.md`):
+  - Rewrote Example 1 from "one go" → iterative with viewport verification
+  - Added Example 4: Complex forge scene built component-by-component with 3 screenshot checkpoints
+  - Added "Iterative Refinement" rule: unlimited execute_code calls, quality over speed
+  - Every example now includes `get_viewport_screenshot` verification
+- **Planner Prompt Fixes** (`lib/ai/prompts.ts`):
+  - Rule #8: Changed from "Prefer fewer steps" → "Break into SEPARATE execute_code steps"
+  - Added Rule #13: Viewport verification after major geometry creation
+- **Orchestration Prompts** (`lib/orchestration/prompts.ts`):
+  - Rule #2: Changed from "tackle explicitly" → "tackle in SEPARATE execute_code call"
+  - Rule #6: Changed from "confirm progress" → "use get_viewport_screenshot to verify"
+  - Added viewport verification steps to Examples 1 and 3
+- **Screenshot Observability** (`executor.ts`):
+  - Added automatic viewport screenshot after every execute_code step
+  - Screenshots logged as vision events and streamed to client
+  - Failures logged as WARNING (visible) instead of silently swallowed
 
 ## Previous Changes
-- **Prompt**: CODE_GENERATION_PROMPT 13K → 9.7K (removed RAG dupes)
-- **RAG Scripts**: +10 new scripts (animation, physics, rendering, mesh factory)
-- **Vectorstore**: 135 → 145 documents
-- **LLM Provider**: Added Claude/Anthropic support via AI_PROVIDER env var
+- Migrated 3 animation scripts to Blender 5.0+ Slotted Actions API
+- Added new animation functions (scale_pulse, shake, ensure_fcurve, etc.)
+- Deep research: 64 sources from NotebookLM on Blender 5.0 animation API
 
 ## Next Steps
 - Re-embed ALL scripts into vector DB
-- Re-test Motion category (test #6) — should pass without fcurves error
-- Re-test Paint category (test #4) — verify material application
-- Visual verification in Blender between each test
+- Re-test Motion category — verify no fcurves errors
+- Visual verification in Blender with new iterative behavior
