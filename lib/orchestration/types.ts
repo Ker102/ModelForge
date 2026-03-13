@@ -109,6 +109,7 @@ interface AgentWorkflowProposal extends AgentEventBase { type: "agent:workflow_p
 interface AgentWorkflowStepUpdate extends AgentEventBase { type: "agent:workflow_step_update"; stepId: string; status: WorkflowStepStatus; message?: string; error?: string; durationMs?: number }
 interface AgentMonitoringLog extends AgentEventBase { type: "agent:monitoring_log"; entry: LogEntry }
 interface AgentMonitoringSummary extends AgentEventBase { type: "agent:monitoring_summary"; summary: SessionSummary }
+interface AgentStepScreenshot extends AgentEventBase { type: "agent:step_screenshot"; stepIndex: number; description: string }
 
 /**
  * Real-time stream event types sent during agent execution
@@ -135,6 +136,7 @@ export type AgentStreamEvent =
   | AgentWorkflowStepUpdate
   | AgentMonitoringLog
   | AgentMonitoringSummary
+  | AgentStepScreenshot
 
 export interface PlanningMetadata {
   planSummary: string

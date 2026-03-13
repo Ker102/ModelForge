@@ -54,10 +54,24 @@ function buildContents(
     parts: [{ text: systemPrompt }],
   }
 
-  return [
-    systemContent,
+  // If no history is provided and the first message is from the user,
+  // we need to insert a model acknowledgement between the system prompt
+  // (which is role: "user") and the user message to avoid consecutive
+  // user turns, which the Gemini API rejects.
+  const allMapped = [
     ...history.map(mapMessageToGeminiContent),
     ...messages.map(mapMessageToGeminiContent),
+  ]
+
+  const firstMapped = allMapped[0]
+  const needsAck = firstMapped && firstMapped.role === "user"
+
+  return [
+    systemContent,
+    ...(needsAck
+      ? [{ role: "model", parts: [{ text: "Understood." }] }]
+      : []),
+    ...allMapped,
   ]
 }
 

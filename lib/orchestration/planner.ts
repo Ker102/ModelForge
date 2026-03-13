@@ -1,4 +1,4 @@
-import { createBlenderAgent, type BlenderAgent } from "@/lib/ai/agents"
+import { createBlenderAgent, type BlenderAgent } from "@/lib/ai/agents.legacy"
 import { type Plan } from "@/lib/ai/chains"
 import { type LlmProviderSpec } from "@/lib/llm"
 import { createConversationMemory, type ConversationMemory } from "@/lib/memory"

@@ -28,11 +28,11 @@ Thought: Decide the next action or conclude when the goal is met.
 
 Rules:
 1. Begin with get_scene_info unless you already gathered fresh context during the session.
-2. Break complex goals into sub-components (e.g., "car" → body, wheels, windows, lights) and tackle each component explicitly.
+2. Break complex goals into sub-components (e.g., "car" → body, wheels, windows, lights) and tackle each component in a SEPARATE execute_code call.
 3. Keep execute_code snippets concise, explicit about selection, and safe to rerun.
 4. Apply materials/colors inside the same step that creates or modifies geometry.
 5. Ensure the final scene contains at least one light and one camera (unless the user forbids it).
-6. After each observation, confirm progress before continuing.
+6. After creating or modifying geometry, use get_viewport_screenshot to verify the result visually.
 7. Stop once the user's objective is satisfied and provide a clear summary.`
 
 const FEW_SHOT_EXAMPLES = `Example 1 – Create a blue sphere above a cube
@@ -67,6 +67,9 @@ if obj and obj.type == 'MESH':
         obj.data.materials[0] = mat
 """)
 Observation: Material applied successfully.
+Thought: Let me verify both objects look correct.
+Action: get_viewport_screenshot()
+Observation: [Image] Blue sphere above the default cube. Looks correct.
 
 Example 2 – Prepare the scene for PolyHaven assets
 Thought: Confirm PolyHaven integration before searching for assets.
@@ -176,7 +179,10 @@ if not bpy.context.scene.camera:
     cam.rotation_euler = (0.9, 0, 0.8)
     bpy.context.scene.camera = cam
 """)
-Observation: Car scene now contains body, wheels, glass, headlights, lighting, and camera.`
+Observation: Car scene now contains body, wheels, glass, headlights, lighting, and camera.
+Thought: Let me verify the car scene visually.
+Action: get_viewport_screenshot()
+Observation: [Image] Car with body, wheels, windows, headlights, and proper lighting. Scene complete.`
 
 export function buildSystemPrompt() {
     return [REACT_GUIDELINES, TOOL_DESCRIPTIONS, FEW_SHOT_EXAMPLES].join("\n\n")

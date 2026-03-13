@@ -1,25 +1,76 @@
 """
 {
-  "title": "Animation Utilities",
+  "title": "Animation Utilities (Blender 5.0+)",
   "category": "animation",
-  "tags": ["keyframe", "timeline", "fcurve", "action", "interpolation", "animate"],
-  "description": "Functions for keyframing, timeline control, and animation setup in Blender.",
-  "blender_version": "3.0+"
+  "tags": ["keyframe", "timeline", "fcurve", "action", "interpolation", "animate", "channelbag", "slotted-actions"],
+  "description": "Functions for keyframing, timeline control, interpolation, and animation setup using the Blender 5.0+ Slotted Actions API. Uses channelbag-based fcurve access instead of the removed action.fcurves legacy API.",
+  "blender_version": "5.0+"
 }
 """
 import bpy
 import math
+from bpy_extras import anim_utils
+
+
+# =============================================================================
+# CORE: F-Curve Access via Channelbag (Blender 5.0+ Slotted Actions)
+# =============================================================================
+# In Blender 5.0, action.fcurves was REMOVED.
+# F-Curves now live inside Channelbags, which are per-slot containers
+# within an Action's layer → strip → channelbag hierarchy.
+#
+# Use these helpers:
+#   anim_utils.action_get_channelbag_for_slot(action, slot)   → read existing
+#   anim_utils.action_ensure_channelbag_for_slot(action, slot) → create if needed
+# =============================================================================
+
+
+def get_fcurves(obj: bpy.types.Object) -> list:
+    """
+    Get all F-Curves for an object using the 5.0+ channelbag API.
+    
+    In Blender 5.0, action.fcurves was removed. F-Curves are now accessed
+    through channelbags, which are per-slot containers in the action hierarchy.
+    
+    Args:
+        obj: Animated object
+    
+    Returns:
+        List of FCurves, or empty list if no animation data
+    
+    Example:
+        >>> fcurves = get_fcurves(cube)
+        >>> for fc in fcurves:
+        ...     print(fc.data_path, fc.array_index)
+    """
+    if not obj.animation_data or not obj.animation_data.action:
+        return []
+    
+    action = obj.animation_data.action
+    slot = obj.animation_data.action_slot
+    
+    if not slot:
+        return []
+    
+    channelbag = anim_utils.action_get_channelbag_for_slot(action, slot)
+    if not channelbag:
+        return []
+    
+    return list(channelbag.fcurves)
 
 
 def set_keyframe(
     obj: bpy.types.Object,
     data_path: str,
     frame: int,
-    value = None,
+    value=None,
     index: int = -1
 ) -> None:
     """
     Insert a keyframe for an object property.
+    
+    Note: keyframe_insert() is unchanged in Blender 5.0 — it automatically
+    handles slotted actions, creating layers/strips/channelbags as needed.
     
     Args:
         obj: Object to keyframe
@@ -66,22 +117,63 @@ def animate_property(
 
 def set_interpolation(
     obj: bpy.types.Object,
-    interpolation: str = 'BEZIER'
+    interpolation: str = 'BEZIER',
+    data_path: str = None
 ) -> None:
     """
-    Set interpolation mode for all keyframes of an object.
+    Set interpolation mode for keyframes using the 5.0+ channelbag API.
+    
+    In Blender 5.0, action.fcurves was removed. This function accesses
+    F-Curves through the channelbag (per-slot container).
     
     Args:
         obj: Animated object
-        interpolation: 'CONSTANT', 'LINEAR', 'BEZIER', 'SINE', 'QUAD', 'CUBIC', etc.
+        interpolation: 'CONSTANT', 'LINEAR', 'BEZIER', 'SINE', 'QUAD',
+                       'CUBIC', 'QUART', 'QUINT', 'EXPO', 'CIRC',
+                       'BACK', 'BOUNCE', 'ELASTIC'
+        data_path: Optional — only set interpolation for this data path.
+                   If None, sets for all fcurves.
     
     Example:
         >>> set_interpolation(cube, 'LINEAR')
+        >>> set_interpolation(cube, 'BEZIER', data_path='rotation_euler')
     """
-    if obj.animation_data and obj.animation_data.action:
-        for fcurve in obj.animation_data.action.fcurves:
-            for keyframe in fcurve.keyframe_points:
-                keyframe.interpolation = interpolation
+    fcurves = get_fcurves(obj)
+    for fcurve in fcurves:
+        if data_path and fcurve.data_path != data_path:
+            continue
+        for keyframe in fcurve.keyframe_points:
+            keyframe.interpolation = interpolation
+
+
+def set_handle_type(
+    obj: bpy.types.Object,
+    handle_type: str = 'AUTO_CLAMPED',
+    data_path: str = None,
+    index: int = -1
+) -> None:
+    """
+    Set keyframe handle types for smooth motion control.
+    
+    Args:
+        obj: Animated object
+        handle_type: 'FREE', 'ALIGNED', 'VECTOR', 'AUTO', 'AUTO_CLAMPED'
+        data_path: Optional — only set for this property path
+        index: Array index (-1 for all)
+    
+    Example:
+        >>> set_handle_type(cube, 'AUTO_CLAMPED')  # Smooth ease-in-out
+        >>> set_handle_type(cube, 'VECTOR', data_path='location')  # Sharp
+    """
+    fcurves = get_fcurves(obj)
+    for fcurve in fcurves:
+        if data_path and fcurve.data_path != data_path:
+            continue
+        if index >= 0 and fcurve.array_index != index:
+            continue
+        for kf in fcurve.keyframe_points:
+            kf.handle_left_type = handle_type
+            kf.handle_right_type = handle_type
 
 
 def set_frame_range(start: int, end: int, current: int = None) -> None:
@@ -108,7 +200,7 @@ def set_fps(fps: int = 24) -> None:
     Set the scene frame rate.
     
     Args:
-        fps: Frames per second
+        fps: Frames per second (24=film, 30=video, 60=game)
     
     Example:
         >>> set_fps(30)  # Standard video
@@ -159,6 +251,9 @@ def create_bounce_animation(
     # Final ground position
     obj.location.z = base_z
     obj.keyframe_insert('location', frame=frame, index=2)
+    
+    # Set bezier interpolation for natural arc
+    set_interpolation(obj, 'BEZIER')
 
 
 def create_rotation_animation(
@@ -232,3 +327,56 @@ def create_path_animation(
     constraint.keyframe_insert('offset', frame=duration)
     
     return constraint
+
+
+def ensure_fcurve(
+    obj: bpy.types.Object,
+    data_path: str,
+    index: int = 0,
+    group_name: str = ""
+):
+    """
+    Ensure an F-Curve exists for a given data path using 5.0+ API.
+    Creates the channelbag, layer, strip, and F-Curve if needed.
+    
+    Args:
+        obj: Object that owns the animation
+        data_path: RNA property path (e.g., 'location')
+        index: Array index (0, 1, 2 for x, y, z)
+        group_name: Optional channel group name
+    
+    Returns:
+        The FCurve object
+    
+    Example:
+        >>> fc = ensure_fcurve(cube, 'location', index=2, group_name='Position')
+    """
+    if not obj.animation_data:
+        obj.animation_data_create()
+    
+    action = obj.animation_data.action
+    if not action:
+        action = bpy.data.actions.new(name=f"{obj.name}Action")
+        obj.animation_data.action = action
+    
+    slot = obj.animation_data.action_slot
+    if not slot:
+        # Auto-assign a suitable slot
+        if action.slots:
+            for s in action.slots:
+                if s.target_id_type == obj.id_type:
+                    obj.animation_data.action_slot = s
+                    slot = s
+                    break
+        if not slot:
+            slot = action.slots.new(id_type=obj.id_type, name=obj.name)
+            obj.animation_data.action_slot = slot
+    
+    channelbag = anim_utils.action_ensure_channelbag_for_slot(action, slot)
+    
+    if group_name:
+        fcurve = channelbag.fcurves.ensure(data_path, index=index, group_name=group_name)
+    else:
+        fcurve = channelbag.fcurves.ensure(data_path, index=index)
+    
+    return fcurve

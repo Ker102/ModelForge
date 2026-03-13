@@ -1,10 +1,12 @@
 /**
  * Chains Module
  * 
- * LangChain chains for orchestrating AI operations
+ * LangChain chains for orchestrating AI operations.
+ * Supports switching between Gemini and Claude via AI_PROVIDER env var.
  */
 
 import { createGeminiModel } from "./index"
+import { generateLlmResponse } from "@/lib/llm"
 import { planningPrompt, validationPrompt, recoveryPrompt, codeGenerationPrompt } from "./prompts"
 import { formatToolListForPrompt } from "@/lib/orchestration/tool-filter"
 import { z } from "zod"
@@ -21,6 +23,35 @@ function extractContent(response: { content: unknown }): string {
         return raw.map(part => (typeof part === "string" ? part : (part as Record<string, unknown>).text ?? "")).join("")
     }
     return String(raw ?? "")
+}
+
+/**
+ * Unified LLM call — routes to Gemini (LangChain) or Claude (lib/llm)
+ * based on the AI_PROVIDER environment variable.
+ *
+ *   AI_PROVIDER=gemini     → Gemini via LangChain (default)
+ *   AI_PROVIDER=anthropic  → Claude via Vertex AI / direct API
+ *   AI_PROVIDER=claude     → alias for anthropic
+ */
+async function callLlm(
+    formattedPrompt: string,
+    opts: { temperature?: number; maxOutputTokens?: number } = {}
+): Promise<string> {
+    const provider = (process.env.AI_PROVIDER ?? "gemini").toLowerCase()
+
+    if (provider === "anthropic" || provider === "claude") {
+        const result = await generateLlmResponse({ type: "anthropic" }, {
+            messages: [{ role: "user", content: formattedPrompt }],
+            temperature: opts.temperature,
+            maxOutputTokens: opts.maxOutputTokens,
+        })
+        return result.text
+    }
+
+    // Default: Gemini via LangChain
+    const model = createGeminiModel(opts)
+    const response = await model.invoke(formattedPrompt)
+    return extractContent(response)
 }
 
 // ============================================================================
@@ -87,8 +118,6 @@ export async function generatePlan(options: {
     tools: string[]
     context?: string
 }): Promise<PlanWithReasoning> {
-    const model = createGeminiModel({ temperature: 0.3, maxOutputTokens: 65536 })
-
     const formattedPrompt = await planningPrompt.format({
         request: options.request,
         sceneState: options.sceneState ?? "Unknown",
@@ -96,8 +125,7 @@ export async function generatePlan(options: {
         context: options.context ?? "",
     })
 
-    const response = await model.invoke(formattedPrompt)
-    const content = extractContent(response)
+    const content = await callLlm(formattedPrompt, { temperature: 0.3, maxOutputTokens: 65536 })
 
     // Extract reasoning (everything before the JSON block)
     // Find the outermost JSON object by matching braces
@@ -158,16 +186,13 @@ export async function validateStep(options: {
     expectedOutcome: string
     actualResult: string
 }): Promise<ValidationWithReasoning> {
-    const model = createGeminiModel({ temperature: 0.1 })
-
     const formattedPrompt = await validationPrompt.format({
         stepDescription: options.stepDescription,
         expectedOutcome: options.expectedOutcome,
         actualResult: options.actualResult,
     })
 
-    const response = await model.invoke(formattedPrompt)
-    const content = extractContent(response)
+    const content = await callLlm(formattedPrompt, { temperature: 0.1 })
 
     const jsonMatch = content.match(/\{[\s\S]*\}/)
     if (!jsonMatch) {
@@ -199,16 +224,13 @@ export async function generateRecovery(options: {
     error: string
     sceneState?: string
 }): Promise<RecoveryWithReasoning> {
-    const model = createGeminiModel({ temperature: 0.2 })
-
     const formattedPrompt = await recoveryPrompt.format({
         stepDescription: options.stepDescription,
         error: options.error,
         sceneState: options.sceneState ?? "Unknown",
     })
 
-    const response = await model.invoke(formattedPrompt)
-    const content = extractContent(response)
+    const content = await callLlm(formattedPrompt, { temperature: 0.2 })
 
     const jsonMatch = content.match(/\{[\s\S]*\}/)
     if (!jsonMatch) {
@@ -242,11 +264,6 @@ export async function generateCode(options: {
     namingPrefix?: string
     constraints?: string
 }): Promise<string> {
-    const model = createGeminiModel({
-        temperature: 0.2,
-        maxOutputTokens: 16384,
-    })
-
     const formattedPrompt = await codeGenerationPrompt.format({
         request: options.request,
         context: options.context ?? "",
@@ -255,8 +272,7 @@ export async function generateCode(options: {
         constraints: options.constraints ?? "None",
     })
 
-    const response = await model.invoke(formattedPrompt)
-    let code = extractContent(response)
+    let code = await callLlm(formattedPrompt, { temperature: 0.2, maxOutputTokens: 16384 })
 
     // Extract code from markdown code blocks if present
     const codeBlockMatch = code.match(/```python\n([\s\S]*?)```/)

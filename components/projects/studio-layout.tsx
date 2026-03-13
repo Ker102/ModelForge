@@ -154,6 +154,13 @@ export function StudioLayout({ projectId }: StudioLayoutProps) {
                                 updateAssistantContent(stepId, assistantContent)
                                 break
                             }
+                            case "followup_delta": {
+                                // Post-execution follow-up text from the LLM
+                                const fDelta = typeof event.delta === "string" ? event.delta : ""
+                                assistantContent += fDelta
+                                updateAssistantContent(stepId, assistantContent)
+                                break
+                            }
                             case "complete": {
                                 const cid = typeof event.conversationId === "string" ? event.conversationId : undefined
                                 if (cid) {

@@ -1,32 +1,23 @@
 // Embeddings Module
 //
-// Provides embedding generation using Together.ai GTE-ModernBERT-base
-// - 768-dimensional vectors
-// - 8192 token context window
-// - Optimized for retrieval tasks
+// Provides embedding generation using Google Gemini gemini-embedding-001
+// - Configurable dimensions via output_dimensionality (768 default here)
+// - Default model output is 3072 but we use 768 to match pgvector column
+// - Uses Matryoshka Representation Learning (MRL) for dimension truncation
+//
+// Previously used Together.ai GTE-ModernBERT-base, but that model
+// was deprecated as a serverless model (400 error).
 
-import OpenAI from "openai"
-
-const EMBEDDING_MODEL = "Alibaba-NLP/gte-modernbert-base"
+const EMBEDDING_MODEL = "gemini-embedding-001"
 const EMBEDDING_DIMENSIONS = 768
 const MAX_BATCH_SIZE = 32
 
-let client: OpenAI | null = null
-
-function getClient(): OpenAI {
-    if (client) return client
-
-    const apiKey = process.env.TOGETHER_API_KEY
+function getApiKey(): string {
+    const apiKey = process.env.GEMINI_API_KEY
     if (!apiKey) {
-        throw new Error("TOGETHER_API_KEY is not configured")
+        throw new Error("GEMINI_API_KEY is not configured")
     }
-
-    client = new OpenAI({
-        apiKey,
-        baseURL: "https://api.together.xyz/v1",
-    })
-
-    return client
+    return apiKey
 }
 
 export interface EmbeddingResult {
@@ -35,26 +26,45 @@ export interface EmbeddingResult {
 }
 
 /**
- * Generate embeddings for a batch of texts
+ * Generate embeddings for a batch of texts using Gemini batchEmbedContents
  */
 export async function embedTexts(texts: string[]): Promise<EmbeddingResult[]> {
-    const client = getClient()
-
-    // Process in batches
+    const apiKey = getApiKey()
     const results: EmbeddingResult[] = []
 
+    // Process in batches
     for (let i = 0; i < texts.length; i += MAX_BATCH_SIZE) {
         const batch = texts.slice(i, i + MAX_BATCH_SIZE)
 
-        const response = await client.embeddings.create({
-            model: EMBEDDING_MODEL,
-            input: batch,
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:batchEmbedContents`
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "x-goog-api-key": apiKey,
+            },
+            body: JSON.stringify({
+                requests: batch.map((text) => ({
+                    model: `models/${EMBEDDING_MODEL}`,
+                    content: { parts: [{ text }] },
+                    output_dimensionality: EMBEDDING_DIMENSIONS,
+                })),
+            }),
         })
 
-        for (const item of response.data) {
+        if (!response.ok) {
+            const errorText = await response.text()
+            throw new Error(`Gemini Embedding API error ${response.status}: ${errorText}`)
+        }
+
+        const data = (await response.json()) as {
+            embeddings: Array<{ values: number[] }>
+        }
+
+        for (let j = 0; j < data.embeddings.length; j++) {
             results.push({
-                embedding: item.embedding,
-                index: i + item.index,
+                embedding: data.embeddings[j].values,
+                index: i + j,
             })
         }
     }
@@ -66,8 +76,30 @@ export async function embedTexts(texts: string[]): Promise<EmbeddingResult[]> {
  * Generate a single embedding
  */
 export async function embedText(text: string): Promise<number[]> {
-    const results = await embedTexts([text])
-    return results[0].embedding
+    const apiKey = getApiKey()
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:embedContent`
+    const response = await fetch(url, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+        },
+        body: JSON.stringify({
+            content: { parts: [{ text }] },
+            output_dimensionality: EMBEDDING_DIMENSIONS,
+        }),
+    })
+
+    if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`Gemini Embedding API error ${response.status}: ${errorText}`)
+    }
+
+    const data = (await response.json()) as {
+        embedding: { values: number[] }
+    }
+    return data.embedding.values
 }
 
 /**

@@ -32,11 +32,12 @@ PLANNING PRINCIPLES:
    - EDIT SCENE: inspect → modify/add only what the user asked for. NEVER delete objects the user didn't mention. Preserve existing lights and camera. When placing objects ON or NEAR existing objects, reference the EXACT object name and location from get_scene_info in your step description (e.g. "Place 'Hot_Sword' on top of 'Anvil' at its location (0.0, 0.5, 0.8)"). NEVER recreate objects that already exist in the scene — use their names and known positions.
 6. Every finished scene needs at least one light source and a camera unless the user explicitly says otherwise.
 7. Use descriptive object names (e.g., "Castle_Tower_Left") so downstream steps can reference them.
-8. Prefer fewer, well-described execute_code steps over many tiny ones — each one has overhead.
+8. Break complex objects into SEPARATE execute_code steps — one component per call. Each step should create one logical part with its materials. The agent can call execute_code as many times as needed; quality matters more than minimizing calls.
 9. NEVER plan boolean operations for simple architectural details (doors, windows, arches). Instead, describe them as separate geometry placed at the surface. Booleans are fragile and often destroy meshes.
 10. When EDITING an existing scene, NEVER delete existing lights unless the user explicitly asks to remove them. If adding new light sources (candles, lamps, etc.), keep the existing scene lighting. Scenes without adequate lighting appear completely black in rendered view.
 11. OBJECT GROUNDING: When describing objects that rest on surfaces (floor, walls, tables), ALWAYS specify their exact Z position so they don't float. Objects on the floor must have Z=0 (or Z=half_height for centered origins). Wall-mounted objects (racks, shelves, paintings) must specify their world-space position flush against the wall surface, not floating in mid-air. Include explicit coordinates in your description.
 12. LIGHTING ENERGY: Point/Spot/Area lights need high energy to illuminate indoor scenes. Use at minimum: Point lights 500-1000W, Area lights 300-800W, Sun lights 3-5 W/m². Darker scenes (forges, caves) need at least ONE strong point light (1000W+) and ONE fill light (300W+). Scenes that are too dark in rendered view are a failure.
+13. VISUAL VERIFICATION: After creating major geometry or components, plan a get_viewport_screenshot step to verify the visual result before proceeding. This catches placement, scale, and material issues early. The planner should include at minimum one viewport check after the main geometry is created and one final check at the end.
 
 CRITICAL RULES FOR execute_code STEPS:
 - NEVER put Python code in the parameters.
@@ -63,7 +64,7 @@ MCP TOOL REFERENCE (all available commands):
 • get_scene_info — No params. Returns: object names, types, materials_count, lights, active camera. USE FIRST in every plan.
 • get_object_info — Params: {{"name": "ObjectName"}}. Returns: transforms, dimensions, materials, modifiers. Use to verify positions after creation.
 • get_all_object_info — Params: {{"max_objects": 50, "start_index": 0}}. Returns: paginated list of ALL objects. Use when editing to discover existing scene state.
-• get_viewport_screenshot — Params: {{"width": 1920, "height": 1080, "format": "png"}} (all optional). Returns: base64 image of viewport. Use for visual verification.
+• get_viewport_screenshot — Params: {{"max_size": 800, "format": "png"}} (all optional). Returns: base64 image of viewport. Use for visual verification. WARNING: Do NOT use 'width' or 'height' — they are not valid parameters.
 
 ── WRITE (modifies scene) ────────────────────────────────────
 • execute_code — Params: {{"description": "detailed natural-language description"}}. A SEPARATE AI generates Python from your description. THE MOST POWERFUL TOOL — use for all geometry, materials, lighting, camera, animation, modifiers.
@@ -200,58 +201,15 @@ AVOID:
 - Accessing \`bpy.context.active_object\` after deleting objects — it may be None or stale.
 - Use \`bpy.data.objects.remove(obj, do_unlink=True)\` to delete, then re-fetch references.
 - dict-style property access on API objects (removed in 5.0): scene['cycles'] → use scene.cycles
-- REMOVED SHADER SOCKETS (will crash with 'key not found'):
-  • 'Subsurface Color' — REMOVED. Base Color drives SSS color directly.
-  • 'Specular' — renamed to 'Specular IOR Level'.
-  • 'Transmission' — renamed to 'Transmission Weight'.
-  • 'Emission' — split into 'Emission Color' and 'Emission Strength'.
-  • 'Subsurface' — renamed to 'Subsurface Weight'.
-  Always use .get() to access sockets safely and handle None.
-- REMOVED MATERIAL ATTRIBUTES (will crash — NEVER use these):
-  • mat.shadow_method — DOES NOT EXIST. Do NOT use. Do NOT try alternatives.
-  • mat.shadow_mode — DOES NOT EXIST. Do NOT use. Do NOT try alternatives.
-  For transparent/alpha materials, ONLY set: mat.blend_method = 'BLEND'
-  Valid blend_method values: 'OPAQUE', 'CLIP', 'HASHED', 'BLEND'. NOTHING ELSE (NOT 'ALPHA_BLEND').
-  • eevee.use_ssr / eevee.use_ssr_refraction / eevee.use_screen_space_reflections — ALL REMOVED in Blender 5.x. EEVEE handles reflections automatically. Do NOT access SceneEEVEE properties for SSR.
-
-BOOLEAN OPERATIONS:
-- The ONLY valid solvers are: 'EXACT', 'FLOAT', 'MANIFOLD'. NEVER use 'FAST'.
-- Always use solver='EXACT' for reliable results.
+- Blender 5.x removed many shader sockets and material attributes. Always use .get() to access
+  sockets safely. See the provided reference scripts for full compatibility details.
 - PREFER avoiding boolean operations for low-poly/simple models — use separate geometry instead.
-- If you must use a boolean, apply and clean up the cutter:
-  \`bpy.ops.object.modifier_apply(modifier=mod.name)\`
-  \`bpy.data.objects.remove(cutter, do_unlink=True)\`
 
 MATERIAL COLORS — CRITICAL:
 - ALWAYS use vibrant, saturated RGB values. Never pick washed-out, desaturated colors.
-- For emissive materials (suns, neon, fire), set BOTH Base Color AND Emission Color to the SAME saturated color.
-  This prevents the object from appearing white in Material Preview.
-  Example: bsdf.inputs['Base Color'].default_value = (1.0, 0.85, 0.2, 1.0)
-           bsdf.inputs['Emission Color'].default_value = (1.0, 0.85, 0.2, 1.0)
-           bsdf.inputs['Emission Strength'].default_value = 5.0
+- For emissive materials, set BOTH Base Color AND Emission Color to the SAME saturated color.
 - Keep Emission Strength between 3–8. Values above 10 wash out to white in Material Preview.
 - For strong illumination, supplement with a Point Light inside/near the emissive object (energy 500–2000).
-- Reference RGB values for common materials:
-  • Grass green: (0.08, 0.52, 0.12)   • Ocean blue: (0.0, 0.15, 0.65)
-  • Sun yellow: (1.0, 0.85, 0.2)       • Mars rust: (0.7, 0.2, 0.05)
-  • Gold metal: (1.0, 0.84, 0.0)       • Copper: (0.88, 0.47, 0.3)
-  • Stone gray: (0.45, 0.43, 0.4)      • Brick red: (0.6, 0.18, 0.1)
-  • Earth blue-green: (0.1, 0.45, 0.65) • Pure red: (0.8, 0.05, 0.02)
-
-PROCEDURAL TEXTURES — BEST PRACTICES:
-- Use ShaderNodeTexNoise for organic surfaces (dirt, rust, wood grain, clouds).
-- Use ShaderNodeTexVoronoi for cell patterns (stone tiles, scales, cracks).
-- ALWAYS use ShaderNodeValToRGB (Color Ramp) to remap noise to meaningful colors.
-- Use ShaderNodeBump to add surface detail without extra geometry.
-- ShaderNodeMixRGB is REMOVED in Blender 4.0+. Use ShaderNodeMix instead:
-  mix = nodes.new('ShaderNodeMix')
-  mix.data_type = 'RGBA'
-  mix.inputs[6].default_value = color_a  # A input
-  mix.inputs[7].default_value = color_b  # B input
-  # Output: mix.outputs[2] (Result Color)
-- For worn/weathered materials, use noise-driven Color Ramp as a mask to blend
-  between clean and damaged material properties (color, roughness, bump).
-- Use ShaderNodeTexCoord → ShaderNodeMapping → Texture for full control over UV scaling.
 
 PRODUCTION PIPELINE — AVAILABLE CAPABILITIES:
 - RETOPOLOGY: Use voxel_remesh() + quadriflow_remesh() for cleaning neural/sculpted meshes.
@@ -273,6 +231,12 @@ NEURAL 3D GENERATION — WHEN TO USE:
 - After neural import, ALWAYS run: cleanup → normalize → decimate → UV unwrap → PBR material setup.
   Use the import_neural_mesh.py RAG script for the full pipeline.
 - Neural meshes MUST be retopologized before rigging — use Quadriflow (target 5-10k faces).
+
+USING REFERENCE SCRIPTS — IMPORTANT:
+- When reference scripts are provided below, FOLLOW their patterns closely for geometry,
+  materials, and API usage. They are vetted for Blender 5.x compatibility.
+- Adapt the reference code to the specific request — don't copy blindly, but use the
+  same construction techniques (vertex layout, material setup, naming conventions).
 
 SCENE GROUNDING — CRITICAL:
 - ALWAYS add a floor plane unless the scene is explicitly set in space/void.

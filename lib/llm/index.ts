@@ -3,10 +3,17 @@ import {
   generateGeminiResponse,
   streamGeminiResponse,
 } from "@/lib/gemini"
+import {
+  generateAnthropicResponse,
+  streamAnthropicResponse,
+} from "@/lib/anthropic"
 
 export type LlmProviderSpec =
   | {
       type: "gemini"
+    }
+  | {
+      type: "anthropic"
     }
   | {
       type: "ollama"
@@ -181,6 +188,8 @@ export async function generateLlmResponse(
   switch (provider.type) {
     case "gemini":
       return generateGeminiResponse(options)
+    case "anthropic":
+      return generateAnthropicResponse(options)
     case "ollama":
       return callOllama(provider, options)
     case "lmstudio":
@@ -199,6 +208,12 @@ export async function* streamLlmResponse(
     return
   }
 
+  if (provider.type === "anthropic") {
+    yield* streamAnthropicResponse(options)
+    return
+  }
+
+  // Ollama / LM Studio: non-streaming fallback
   const result = await generateLlmResponse(provider, options)
   if (result.text) {
     yield { textDelta: result.text, usage: result.usage }
