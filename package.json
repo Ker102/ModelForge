@@ -18,7 +18,8 @@
     "test:rag": "tsx scripts/test-rag.ts",
     "analyze:orchestration": "node scripts/analyze-orchestration.mjs",
     "ingest:blender": "tsx scripts/ingest-blender-docs.ts",
-    "mock:neural": "tsx scripts/mock-neural-server.ts"
+    "mock:neural": "tsx scripts/mock-neural-server.ts",
+    "debug:traces": "tsx scripts/debug-langsmith.ts"
   },
   "dependencies": {
     "@fal-ai/client": "^1.9.4",
