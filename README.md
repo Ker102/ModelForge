@@ -12,16 +12,16 @@
 <!-- Tech Stack Header -->
 <p align="center">
   <a href="https://skillicons.dev">
-    <img src="https://skillicons.dev/icons?i=nextjs,react,ts,tailwind,nodejs,prisma,postgres,electron,python,blender" />
+    <img src="https://skillicons.dev/icons?i=nextjs,react,ts,tailwind,nodejs,supabase,electron,python,blender" />
   </a>
 </p>
 <p align="center">
-  <b>Next.js 16 • TypeScript • Tailwind • Node.js • Prisma • Postgres • Electron • Blender</b>
+  <b>Next.js 15 • TypeScript • Tailwind • Supabase • LangChain • Electron • Blender</b>
 </p>
 
 <br>
 
-[Features](#-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Contributing](#-contributing) • [Support](#-support)
+[Features](#-features) • [Agent Tools](#-agent-tools) • [Quick Start](#-quick-start) • [Addon Detection](#-dynamic-addon-detection) • [Contributing](#-contributing)
 
 </div>
 
@@ -29,29 +29,92 @@
 
 ## 🚀 Features
 
-ModelForge is a comprehensive platform that brings next-gen AI capabilities to Blender through integrated components:
+ModelForge is a comprehensive platform that brings next-gen AI capabilities to Blender through an intelligent agent, a RAG pipeline, and seamless addon integration.
 
-### 🎨 AI-Orchestrated Scene Builder
-- **Gemini 3 Pro Orchestration**: Advanced ReAct-style planner with per-step validation
-- **Smart Material Application**: Automatic material assignment and validation
-- **Scene Auditing**: Ensures lighting, camera, and base materials exist with auto-correction
+### 🤖 LangChain v1 Agent
+- **ReAct Loop**: Built on LangChain 1.x `createAgent` + LangGraph with hallucinated tool-call recovery
+- **22 Native Tools**: Direct Blender manipulation without writing Python (transforms, modifiers, parenting, export, and more)
+- **Middleware Stack**: Viewport screenshots after code execution, RAG context injection
+- **Session Persistence**: `MemorySaver` with `thread_id` keyed to project ID
+
+### 🧠 Dynamic Addon Detection
+- **Auto-Discovery**: Agent calls `list_installed_addons` to introspect enabled Blender addons at session start
+- **Addon Registry**: 11 known addon profiles (Node Wrangler, Rigify, LoopTools, Bool Tool, etc.)
+- **Prompt Injection**: System prompt is dynamically extended with addon-specific operators and usage tips
+- **Zero Configuration**: Install an addon → the agent adapts automatically
 
 ### 📚 Hybrid RAG Pipeline
 - **Context-Aware Generation**: Leverages **113+ professional Blender scripts** for accurate code generation
 - **Semantic Search**: Uses Together.ai M2-BERT embeddings for high-quality retrieval
-- **Knowledge Base**: Covers modeling, rigging, shading, geometry nodes, and animation
+- **CRAG Architecture**: Corrective RAG with quality grading and fallback strategies
+- **Knowledge Base**: Covers modeling, rigging, shading, geometry nodes, animation, and lighting
 
 ### 🌐 Web Dashboard
-- **User Authentication**: Secure NextAuth.js v5 with Google OAuth
-- **Project Management**: Track multiple Blender projects
-- **Asset Integration**: Toggles for Poly Haven, Hyper3D Rodin, and Sketchfab
+- **Supabase Auth**: Secure authentication with Google and GitHub OAuth
+- **Dual Modes**: Autopilot (conversational) and Studio (tool-card grid with icon sidebar)
+- **Asset Integration**: Toggleable PolyHaven, Hyper3D Rodin, and Sketchfab pipelines
+- **Curated Addons Page**: `/addons` route with AI Compatible badges and addon categories
 
-### 🔌 Blender MCP Server Integration
-- **Socket Bridge**: Executes generated Python directly in Blender
-- **Real-time Communication**: Live feedback from Blender operations
-- **External Integration**: Compatible with [blender-mcp](https://github.com/ahujasid/blender-mcp)
+### 🔌 Blender MCP Bridge
+- **Socket Bridge**: Executes generated Python directly in Blender via TCP
+- **Bidirectional**: Commands sent, results returned as JSON
+- **Viewport Capture**: Base64-encoded screenshots for visual feedback loops
 
-## 🛠️ Technology Stack
+---
+
+## 🛠️ Agent Tools
+
+The ModelForge agent has **22 native tools** that it can call directly — no Python code required:
+
+| Category | Tools |
+|---|---|
+| **Scene Analysis** | `get_scene_info`, `get_object_info`, `get_all_object_info`, `get_viewport_screenshot` |
+| **Code Execution** | `execute_code`, `list_materials` |
+| **Object Management** | `delete_object`, `rename_object`, `duplicate_object`, `join_objects` |
+| **Transforms** | `set_object_transform`, `apply_transforms` |
+| **Modifiers** | `add_modifier`, `apply_modifier`, `shade_smooth` |
+| **Hierarchy** | `parent_set`, `parent_clear` |
+| **Organization** | `set_origin`, `move_to_collection`, `set_visibility` |
+| **Export** | `export_object` (GLB, GLTF, FBX, OBJ, STL) |
+| **Detection** | `list_installed_addons` |
+
+Plus **6 integration tools** when enabled: PolyHaven (3), Sketchfab (2), Hyper3D Rodin (3).
+
+---
+
+## 🧩 Dynamic Addon Detection
+
+ModelForge is the first AI agent that **auto-adapts to your installed Blender addons**.
+
+```
+Session Start
+  └→ Executor calls list_installed_addons via MCP
+      └→ Blender introspects addon_utils.modules()
+          └→ Returns enabled addon metadata
+              └→ Matched against Addon Registry (11 profiles)
+                  └→ System prompt extended with addon operators
+                      └→ Agent knows how to use your addons via execute_code
+```
+
+**Currently recognized addons:**
+
+| Addon | Category | What the Agent Gains |
+|---|---|---|
+| Node Wrangler | Shading | PBR texture auto-connect |
+| Rigify | Rigging | Meta-rig to full rig generation |
+| LoopTools | Mesh | Relax, circle, bridge operations |
+| Bool Tool | Object | Quick boolean unions/differences |
+| Images as Planes | Import | Import reference images |
+| Extra Mesh Objects | Add Mesh | Procedural gears, gems, stars |
+| Extra Curve Objects | Add Curve | Spirals, torus knots |
+| F2 | Mesh | Extended face-filling |
+| 3D-Print Toolbox | Mesh | Print quality checks |
+| Animation Nodes | Animation | Procedural node trees |
+| BlenderKit | Import | Asset library downloads |
+
+---
+
+## 🏗️ Technology Stack
 
 <table>
 <tr>
@@ -60,7 +123,7 @@ ModelForge is a comprehensive platform that brings next-gen AI capabilities to B
 <br>
 <img src="https://skillicons.dev/icons?i=nextjs,react,ts,tailwind" />
 <br><br>
-<b>Next.js 16 • React 19 • TypeScript 5.6 • Tailwind CSS</b>
+<b>Next.js 15 • React 19 • TypeScript 5.6 • Tailwind CSS</b>
 <br><br>
 </td>
 </tr>
@@ -68,9 +131,9 @@ ModelForge is a comprehensive platform that brings next-gen AI capabilities to B
 <td><b>Backend</b></td>
 <td>
 <br>
-<img src="https://skillicons.dev/icons?i=nodejs,prisma,postgres" />
+<img src="https://skillicons.dev/icons?i=nodejs,supabase" />
 <br><br>
-<b>Node.js 24+ • Prisma 5.20 • PostgreSQL 14+ (Neon)</b>
+<b>Node.js 24+ • Supabase (Auth + Postgres) • Stripe</b>
 <br><br>
 </td>
 </tr>
@@ -80,7 +143,7 @@ ModelForge is a comprehensive platform that brings next-gen AI capabilities to B
 <br>
 <img src="https://skillicons.dev/icons?i=gcp,python,electron,blender" />
 <br><br>
-<b>Gemini 3 Pro • LangChain • Electron • Blender API</b>
+<b>Gemini 2.5 Pro • LangChain v1 • LangGraph • Electron • Blender Python API</b>
 <br><br>
 </td>
 </tr>
@@ -91,10 +154,9 @@ ModelForge is a comprehensive platform that brings next-gen AI capabilities to B
 ### Prerequisites
 
 - Node.js 18+ (24+ recommended)
-- PostgreSQL 14+ with `vector` extension (or Neon)
-- Blender 3.0+
+- Supabase project (or local instance)
+- Blender 4.0+ (5.0 compatible)
 - Python 3.10+
-- [`uv`](https://docs.astral.sh/uv) package manager
 
 ### Installation
 
@@ -113,45 +175,35 @@ ModelForge is a comprehensive platform that brings next-gen AI capabilities to B
    ```bash
    cp .env.example .env
    ```
-   Configure `.env` with your Database URL, NextAuth secret, Gemini API key, and Together.ai API key (for RAG).
+   Configure `.env` with your Supabase URL/keys, Gemini API key, and Together.ai API key (for RAG).
 
-4. **Initialize Database**
-   ```bash
-   npm run db:generate
-   npm run db:push
-   ```
-
-5. **Ingest RAG Knowledge** (Optional but recommended)
-   ```bash
-   npm run ingest:blender
-   ```
-
-6. **Start development server**
+4. **Start development server**
    ```bash
    npm run dev
    ```
 
    Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## 📊 Database Schema
-
-Main tables:
-- **users**: Accounts and auth
-- **projects**: Blender projects
-- **conversations**: Chat history
-- **document_embeddings**: RAG knowledge base (pgvector)
-- **project_snapshots**: Scene state
+5. **Connect Blender**
+   - Install the ModelForge addon in Blender (`public/downloads/modelforge-addon.py`)
+   - Click "Start Server" in Blender's sidebar panel
+   - The agent connects automatically via TCP socket
 
 ## 🔄 Roadmap
 
-- [x] Gemini-backed conversational planning
-- [x] Detailed plan auditing (components, materials, lighting)
+- [x] LangChain v1 agent with ReAct loop
+- [x] 22 native Blender tools
+- [x] Dynamic addon detection + registry
+- [x] Curated Addons page (`/addons`)
+- [x] Hybrid RAG Pipeline (113+ scripts)
+- [x] Supabase Auth (Google + GitHub OAuth)
+- [x] Stripe subscription integration
+- [x] Viewport screenshot analysis
 - [x] Electron desktop shell
-- [x] **Hybrid RAG Pipeline** (Neon + Together.ai)
-- [x] **Expanded Script Library** (113+ scripts)
-- [ ] Conversation memory with vector embeddings
-- [ ] Viewport screenshot analysis
-- [ ] Production desktop app packaging
+- [ ] Manual verification of all tool categories
+- [ ] Production desktop packaging
+- [ ] Dynamic addon operator discovery (auto-generate tools from unknown addons)
+- [ ] Community addon marketplace page
 
 ## 🤝 Contributing
 
@@ -165,8 +217,8 @@ This project is licensed under the [LICENSE](LICENSE) file.
 
 <div align="center">
 
-Built with ❤️ by the ModelForge community
+Built with ❤️ by the ModelForge team
 
-[Website](#) • [Documentation](README.md) • [Discord](#) • [Twitter](#)
+[Website](#) • [Documentation](README.md) • [Addons](/addons)
 
 </div>
