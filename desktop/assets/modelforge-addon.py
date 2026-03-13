@@ -219,6 +219,12 @@ class BlenderMCPServer:
             "apply_modifier": self.apply_modifier,
             "apply_transforms": self.apply_transforms,
             "shade_smooth": self.shade_smooth,
+            "parent_set": self.parent_set,
+            "parent_clear": self.parent_clear,
+            "set_origin": self.set_origin,
+            "move_to_collection": self.move_to_collection,
+            "set_visibility": self.set_visibility,
+            "export_object": self.export_object,
             "get_polyhaven_status": self.get_polyhaven_status,
             "get_hyper3d_status": self.get_hyper3d_status,
             "get_sketchfab_status": self.get_sketchfab_status,
@@ -871,6 +877,201 @@ class BlenderMCPServer:
         except Exception as e:
             return {"error": f"Failed to set shading: {str(e)}"}
 
+    # ---------- Phase 2: Medium-Priority Tools ----------
+
+    def parent_set(self, child_name, parent_name, parent_type='OBJECT'):
+        """Set parent-child relationship between objects"""
+        try:
+            child = bpy.data.objects.get(child_name)
+            parent = bpy.data.objects.get(parent_name)
+            if not child:
+                return {"error": f"Child object not found: {child_name}"}
+            if not parent:
+                return {"error": f"Parent object not found: {parent_name}"}
+
+            bpy.ops.object.select_all(action='DESELECT')
+            child.select_set(True)
+            parent.select_set(True)
+            bpy.context.view_layer.objects.active = parent
+            bpy.ops.object.parent_set(type=parent_type, keep_transform=True)
+
+            return {
+                "success": True,
+                "child": child.name,
+                "parent": parent.name,
+                "type": parent_type,
+            }
+        except Exception as e:
+            return {"error": f"Failed to set parent: {str(e)}"}
+
+    def parent_clear(self, name, keep_transform=True):
+        """Clear parent from an object"""
+        try:
+            obj = bpy.data.objects.get(name)
+            if not obj:
+                return {"error": f"Object not found: {name}"}
+            if not obj.parent:
+                return {"error": f"Object '{name}' has no parent"}
+
+            old_parent = obj.parent.name
+            bpy.ops.object.select_all(action='DESELECT')
+            obj.select_set(True)
+            bpy.context.view_layer.objects.active = obj
+
+            clear_type = 'CLEAR_KEEP_TRANSFORM' if keep_transform else 'CLEAR'
+            bpy.ops.object.parent_clear(type=clear_type)
+
+            return {
+                "success": True,
+                "object": name,
+                "old_parent": old_parent,
+                "keep_transform": keep_transform,
+            }
+        except Exception as e:
+            return {"error": f"Failed to clear parent: {str(e)}"}
+
+    def set_origin(self, name, origin_type='ORIGIN_GEOMETRY', center='MEDIAN'):
+        """Set the origin point of an object"""
+        try:
+            obj = bpy.data.objects.get(name)
+            if not obj:
+                return {"error": f"Object not found: {name}"}
+
+            valid_types = ['GEOMETRY_ORIGIN', 'ORIGIN_GEOMETRY', 'ORIGIN_CURSOR',
+                           'ORIGIN_CENTER_OF_MASS', 'ORIGIN_CENTER_OF_VOLUME']
+            if origin_type not in valid_types:
+                return {"error": f"Invalid origin type. Must be one of: {valid_types}"}
+
+            bpy.ops.object.select_all(action='DESELECT')
+            obj.select_set(True)
+            bpy.context.view_layer.objects.active = obj
+            bpy.ops.object.origin_set(type=origin_type, center=center)
+
+            return {
+                "success": True,
+                "object": name,
+                "origin_type": origin_type,
+                "new_origin": list(obj.location),
+            }
+        except Exception as e:
+            return {"error": f"Failed to set origin: {str(e)}"}
+
+    def move_to_collection(self, name, collection_name, create_new=False):
+        """Move an object to a collection. Optionally create the collection if it doesn't exist."""
+        try:
+            obj = bpy.data.objects.get(name)
+            if not obj:
+                return {"error": f"Object not found: {name}"}
+
+            target_col = bpy.data.collections.get(collection_name)
+            if not target_col:
+                if create_new:
+                    target_col = bpy.data.collections.new(collection_name)
+                    bpy.context.scene.collection.children.link(target_col)
+                else:
+                    available = [c.name for c in bpy.data.collections]
+                    return {"error": f"Collection '{collection_name}' not found. Available: {available}. Set create_new=true to create it."}
+
+            # Link to target collection
+            if obj.name not in target_col.objects:
+                target_col.objects.link(obj)
+
+            # Unlink from all other collections
+            for col in obj.users_collection:
+                if col != target_col:
+                    col.objects.unlink(obj)
+
+            return {
+                "success": True,
+                "object": name,
+                "collection": target_col.name,
+                "created_new": create_new and not bpy.data.collections.get(collection_name),
+            }
+        except Exception as e:
+            return {"error": f"Failed to move to collection: {str(e)}"}
+
+    def set_visibility(self, name, hide_viewport=None, hide_render=None):
+        """Set viewport and/or render visibility for an object"""
+        try:
+            obj = bpy.data.objects.get(name)
+            if not obj:
+                return {"error": f"Object not found: {name}"}
+
+            changes = []
+            if hide_viewport is not None:
+                obj.hide_viewport = bool(hide_viewport)
+                changes.append(f"hide_viewport={hide_viewport}")
+            if hide_render is not None:
+                obj.hide_render = bool(hide_render)
+                changes.append(f"hide_render={hide_render}")
+
+            if not changes:
+                return {"error": "Provide hide_viewport and/or hide_render"}
+
+            return {
+                "success": True,
+                "object": name,
+                "hide_viewport": obj.hide_viewport,
+                "hide_render": obj.hide_render,
+                "changes": changes,
+            }
+        except Exception as e:
+            return {"error": f"Failed to set visibility: {str(e)}"}
+
+    def export_object(self, names, filepath, file_format='GLB'):
+        """Export selected objects to a file. Supports GLB, GLTF, FBX, OBJ, STL."""
+        try:
+            import os
+            # Validate objects
+            objects = []
+            for n in (names if isinstance(names, list) else [names]):
+                obj = bpy.data.objects.get(n)
+                if not obj:
+                    return {"error": f"Object not found: {n}"}
+                objects.append(obj)
+
+            # Select only the target objects
+            bpy.ops.object.select_all(action='DESELECT')
+            for obj in objects:
+                obj.select_set(True)
+            bpy.context.view_layer.objects.active = objects[0]
+
+            fmt = file_format.upper()
+            if fmt in ('GLB', 'GLTF'):
+                export_format = 'GLB' if fmt == 'GLB' else 'GLTF_SEPARATE'
+                bpy.ops.export_scene.gltf(
+                    filepath=filepath,
+                    use_selection=True,
+                    export_format=export_format,
+                )
+            elif fmt == 'FBX':
+                bpy.ops.export_scene.fbx(
+                    filepath=filepath,
+                    use_selection=True,
+                )
+            elif fmt == 'OBJ':
+                bpy.ops.wm.obj_export(
+                    filepath=filepath,
+                    export_selected_objects=True,
+                )
+            elif fmt == 'STL':
+                bpy.ops.wm.stl_export(
+                    filepath=filepath,
+                    export_selected_objects=True,
+                )
+            else:
+                return {"error": f"Unsupported format: {file_format}. Use GLB, GLTF, FBX, OBJ, or STL."}
+
+            file_size = os.path.getsize(filepath) if os.path.exists(filepath) else 0
+            return {
+                "success": True,
+                "exported_objects": [o.name for o in objects],
+                "filepath": filepath,
+                "format": fmt,
+                "file_size_bytes": file_size,
+            }
+        except Exception as e:
+            return {"error": f"Failed to export: {str(e)}"}
 
     def get_polyhaven_categories(self, asset_type):
         """Get categories for a specific asset type from Polyhaven"""

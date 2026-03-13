@@ -307,6 +307,102 @@ const shadeSmooth = tool(
   }
 )
 
+// ---------- Phase 2: Medium-Priority Tools ---------
+
+const parentSet = tool(
+  async ({ child_name, parent_name, parent_type }: { child_name: string; parent_name: string; parent_type?: string }) =>
+    executeMcpCommand("parent_set", { child_name, parent_name, parent_type }),
+  {
+    name: "parent_set",
+    description:
+      "Set a parent-child relationship between two objects. " +
+      "The child will follow the parent's transforms.",
+    schema: z.object({
+      child_name: z.string().describe("Name of the child object"),
+      parent_name: z.string().describe("Name of the parent object"),
+      parent_type: z.string().optional().describe("Parent type: OBJECT (default), ARMATURE, BONE, etc."),
+    }),
+  }
+)
+
+const parentClear = tool(
+  async ({ name, keep_transform }: { name: string; keep_transform?: boolean }) =>
+    executeMcpCommand("parent_clear", { name, keep_transform }),
+  {
+    name: "parent_clear",
+    description: "Remove the parent from an object. By default keeps the object's world transform.",
+    schema: z.object({
+      name: z.string().describe("Object to unparent"),
+      keep_transform: z.boolean().optional().describe("Keep world transform after unparenting (default true)"),
+    }),
+  }
+)
+
+const setOrigin = tool(
+  async ({ name, origin_type, center }: { name: string; origin_type?: string; center?: string }) =>
+    executeMcpCommand("set_origin", { name, origin_type, center }),
+  {
+    name: "set_origin",
+    description:
+      "Set the origin (pivot point) of an object. Common types: " +
+      "ORIGIN_GEOMETRY (origin to geometry center), ORIGIN_CURSOR (origin to 3D cursor), " +
+      "GEOMETRY_ORIGIN (geometry to origin), ORIGIN_CENTER_OF_VOLUME.",
+    schema: z.object({
+      name: z.string().describe("Object name"),
+      origin_type: z.string().optional().describe("Origin type (default ORIGIN_GEOMETRY)"),
+      center: z.string().optional().describe("Center calculation: MEDIAN or BOUNDS (default MEDIAN)"),
+    }),
+  }
+)
+
+const moveToCollection = tool(
+  async ({ name, collection_name, create_new }: { name: string; collection_name: string; create_new?: boolean }) =>
+    executeMcpCommand("move_to_collection", { name, collection_name, create_new }),
+  {
+    name: "move_to_collection",
+    description:
+      "Move an object to a Blender collection for organization. " +
+      "Set create_new=true to create the collection if it doesn't exist.",
+    schema: z.object({
+      name: z.string().describe("Object name"),
+      collection_name: z.string().describe("Target collection name"),
+      create_new: z.boolean().optional().describe("Create collection if it doesn't exist (default false)"),
+    }),
+  }
+)
+
+const setVisibility = tool(
+  async ({ name, hide_viewport, hide_render }: { name: string; hide_viewport?: boolean; hide_render?: boolean }) =>
+    executeMcpCommand("set_visibility", { name, hide_viewport, hide_render }),
+  {
+    name: "set_visibility",
+    description:
+      "Control an object's visibility in the viewport and/or render. " +
+      "Set hide_viewport=true to hide in viewport, hide_render=true to hide in renders.",
+    schema: z.object({
+      name: z.string().describe("Object name"),
+      hide_viewport: z.boolean().optional().describe("Hide in viewport"),
+      hide_render: z.boolean().optional().describe("Hide in render"),
+    }),
+  }
+)
+
+const exportObject = tool(
+  async ({ names, filepath, file_format }: { names: string[]; filepath: string; file_format?: string }) =>
+    executeMcpCommand("export_object", { names, filepath, file_format }),
+  {
+    name: "export_object",
+    description:
+      "Export one or more objects to a file. Supported formats: GLB (default), GLTF, FBX, OBJ, STL. " +
+      "Provide the full filepath including extension.",
+    schema: z.object({
+      names: z.array(z.string()).describe("Object name(s) to export"),
+      filepath: z.string().describe("Full output file path (e.g. /tmp/model.glb)"),
+      file_format: z.string().optional().describe("Format: GLB, GLTF, FBX, OBJ, or STL (default GLB)"),
+    }),
+  }
+)
+
 // ---------- PolyHaven Tools ---------
 
 const getPolyhavenCategories = tool(
@@ -479,6 +575,12 @@ const ALL_TOOLS = [
   applyModifier,
   applyTransforms,
   shadeSmooth,
+  parentSet,
+  parentClear,
+  setOrigin,
+  moveToCollection,
+  setVisibility,
+  exportObject,
   getPolyhavenCategories,
   searchPolyhavenAssets,
   downloadPolyhavenAsset,
