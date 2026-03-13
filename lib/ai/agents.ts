@@ -98,13 +98,13 @@ const getSceneInfo = tool(
 )
 
 const getObjectInfo = tool(
-  async ({ object_name }: { object_name: string }) =>
-    executeMcpCommand("get_object_info", { object_name }),
+  async ({ name }: { name: string }) =>
+    executeMcpCommand("get_object_info", { name }),
   {
     name: "get_object_info",
     description: "Get detailed info about a specific Blender object by name.",
     schema: z.object({
-      object_name: z.string().describe("Name of the Blender object to inspect"),
+      name: z.string().describe("Name of the Blender object to inspect"),
     }),
   }
 )
