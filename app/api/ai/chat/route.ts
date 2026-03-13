@@ -195,7 +195,7 @@ function buildExecutedCommandsFromPlan(
   // Build lookup maps using action string as key (steps don't have stepNumber)
   const completedMap = new Map<string, { step: Record<string, unknown>; result: unknown }>()
   for (const entry of execution.completedSteps) {
-    completedMap.set(entry.step.action, entry as { step: Record<string, unknown>; result: unknown })
+    completedMap.set(entry.step.action, entry as unknown as { step: Record<string, unknown>; result: unknown })
   }
 
   const failedMap = new Map<string, string>()
@@ -400,7 +400,13 @@ export async function POST(req: Request) {
       }
       llmProvider = localProviderSpec
     } else {
-      llmProvider = { type: "gemini" }
+      // Cloud provider: check AI_PROVIDER env var (default: gemini)
+      const aiProvider = (process.env.AI_PROVIDER ?? "gemini").toLowerCase()
+      if (aiProvider === "anthropic" || aiProvider === "claude") {
+        llmProvider = { type: "anthropic" }
+      } else {
+        llmProvider = { type: "gemini" }
+      }
     }
 
     const chatSystemPrompt = buildSystemPrompt()
@@ -721,6 +727,62 @@ export async function POST(req: Request) {
           const failedCommands = executedCommands.filter((command) => command.status === "failed")
           const overallSuccess =
             planningMetadata.executionSuccess ?? failedCommands.length === 0
+
+          // ── Generate post-execution summary + follow-up ──
+          try {
+            console.log("[Chat] Generating post-execution follow-up...", { overallSuccess, executedCommandsCount: executedCommands.length })
+            const completedList = executedCommands
+              .filter(c => c.status === "executed")
+              .map(c => c.tool)
+              .join(", ")
+            const failedList = failedCommands
+              .map(c => `${c.tool}: ${c.error?.substring(0, 80)}`)
+              .join("; ")
+
+            const summaryPromptText = overallSuccess
+              ? `The Blender scene has been created successfully. Commands executed: ${completedList || "none"}. User's original request: "${message}". Write a brief 2-3 sentence summary of what was done, then ask a short follow-up question suggesting a possible refinement or next step (e.g. "Would you like to adjust the lighting?" or "I can add textures if you'd like"). Keep it conversational and helpful.`
+              : `The Blender operation partially failed. Succeeded: ${completedList || "none"}. Failed: ${failedList || "none"}. User's request was: "${message}". Write a brief 2-3 sentence summary explaining what happened and what failed. Then suggest what the user could try next. Keep it conversational.`
+
+            let followUpText = ""
+            for await (const chunk of streamLlmResponse(llmProvider, {
+              history: [],
+              messages: [{ role: "user", content: summaryPromptText }],
+              maxOutputTokens: 256,
+              systemPrompt: "You are ModelForge, a helpful Blender assistant. Respond conversationally. Do NOT use markdown headers. Keep your response to 2-4 sentences.",
+            })) {
+              if (chunk.textDelta) {
+                followUpText += chunk.textDelta
+                send({ type: "followup_delta", delta: chunk.textDelta })
+              }
+            }
+
+            console.log("[Chat] Follow-up generated:", followUpText.length, "chars")
+
+            // Append follow-up to assistant text so BOTH the initial response
+            // and the follow-up are preserved when saved to DB
+            if (followUpText.trim()) {
+              assistantText = (assistantText || "").trimEnd() + "\n\n" + followUpText.trim()
+            } else {
+              // The LLM yielded 0 chunks — send a fallback so the UI isn't empty
+              console.warn("[Chat] Follow-up stream returned empty text, sending fallback")
+              const emptyFallback = overallSuccess
+                ? `Done! I've completed the task. Would you like me to refine anything?`
+                : `The execution encountered some issues. Would you like me to try a different approach?`
+              send({ type: "followup_delta", delta: emptyFallback })
+              assistantText = emptyFallback
+            }
+          } catch (followUpError) {
+            console.error("[Chat] Post-execution follow-up generation FAILED:", followUpError)
+            // Make the error visible in the UI + send a fallback follow-up
+            const errMsg = followUpError instanceof Error ? followUpError.message : String(followUpError)
+            const fallbackText = overallSuccess
+              ? `I've completed the task. Would you like me to refine anything?`
+              : `The execution encountered some issues. Would you like me to try a different approach?`
+            send({ type: "followup_delta", delta: `\n\n${fallbackText}` })
+            assistantText += `\n\n${fallbackText}`
+            // Log the error in monitoring for the session log
+            monitor.error("system", `Follow-up generation failed: ${errMsg}`)
+          }
 
           await recordExecutionLog({
             timestamp: new Date().toISOString(),

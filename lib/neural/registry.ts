@@ -62,6 +62,36 @@ export const PROVIDERS: Record<ProviderSlug, Neural3DProviderMeta> = {
         outputFormats: ["glb", "obj"],
         estimatedTime: { min: 10, max: 120 },
     },
+    unirig: {
+        slug: "unirig",
+        name: "UniRig (Auto-Rigging)",
+        stages: ["rigging"],
+        modes: ["mesh_to_rig"],
+        selfHosted: true,
+        outputFormats: ["glb"],
+        estimatedTime: { min: 15, max: 60 },
+        vramGb: 16,
+    },
+    momask: {
+        slug: "momask",
+        name: "MoMask (Text-to-Motion)",
+        stages: ["animation"],
+        modes: ["text_to_motion"],
+        selfHosted: true,
+        outputFormats: ["bvh", "fbx"],
+        estimatedTime: { min: 5, max: 30 },
+        vramGb: 8,
+    },
+    "meshanything-v2": {
+        slug: "meshanything-v2",
+        name: "MeshAnything V2 (Retopology)",
+        stages: ["retopology"],
+        modes: ["mesh_to_retopo"],
+        selfHosted: true,
+        outputFormats: ["glb", "obj"],
+        estimatedTime: { min: 10, max: 45 },
+        vramGb: 12,
+    },
 }
 
 // ---------------------------------------------------------------------------
@@ -136,6 +166,20 @@ export async function createNeuralClient(slug: ProviderSlug): Promise<Neural3DCl
         return new RunPodClient(slug)
     }
 
+    // RunPod routing for new neural models (UniRig, MoMask, MeshAnything V2)
+    if (useRunPod && slug === "unirig") {
+        const { UniRigClient } = await import("./providers/unirig-client")
+        return new UniRigClient()
+    }
+    if (useRunPod && slug === "momask") {
+        const { MoMaskClient } = await import("./providers/momask-client")
+        return new MoMaskClient()
+    }
+    if (useRunPod && slug === "meshanything-v2") {
+        const { MeshAnythingV2Client } = await import("./providers/meshanything-v2-client")
+        return new MeshAnythingV2Client()
+    }
+
     // Self-hosted / provider-specific routing
     switch (slug) {
         case "hunyuan-shape": {
@@ -157,6 +201,18 @@ export async function createNeuralClient(slug: ProviderSlug): Promise<Neural3DCl
         case "yvo3d": {
             const { Yvo3dClient } = await import("./providers/yvo3d")
             return new Yvo3dClient()
+        }
+        case "unirig": {
+            const { UniRigClient } = await import("./providers/unirig-client")
+            return new UniRigClient()
+        }
+        case "momask": {
+            const { MoMaskClient } = await import("./providers/momask-client")
+            return new MoMaskClient()
+        }
+        case "meshanything-v2": {
+            const { MeshAnythingV2Client } = await import("./providers/meshanything-v2-client")
+            return new MeshAnythingV2Client()
         }
         default:
             throw new Error(`Unknown neural provider slug: ${slug}`)

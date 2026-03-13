@@ -553,6 +553,19 @@ export function ProjectChat({
                 )
                 break
               }
+              case "followup_delta": {
+                // Post-execution follow-up summary from the LLM
+                const fDelta = typeof event.delta === "string" ? event.delta : ""
+                assistantContent += fDelta
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === tempAssistantId
+                      ? { ...msg, content: assistantContent }
+                      : msg
+                  )
+                )
+                break
+              }
               case "usage": {
                 const usagePayload = event.usage as UsageSummary | undefined
                 if (usagePayload) {

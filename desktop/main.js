@@ -297,15 +297,16 @@ app.on("ready", async () => {
     // In development, clear any stale session cookies to prevent redirect loops
     if (IS_DEV) {
       const { session } = require("electron")
+      const port = process.env.PORT || DEFAULT_PORT
       await session.defaultSession.clearStorageData({
         storages: ["cookies"],
-        origin: "http://127.0.0.1:3000"
+        origin: `http://127.0.0.1:${port}`
       })
       await session.defaultSession.clearStorageData({
         storages: ["cookies"],
-        origin: "http://localhost:3000"
+        origin: `http://localhost:${port}`
       })
-      console.log("[Desktop] Cleared dev session cookies")
+      console.log(`[Desktop] Cleared dev session cookies (port ${port})`)
     }
 
     // Start local auth callback server (for OAuth tokens from browser)

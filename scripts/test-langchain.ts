@@ -1,4 +1,4 @@
-import { createBlenderAgent } from "../lib/ai/agents"
+import { createBlenderAgent } from "../lib/ai/agents.legacy"
 import { embedText, EMBEDDING_DIMENSIONS } from "../lib/ai/embeddings"
 import { similaritySearch } from "../lib/ai/vectorstore"
 

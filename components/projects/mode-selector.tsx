@@ -50,6 +50,19 @@ export function ModeSelector({ mode, onChange, className }: ModeSelectorProps) {
                     }
                 >
                     <span>Autopilot</span>
+                    <span
+                        className="text-[9px] font-bold tracking-widest uppercase leading-none rounded-full px-1.5 py-0.5"
+                        style={{
+                            backgroundColor: mode === "autopilot"
+                                ? "rgba(255,255,255,0.25)"
+                                : "hsl(var(--forge-accent) / 0.15)",
+                            color: mode === "autopilot"
+                                ? "rgba(255,255,255,0.9)"
+                                : "hsl(var(--forge-accent))",
+                        }}
+                    >
+                        BETA
+                    </span>
                     <svg
                         width="18"
                         height="18"
