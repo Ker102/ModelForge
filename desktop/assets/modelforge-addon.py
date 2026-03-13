@@ -209,6 +209,8 @@ class BlenderMCPServer:
             "get_all_object_info": self.get_all_object_info,
             "get_viewport_screenshot": self.get_viewport_screenshot,
             "execute_code": self.execute_code,
+            "list_materials": self.list_materials,
+            "delete_object": self.delete_object,
             "get_polyhaven_status": self.get_polyhaven_status,
             "get_hyper3d_status": self.get_hyper3d_status,
             "get_sketchfab_status": self.get_sketchfab_status,
@@ -552,6 +554,66 @@ class BlenderMCPServer:
         except Exception as e:
             raise Exception(f"Code execution error: {str(e)}")
 
+    def list_materials(self):
+        """List all materials in the .blend file with their node counts and linked objects"""
+        try:
+            materials = []
+            for mat in bpy.data.materials:
+                mat_info = {
+                    "name": mat.name,
+                    "use_nodes": mat.use_nodes,
+                    "node_count": len(mat.node_tree.nodes) if mat.use_nodes and mat.node_tree else 0,
+                    "users": mat.users,
+                    "linked_objects": [],
+                }
+                # Find objects using this material
+                for obj in bpy.data.objects:
+                    if obj.type == 'MESH' and obj.data:
+                        for slot in obj.material_slots:
+                            if slot.material == mat:
+                                mat_info["linked_objects"].append(obj.name)
+                                break
+                materials.append(mat_info)
+            return {"materials": materials, "count": len(materials)}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def delete_object(self, name):
+        """Safely delete an object from the scene by name"""
+        try:
+            obj = bpy.data.objects.get(name)
+            if not obj:
+                return {"error": f"Object not found: {name}"}
+
+            obj_type = obj.type
+            # Store mesh/data ref for orphan cleanup
+            obj_data = obj.data
+
+            # Deselect all, select target, delete
+            bpy.ops.object.select_all(action='DESELECT')
+            obj.select_set(True)
+            bpy.context.view_layer.objects.active = obj
+            bpy.ops.object.delete(use_global=False)
+
+            # Clean up orphaned mesh data
+            if obj_data and obj_data.users == 0:
+                if obj_type == 'MESH':
+                    bpy.data.meshes.remove(obj_data)
+                elif obj_type == 'CURVE':
+                    bpy.data.curves.remove(obj_data)
+                elif obj_type == 'LIGHT':
+                    bpy.data.lights.remove(obj_data)
+                elif obj_type == 'CAMERA':
+                    bpy.data.cameras.remove(obj_data)
+
+            return {
+                "success": True,
+                "message": f"Deleted object '{name}' (type: {obj_type})",
+                "remaining_objects": len(bpy.context.scene.objects)
+            }
+        except Exception as e:
+            return {"error": f"Failed to delete object: {str(e)}"}
+
 
 
     def get_polyhaven_categories(self, asset_type):
@@ -755,6 +817,7 @@ class BlenderMCPServer:
 
                     # Create a new material with the downloaded textures
                     mat = bpy.data.materials.new(name=asset_id)
+                    mat.use_nodes = True # Fix #8: Add use_nodes=True safety check
                     nodes = mat.node_tree.nodes
                     links = mat.node_tree.links
 
@@ -980,6 +1043,7 @@ class BlenderMCPServer:
                 bpy.data.materials.remove(existing_mat)
 
             new_mat = bpy.data.materials.new(name=new_mat_name)
+            new_mat.use_nodes = True
 
             # Set up the material nodes
             nodes = new_mat.node_tree.nodes
@@ -1053,10 +1117,8 @@ class BlenderMCPServer:
 
                 y_pos -= 250
 
-            # Second pass: Connect nodes with proper handling for special cases
+            # Build lookup of tex nodes by map type for ARM/AO handling
             texture_nodes = {}
-
-            # First find all texture nodes and store them by map type
             for node in nodes:
                 if node.type == 'TEX_IMAGE' and node.image:
                     for map_type, image in texture_images.items():
@@ -1064,112 +1126,68 @@ class BlenderMCPServer:
                             texture_nodes[map_type] = node
                             break
 
-            # Now connect everything using the nodes instead of images
-            # Handle base color (diffuse)
-            for map_name in ['color', 'diffuse', 'albedo']:
-                if map_name in texture_nodes:
-                    links.new(texture_nodes[map_name].outputs['Color'], principled.inputs['Base Color'])
-                    print(f"Connected {map_name} to Base Color")
-                    break
-
-            # Handle roughness
-            for map_name in ['roughness', 'rough']:
-                if map_name in texture_nodes:
-                    links.new(texture_nodes[map_name].outputs['Color'], principled.inputs['Roughness'])
-                    print(f"Connected {map_name} to Roughness")
-                    break
-
-            # Handle metallic
-            for map_name in ['metallic', 'metalness', 'metal']:
-                if map_name in texture_nodes:
-                    links.new(texture_nodes[map_name].outputs['Color'], principled.inputs['Metallic'])
-                    print(f"Connected {map_name} to Metallic")
-                    break
-
-            # Handle normal maps
-            for map_name in ['gl', 'dx', 'nor']:
-                if map_name in texture_nodes:
-                    normal_map_node = nodes.new(type='ShaderNodeNormalMap')
-                    normal_map_node.location = (100, 100)
-                    links.new(texture_nodes[map_name].outputs['Color'], normal_map_node.inputs['Color'])
-                    links.new(normal_map_node.outputs['Normal'], principled.inputs['Normal'])
-                    print(f"Connected {map_name} to Normal")
-                    break
-
-            # Handle displacement
-            for map_name in ['displacement', 'disp', 'height']:
-                if map_name in texture_nodes:
-                    disp_node = nodes.new(type='ShaderNodeDisplacement')
-                    disp_node.location = (300, -200)
-                    disp_node.inputs['Scale'].default_value = 0.1  # Reduce displacement strength
-                    links.new(texture_nodes[map_name].outputs['Color'], disp_node.inputs['Height'])
-                    links.new(disp_node.outputs['Displacement'], output.inputs['Displacement'])
-                    print(f"Connected {map_name} to Displacement")
-                    break
-
-            # Handle ARM texture (Ambient Occlusion, Roughness, Metallic)
+            # Handle ARM texture (Ambient Occlusion, Roughness, Metallic packed)
             if 'arm' in texture_nodes:
-                separate_rgb = nodes.new(type='ShaderNodeSeparateRGB')
+                separate_rgb = nodes.new(type='ShaderNodeSeparateColor')
                 separate_rgb.location = (-200, -100)
-                links.new(texture_nodes['arm'].outputs['Color'], separate_rgb.inputs['Image'])
+                links.new(texture_nodes['arm'].outputs['Color'], separate_rgb.inputs['Color'])
 
                 # Connect Roughness (G) if no dedicated roughness map
-                if not any(map_name in texture_nodes for map_name in ['roughness', 'rough']):
-                    links.new(separate_rgb.outputs['G'], principled.inputs['Roughness'])
+                if not any(mn in texture_nodes for mn in ['roughness', 'rough']):
+                    links.new(separate_rgb.outputs[1], principled.inputs['Roughness'])
                     print("Connected ARM.G to Roughness")
 
                 # Connect Metallic (B) if no dedicated metallic map
-                if not any(map_name in texture_nodes for map_name in ['metallic', 'metalness', 'metal']):
-                    links.new(separate_rgb.outputs['B'], principled.inputs['Metallic'])
+                if not any(mn in texture_nodes for mn in ['metallic', 'metalness', 'metal']):
+                    links.new(separate_rgb.outputs[2], principled.inputs['Metallic'])
                     print("Connected ARM.B to Metallic")
 
                 # For AO (R channel), multiply with base color if we have one
                 base_color_node = None
-                for map_name in ['color', 'diffuse', 'albedo']:
-                    if map_name in texture_nodes:
-                        base_color_node = texture_nodes[map_name]
+                for mn in ['color', 'diffuse', 'albedo']:
+                    if mn in texture_nodes:
+                        base_color_node = texture_nodes[mn]
                         break
 
                 if base_color_node:
-                    mix_node = nodes.new(type='ShaderNodeMixRGB')
-                    mix_node.location = (100, 200)
+                    mix_node = nodes.new(type='ShaderNodeMix')
+                    mix_node.data_type = 'RGBA'
                     mix_node.blend_type = 'MULTIPLY'
-                    mix_node.inputs['Fac'].default_value = 0.8  # 80% influence
+                    mix_node.location = (100, 200)
+                    mix_node.inputs['Factor'].default_value = 0.8
 
                     # Disconnect direct connection to base color
-                    for link in base_color_node.outputs['Color'].links:
+                    for link in list(base_color_node.outputs['Color'].links):
                         if link.to_socket == principled.inputs['Base Color']:
                             links.remove(link)
 
-                    # Connect through the mix node
-                    links.new(base_color_node.outputs['Color'], mix_node.inputs[1])
-                    links.new(separate_rgb.outputs['R'], mix_node.inputs[2])
-                    links.new(mix_node.outputs['Color'], principled.inputs['Base Color'])
+                    links.new(base_color_node.outputs['Color'], mix_node.inputs[6])  # A input
+                    links.new(separate_rgb.outputs[0], mix_node.inputs[7])  # B input
+                    links.new(mix_node.outputs[2], principled.inputs['Base Color'])  # Result
                     print("Connected ARM.R to AO mix with Base Color")
 
             # Handle AO (Ambient Occlusion) if separate
             if 'ao' in texture_nodes:
                 base_color_node = None
-                for map_name in ['color', 'diffuse', 'albedo']:
-                    if map_name in texture_nodes:
-                        base_color_node = texture_nodes[map_name]
+                for mn in ['color', 'diffuse', 'albedo']:
+                    if mn in texture_nodes:
+                        base_color_node = texture_nodes[mn]
                         break
 
                 if base_color_node:
-                    mix_node = nodes.new(type='ShaderNodeMixRGB')
-                    mix_node.location = (100, 200)
+                    mix_node = nodes.new(type='ShaderNodeMix')
+                    mix_node.data_type = 'RGBA'
                     mix_node.blend_type = 'MULTIPLY'
-                    mix_node.inputs['Fac'].default_value = 0.8  # 80% influence
+                    mix_node.location = (100, 200)
+                    mix_node.inputs['Factor'].default_value = 0.8
 
-                    # Disconnect direct connection to base color
-                    for link in base_color_node.outputs['Color'].links:
+                    for link in list(base_color_node.outputs['Color'].links):
                         if link.to_socket == principled.inputs['Base Color']:
                             links.remove(link)
 
-                    # Connect through the mix node
-                    links.new(base_color_node.outputs['Color'], mix_node.inputs[1])
-                    links.new(texture_nodes['ao'].outputs['Color'], mix_node.inputs[2])
-                    links.new(mix_node.outputs['Color'], principled.inputs['Base Color'])
+                    links.new(base_color_node.outputs['Color'], mix_node.inputs[6])
+                    links.new(texture_nodes['ao'].outputs['Color'], mix_node.inputs[7])
+                    links.new(mix_node.outputs[2], principled.inputs['Base Color'])
                     print("Connected AO to mix with Base Color")
 
             # CRITICAL: Make sure to clear all existing materials from the object
@@ -1514,6 +1532,13 @@ class BlenderMCPServer:
             }
         except Exception as e:
             return {"succeed": False, "error": str(e)}
+        finally:
+            # Clean up temp file
+            try:
+                if temp_file and os.path.isfile(temp_file.name):
+                    os.unlink(temp_file.name)
+            except OSError:
+                pass
 
     def import_generated_asset_fal_ai(self, request_id: str, name: str):
         """Fetch the generated asset, import into blender"""
@@ -1572,6 +1597,13 @@ class BlenderMCPServer:
             }
         except Exception as e:
             return {"succeed": False, "error": str(e)}
+        finally:
+            # Clean up temp file
+            try:
+                if temp_file and os.path.isfile(temp_file.name):
+                    os.unlink(temp_file.name)
+            except OSError:
+                pass
     #endregion
 
     #region Sketchfab API

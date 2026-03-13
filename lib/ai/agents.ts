@@ -97,6 +97,21 @@ const getSceneInfo = tool(
   }
 )
 
+const getAllObjectInfo = tool(
+  async ({ max_objects, start_index }: { max_objects?: number; start_index?: number }) =>
+    executeMcpCommand("get_all_object_info", { max_objects, start_index }),
+  {
+    name: "get_all_object_info",
+    description:
+      "Get detailed info for all objects in the scene with transforms, materials, mesh stats, " +
+      "modifiers, light/camera data. Supports pagination for large scenes.",
+    schema: z.object({
+      max_objects: z.number().optional().describe("Max objects to return (default 50)"),
+      start_index: z.number().optional().describe("Start index for pagination (default 0)"),
+    }),
+  }
+)
+
 const getObjectInfo = tool(
   async ({ name }: { name: string }) =>
     executeMcpCommand("get_object_info", { name }),
@@ -132,6 +147,33 @@ const getViewportScreenshotTool = tool(
       "Capture a screenshot of the current Blender viewport for visual verification. " +
       "Use after creating or modifying geometry to confirm the result looks correct.",
     schema: z.object({}),
+  }
+)
+
+// ---------- Scene Management Tools ---------
+
+const listMaterials = tool(
+  async () => executeMcpCommand("list_materials"),
+  {
+    name: "list_materials",
+    description:
+      "List all materials in the .blend file with node counts and which objects they are assigned to. " +
+      "Use this to inspect the material state before/after texture operations.",
+    schema: z.object({}),
+  }
+)
+
+const deleteObject = tool(
+  async ({ name }: { name: string }) =>
+    executeMcpCommand("delete_object", { name }),
+  {
+    name: "delete_object",
+    description:
+      "Safely delete an object from the Blender scene by name. " +
+      "Also cleans up orphaned mesh/curve/light/camera data.",
+    schema: z.object({
+      name: z.string().describe("Name of the Blender object to delete"),
+    }),
   }
 )
 
@@ -294,8 +336,11 @@ const HYPER3D_TOOL_NAMES = new Set([
 const ALL_TOOLS = [
   executeCode,
   getSceneInfo,
+  getAllObjectInfo,
   getObjectInfo,
   getViewportScreenshotTool,
+  listMaterials,
+  deleteObject,
   getPolyhavenCategories,
   searchPolyhavenAssets,
   downloadPolyhavenAsset,
