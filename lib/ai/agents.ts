@@ -13,8 +13,7 @@
 
 import { createAgent, createMiddleware, tool } from "langchain"
 import { MemorySaver } from "@langchain/langgraph"
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai"
-import { SystemMessage } from "@langchain/core/messages"
+import { SystemMessage, isHumanMessage } from "@langchain/core/messages"
 import { z } from "zod"
 
 import { createMcpClient, getViewportScreenshot } from "@/lib/mcp"
@@ -353,14 +352,7 @@ function createRAGMiddleware() {
       const messages = request.messages ?? []
       const lastUserMsg = [...messages]
         .reverse()
-        .find((m) => {
-          // @langchain/core v1 uses _getType() instead of .role
-          const msg = m as unknown as Record<string, unknown>
-          const role = typeof msg._getType === "function"
-            ? (msg._getType as () => string)()
-            : msg.role
-          return role === "human" || role === "user"
-        })
+        .find((m) => isHumanMessage(m))
 
       if (lastUserMsg) {
         const msg = lastUserMsg as unknown as Record<string, unknown>

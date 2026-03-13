@@ -53,8 +53,6 @@ export async function getViewportScreenshot(options: {
             try {
                 const buffer = await readFile(filepath)
                 imageBase64 = buffer.toString("base64")
-                // Clean up temp file
-                await unlink(filepath).catch(() => { })
             } catch {
                 throw new Error("Screenshot file not found - Blender MCP may not have saved it")
             }
@@ -68,6 +66,8 @@ export async function getViewportScreenshot(options: {
             timestamp: new Date().toISOString(),
         }
     } finally {
+        // Always clean up temp file and close client
+        await unlink(filepath).catch(() => { })
         await client.close()
     }
 }

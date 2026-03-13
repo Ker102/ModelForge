@@ -150,14 +150,51 @@ export class PlanExecutor {
         (m) => (m.role === "assistant" || (typeof m._getType === "function" && (m._getType as () => string)() === "ai")) && Array.isArray(m.tool_calls) && m.tool_calls.length > 0
       )
 
-      // Build completed/failed steps from the plan
-      // Since the agent handles everything internally, we treat the full execution
-      // as either success or failure based on whether the agent completed without error
+      // Build completed/failed steps by matching tool calls to plan steps.
+      // Collect all tool names that were actually invoked
+      const invokedTools = new Set<string>()
+      const failedTools = new Set<string>()
+      for (const msg of toolCallMessages) {
+        const calls = msg.tool_calls as Array<{ name?: string }> | undefined
+        if (calls) {
+          for (const call of calls) {
+            if (call.name) invokedTools.add(call.name)
+          }
+        }
+      }
+
+      // Also check for tool messages with error status
+      const toolResultMessages = resultMessages.filter(
+        (m) => (m.role === "tool" || (typeof m._getType === "function" && (m._getType as () => string)() === "tool"))
+      )
+      for (const msg of toolResultMessages) {
+        const status = msg.status as string | undefined
+        if (status === "error" && typeof msg.name === "string") {
+          failedTools.add(msg.name)
+        }
+      }
+
+      // Map each plan step to its execution status
       for (const step of executionPlan.steps) {
-        completedSteps.push({
-          step: step as PlanStep,
-          result: { status: "completed_by_agent" },
-        })
+        const action = (step as PlanStep).action
+        if (failedTools.has(action)) {
+          failedSteps.push({
+            step: step as PlanStep,
+            error: `Tool call '${action}' returned an error`,
+          })
+        } else if (invokedTools.has(action)) {
+          completedSteps.push({
+            step: step as PlanStep,
+            result: { status: "completed_by_agent" },
+          })
+        } else {
+          // No direct tool call evidence for this step — could be handled
+          // implicitly via execute_code or not reached
+          completedSteps.push({
+            step: step as PlanStep,
+            result: { status: "not_observed" },
+          })
+        }
       }
 
       options.onStreamEvent?.({

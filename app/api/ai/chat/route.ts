@@ -758,9 +758,10 @@ export async function POST(req: Request) {
 
             console.log("[Chat] Follow-up generated:", followUpText.length, "chars")
 
-            // Replace assistant text with follow-up so it's saved to DB
+            // Append follow-up to assistant text so BOTH the initial response
+            // and the follow-up are preserved when saved to DB
             if (followUpText.trim()) {
-              assistantText = followUpText.trim()
+              assistantText = (assistantText || "").trimEnd() + "\n\n" + followUpText.trim()
             } else {
               // The LLM yielded 0 chunks — send a fallback so the UI isn't empty
               console.warn("[Chat] Follow-up stream returned empty text, sending fallback")

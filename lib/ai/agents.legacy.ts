@@ -316,15 +316,16 @@ export class BlenderAgent {
                     success: true,
                 })
 
-                // Fast-path: for execute_code and read-only info steps,
+                // Fast-path: for purely read-only info steps,
                 // if MCP returned success we trust it — LLM validation adds
                 // no value since the result is deterministic.
+                // NOTE: Mutating actions (execute_code, set_texture, download_polyhaven_asset)
+                // must NOT be here — they require semantic/visual validation.
                 const READ_ONLY_ACTIONS = new Set([
-                    "execute_code", "get_scene_info", "get_object_info",
+                    "get_scene_info", "get_object_info",
                     "get_all_object_info", "get_viewport_screenshot",
                     "get_polyhaven_status", "get_polyhaven_categories",
-                    "search_polyhaven_assets", "download_polyhaven_asset",
-                    "set_texture",
+                    "search_polyhaven_assets",
                 ])
                 const mcpSuccess = this.isMcpSuccess(result)
                 if (READ_ONLY_ACTIONS.has(step.action) && mcpSuccess) {

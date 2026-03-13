@@ -65,30 +65,34 @@ export async function addDocument(doc: Document): Promise<string> {
  */
 export async function addDocuments(docs: Document[]): Promise<string[]> {
   const embeddings = await embedTexts(docs.map((d) => d.content))
-  const ids: string[] = []
 
-  for (let i = 0; i < docs.length; i++) {
-    const doc = docs[i]
-    const embedding = embeddings[i].embedding
+  // Wrap in a transaction so a mid-batch failure rolls back all inserts
+  return prisma.$transaction(async (tx) => {
+    const ids: string[] = []
 
-    const vec = vectorLiteral(embedding)
-    const result = await prisma.$queryRaw<{ id: string }[]>`
-      INSERT INTO document_embeddings (id, content, embedding, metadata, source, "createdAt")
-      VALUES (
-        gen_random_uuid(),
-        ${doc.content},
-        ${vec},
-        ${JSON.stringify(doc.metadata ?? {})}::jsonb,
-        ${doc.source ?? null},
-        NOW()
-      )
-      RETURNING id::text
-    `
+    for (let i = 0; i < docs.length; i++) {
+      const doc = docs[i]
+      const embedding = embeddings[i].embedding
 
-    ids.push(result[0].id)
-  }
+      const vec = vectorLiteral(embedding)
+      const result = await tx.$queryRaw<{ id: string }[]>`
+        INSERT INTO document_embeddings (id, content, embedding, metadata, source, "createdAt")
+        VALUES (
+          gen_random_uuid(),
+          ${doc.content},
+          ${vec},
+          ${JSON.stringify(doc.metadata ?? {})}::jsonb,
+          ${doc.source ?? null},
+          NOW()
+        )
+        RETURNING id::text
+      `
 
-  return ids
+      ids.push(result[0].id)
+    }
+
+    return ids
+  })
 }
 
 /**
