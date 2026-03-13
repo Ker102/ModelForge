@@ -225,6 +225,7 @@ class BlenderMCPServer:
             "move_to_collection": self.move_to_collection,
             "set_visibility": self.set_visibility,
             "export_object": self.export_object,
+            "list_installed_addons": self.list_installed_addons,
             "get_polyhaven_status": self.get_polyhaven_status,
             "get_hyper3d_status": self.get_hyper3d_status,
             "get_sketchfab_status": self.get_sketchfab_status,
@@ -1072,6 +1073,38 @@ class BlenderMCPServer:
             }
         except Exception as e:
             return {"error": f"Failed to export: {str(e)}"}
+
+    # ---------- Phase 3: Dynamic Addon Detection ----------
+
+    def list_installed_addons(self):
+        """List all enabled Blender addons with metadata for dynamic capability detection"""
+        try:
+            import addon_utils
+            addons = []
+            for mod in addon_utils.modules():
+                addon_name = mod.__name__
+                is_enabled = addon_name in bpy.context.preferences.addons
+
+                if not is_enabled:
+                    continue
+
+                info = {
+                    "module": addon_name,
+                    "name": getattr(mod, "bl_info", {}).get("name", addon_name),
+                    "description": getattr(mod, "bl_info", {}).get("description", ""),
+                    "category": getattr(mod, "bl_info", {}).get("category", ""),
+                    "version": str(getattr(mod, "bl_info", {}).get("version", "")),
+                    "author": getattr(mod, "bl_info", {}).get("author", ""),
+                }
+                addons.append(info)
+
+            return {
+                "addons": addons,
+                "count": len(addons),
+                "blender_version": ".".join(str(v) for v in bpy.app.version),
+            }
+        except Exception as e:
+            return {"error": f"Failed to list addons: {str(e)}"}
 
     def get_polyhaven_categories(self, asset_type):
         """Get categories for a specific asset type from Polyhaven"""

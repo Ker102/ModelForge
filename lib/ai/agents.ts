@@ -22,6 +22,7 @@ import { createGeminiModel, DEFAULT_MODEL } from "@/lib/ai"
 import { similaritySearch } from "@/lib/ai/vectorstore"
 import { formatContextFromSources } from "@/lib/ai/rag"
 import type { AgentStreamEvent } from "@/lib/orchestration/types"
+import { getAddonPromptHints } from "@/lib/ai/addon-registry"
 
 import { readFileSync } from "fs"
 import path from "path"
@@ -403,6 +404,18 @@ const exportObject = tool(
   }
 )
 
+const listInstalledAddons = tool(
+  async () => executeMcpCommand("list_installed_addons"),
+  {
+    name: "list_installed_addons",
+    description:
+      "List all enabled Blender addons with metadata. Use this to discover what " +
+      "additional capabilities are available (e.g. Node Wrangler, Rigify, LoopTools). " +
+      "Call this early to adapt your approach based on installed addons.",
+    schema: z.object({}),
+  }
+)
+
 // ---------- PolyHaven Tools ---------
 
 const getPolyhavenCategories = tool(
@@ -581,6 +594,7 @@ const ALL_TOOLS = [
   moveToCollection,
   setVisibility,
   exportObject,
+  listInstalledAddons,
   getPolyhavenCategories,
   searchPolyhavenAssets,
   downloadPolyhavenAsset,
@@ -696,6 +710,10 @@ export interface BlenderAgentV2Options {
   allowHyper3d?: boolean
   /** Use RAG for context enrichment */
   useRAG?: boolean
+  /** Enable dynamic addon detection — detects installed addons and adapts system prompt */
+  enableAddonDetection?: boolean
+  /** Pre-fetched addon modules for prompt injection (skips runtime detection) */
+  detectedAddonModules?: string[]
   /** Callback for streaming agent events to UI */
   onStreamEvent?: (event: AgentStreamEvent) => void
 }
@@ -719,6 +737,8 @@ export function createBlenderAgentV2(options: BlenderAgentV2Options = {}) {
     allowSketchfab = false,
     allowHyper3d = false,
     useRAG = true,
+    enableAddonDetection = true,
+    detectedAddonModules,
     onStreamEvent,
   } = options
 
@@ -729,6 +749,15 @@ export function createBlenderAgentV2(options: BlenderAgentV2Options = {}) {
     if (!allowHyper3d && HYPER3D_TOOL_NAMES.has(t.name)) return false
     return true
   })
+
+  // Build dynamic system prompt with addon detection
+  let dynamicPrompt = SYSTEM_PROMPT
+  if (enableAddonDetection && detectedAddonModules) {
+    const { promptBlock } = getAddonPromptHints(detectedAddonModules)
+    if (promptBlock) {
+      dynamicPrompt = SYSTEM_PROMPT + "\n" + promptBlock
+    }
+  }
 
   // Build middleware stack
   const middleware = [
@@ -745,7 +774,7 @@ export function createBlenderAgentV2(options: BlenderAgentV2Options = {}) {
   const agent = createAgent({
     model,
     tools,
-    systemPrompt: SYSTEM_PROMPT,
+    systemPrompt: dynamicPrompt,
     middleware,
     checkpointer,
   })
