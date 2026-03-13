@@ -211,6 +211,14 @@ class BlenderMCPServer:
             "execute_code": self.execute_code,
             "list_materials": self.list_materials,
             "delete_object": self.delete_object,
+            "set_object_transform": self.set_object_transform,
+            "rename_object": self.rename_object,
+            "duplicate_object": self.duplicate_object,
+            "join_objects": self.join_objects,
+            "add_modifier": self.add_modifier,
+            "apply_modifier": self.apply_modifier,
+            "apply_transforms": self.apply_transforms,
+            "shade_smooth": self.shade_smooth,
             "get_polyhaven_status": self.get_polyhaven_status,
             "get_hyper3d_status": self.get_hyper3d_status,
             "get_sketchfab_status": self.get_sketchfab_status,
@@ -614,6 +622,254 @@ class BlenderMCPServer:
         except Exception as e:
             return {"error": f"Failed to delete object: {str(e)}"}
 
+    # ---------- Phase 1A: Transform Tools ----------
+
+    def set_object_transform(self, name, location=None, rotation=None, scale=None):
+        """Set an object's location, rotation (euler degrees), and/or scale"""
+        try:
+            import math
+            obj = bpy.data.objects.get(name)
+            if not obj:
+                return {"error": f"Object not found: {name}"}
+
+            changes = []
+            if location is not None:
+                obj.location = (float(location[0]), float(location[1]), float(location[2]))
+                changes.append("location")
+            if rotation is not None:
+                obj.rotation_euler = (
+                    math.radians(float(rotation[0])),
+                    math.radians(float(rotation[1])),
+                    math.radians(float(rotation[2])),
+                )
+                changes.append("rotation")
+            if scale is not None:
+                obj.scale = (float(scale[0]), float(scale[1]), float(scale[2]))
+                changes.append("scale")
+
+            if not changes:
+                return {"error": "No transform values provided. Supply location, rotation, and/or scale."}
+
+            return {
+                "success": True,
+                "object": name,
+                "changed": changes,
+                "location": list(obj.location),
+                "rotation_degrees": [math.degrees(r) for r in obj.rotation_euler],
+                "scale": list(obj.scale),
+            }
+        except Exception as e:
+            return {"error": f"Failed to set transform: {str(e)}"}
+
+    def rename_object(self, name, new_name):
+        """Rename an object in the scene"""
+        try:
+            obj = bpy.data.objects.get(name)
+            if not obj:
+                return {"error": f"Object not found: {name}"}
+            if bpy.data.objects.get(new_name):
+                return {"error": f"An object named '{new_name}' already exists"}
+
+            old_name = obj.name
+            obj.name = new_name
+            # Also rename the data block if it matches the old name
+            if obj.data and obj.data.name == old_name:
+                obj.data.name = new_name
+
+            return {
+                "success": True,
+                "old_name": old_name,
+                "new_name": obj.name,
+            }
+        except Exception as e:
+            return {"error": f"Failed to rename object: {str(e)}"}
+
+    def duplicate_object(self, name, new_name=None, linked=False):
+        """Duplicate an object. linked=True shares mesh data."""
+        try:
+            obj = bpy.data.objects.get(name)
+            if not obj:
+                return {"error": f"Object not found: {name}"}
+
+            bpy.ops.object.select_all(action='DESELECT')
+            obj.select_set(True)
+            bpy.context.view_layer.objects.active = obj
+            bpy.ops.object.duplicate(linked=linked)
+
+            dup = bpy.context.active_object
+            if new_name:
+                dup.name = new_name
+                if dup.data and not linked:
+                    dup.data.name = new_name
+
+            return {
+                "success": True,
+                "original": name,
+                "duplicate": dup.name,
+                "linked": linked,
+            }
+        except Exception as e:
+            return {"error": f"Failed to duplicate object: {str(e)}"}
+
+    def join_objects(self, names):
+        """Join multiple objects into one. First name becomes the active (target) object."""
+        try:
+            if not names or len(names) < 2:
+                return {"error": "Provide at least 2 object names to join"}
+
+            # Validate all names exist
+            objects = []
+            for n in names:
+                obj = bpy.data.objects.get(n)
+                if not obj:
+                    return {"error": f"Object not found: {n}"}
+                if obj.type != 'MESH':
+                    return {"error": f"Object '{n}' is type '{obj.type}', only MESH objects can be joined"}
+                objects.append(obj)
+
+            bpy.ops.object.select_all(action='DESELECT')
+            for obj in objects:
+                obj.select_set(True)
+            bpy.context.view_layer.objects.active = objects[0]
+            bpy.ops.object.join()
+
+            result_obj = bpy.context.active_object
+            return {
+                "success": True,
+                "result_object": result_obj.name,
+                "joined_count": len(names),
+                "vertex_count": len(result_obj.data.vertices) if result_obj.data else 0,
+            }
+        except Exception as e:
+            return {"error": f"Failed to join objects: {str(e)}"}
+
+    # ---------- Phase 1B: Modifier & Mesh Tools ----------
+
+    def add_modifier(self, name, modifier_type, modifier_name=None, properties=None):
+        """Add a modifier to an object. modifier_type is the Blender enum (SUBSURF, MIRROR, BEVEL, etc.)"""
+        try:
+            obj = bpy.data.objects.get(name)
+            if not obj:
+                return {"error": f"Object not found: {name}"}
+
+            bpy.ops.object.select_all(action='DESELECT')
+            obj.select_set(True)
+            bpy.context.view_layer.objects.active = obj
+            bpy.ops.object.modifier_add(type=modifier_type)
+
+            # The newly added modifier is the last one
+            mod = obj.modifiers[-1]
+            if modifier_name:
+                mod.name = modifier_name
+
+            # Apply optional properties
+            if properties and isinstance(properties, dict):
+                for prop_name, prop_value in properties.items():
+                    try:
+                        setattr(mod, prop_name, prop_value)
+                    except (AttributeError, TypeError) as prop_err:
+                        pass  # Skip invalid properties silently
+
+            return {
+                "success": True,
+                "object": name,
+                "modifier": mod.name,
+                "type": modifier_type,
+                "total_modifiers": len(obj.modifiers),
+            }
+        except RuntimeError as e:
+            return {"error": f"Invalid modifier type '{modifier_type}': {str(e)}"}
+        except Exception as e:
+            return {"error": f"Failed to add modifier: {str(e)}"}
+
+    def apply_modifier(self, name, modifier):
+        """Apply (bake) a modifier on an object and remove it from the stack"""
+        try:
+            obj = bpy.data.objects.get(name)
+            if not obj:
+                return {"error": f"Object not found: {name}"}
+            if modifier not in obj.modifiers:
+                available = [m.name for m in obj.modifiers]
+                return {"error": f"Modifier '{modifier}' not found on '{name}'. Available: {available}"}
+
+            bpy.ops.object.select_all(action='DESELECT')
+            obj.select_set(True)
+            bpy.context.view_layer.objects.active = obj
+            bpy.ops.object.modifier_apply(modifier=modifier)
+
+            return {
+                "success": True,
+                "object": name,
+                "applied_modifier": modifier,
+                "remaining_modifiers": [m.name for m in obj.modifiers],
+            }
+        except Exception as e:
+            return {"error": f"Failed to apply modifier: {str(e)}"}
+
+    def apply_transforms(self, name, location=True, rotation=True, scale=True):
+        """Apply the object's visual transforms to its data (freezes transforms)"""
+        try:
+            obj = bpy.data.objects.get(name)
+            if not obj:
+                return {"error": f"Object not found: {name}"}
+
+            bpy.ops.object.select_all(action='DESELECT')
+            obj.select_set(True)
+            bpy.context.view_layer.objects.active = obj
+            bpy.ops.object.transform_apply(
+                location=bool(location),
+                rotation=bool(rotation),
+                scale=bool(scale),
+            )
+
+            applied = []
+            if location:
+                applied.append("location")
+            if rotation:
+                applied.append("rotation")
+            if scale:
+                applied.append("scale")
+
+            return {
+                "success": True,
+                "object": name,
+                "applied": applied,
+            }
+        except Exception as e:
+            return {"error": f"Failed to apply transforms: {str(e)}"}
+
+    def shade_smooth(self, name, smooth=True, angle=None):
+        """Set smooth or flat shading on an object. Optional angle for auto-smooth."""
+        try:
+            import math
+            obj = bpy.data.objects.get(name)
+            if not obj:
+                return {"error": f"Object not found: {name}"}
+            if obj.type != 'MESH':
+                return {"error": f"Object '{name}' is type '{obj.type}', shading only works on MESH"}
+
+            bpy.ops.object.select_all(action='DESELECT')
+            obj.select_set(True)
+            bpy.context.view_layer.objects.active = obj
+
+            if smooth:
+                if angle is not None:
+                    bpy.ops.object.shade_smooth_by_angle(angle=math.radians(float(angle)))
+                    mode = f"smooth_by_angle({angle}°)"
+                else:
+                    bpy.ops.object.shade_smooth()
+                    mode = "smooth"
+            else:
+                bpy.ops.object.shade_flat()
+                mode = "flat"
+
+            return {
+                "success": True,
+                "object": name,
+                "shading": mode,
+            }
+        except Exception as e:
+            return {"error": f"Failed to set shading: {str(e)}"}
 
 
     def get_polyhaven_categories(self, asset_type):

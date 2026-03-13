@@ -177,6 +177,136 @@ const deleteObject = tool(
   }
 )
 
+// ---------- Phase 1A: Transform Tools ---------
+
+const setObjectTransform = tool(
+  async ({ name, location, rotation, scale }: { name: string; location?: number[]; rotation?: number[]; scale?: number[] }) =>
+    executeMcpCommand("set_object_transform", { name, location, rotation, scale }),
+  {
+    name: "set_object_transform",
+    description:
+      "Set an object's location, rotation (in degrees), and/or scale. " +
+      "Provide any combination of the three. Rotation uses Euler XYZ in degrees.",
+    schema: z.object({
+      name: z.string().describe("Name of the Blender object"),
+      location: z.array(z.number()).length(3).optional().describe("[x, y, z] world location"),
+      rotation: z.array(z.number()).length(3).optional().describe("[x, y, z] rotation in degrees"),
+      scale: z.array(z.number()).length(3).optional().describe("[x, y, z] scale factors"),
+    }),
+  }
+)
+
+const renameObject = tool(
+  async ({ name, new_name }: { name: string; new_name: string }) =>
+    executeMcpCommand("rename_object", { name, new_name }),
+  {
+    name: "rename_object",
+    description: "Rename a Blender object. Also renames its data block if it matches.",
+    schema: z.object({
+      name: z.string().describe("Current object name"),
+      new_name: z.string().describe("New name to assign"),
+    }),
+  }
+)
+
+const duplicateObject = tool(
+  async ({ name, new_name, linked }: { name: string; new_name?: string; linked?: boolean }) =>
+    executeMcpCommand("duplicate_object", { name, new_name, linked }),
+  {
+    name: "duplicate_object",
+    description:
+      "Duplicate a Blender object. Use linked=true to share mesh data (instance). " +
+      "Optionally provide new_name for the copy.",
+    schema: z.object({
+      name: z.string().describe("Name of the object to duplicate"),
+      new_name: z.string().optional().describe("Name for the duplicate"),
+      linked: z.boolean().optional().describe("If true, share mesh data (linked duplicate)"),
+    }),
+  }
+)
+
+const joinObjects = tool(
+  async ({ names }: { names: string[] }) =>
+    executeMcpCommand("join_objects", { names }),
+  {
+    name: "join_objects",
+    description:
+      "Join multiple MESH objects into one. The first name becomes the target object. " +
+      "All others are merged into it.",
+    schema: z.object({
+      names: z.array(z.string()).min(2).describe("Array of object names to join (first = target)"),
+    }),
+  }
+)
+
+// ---------- Phase 1B: Modifier & Mesh Tools ---------
+
+const addModifier = tool(
+  async ({ name, modifier_type, modifier_name, properties }: { name: string; modifier_type: string; modifier_name?: string; properties?: Record<string, unknown> }) =>
+    executeMcpCommand("add_modifier", { name, modifier_type, modifier_name, properties }),
+  {
+    name: "add_modifier",
+    description:
+      "Add a modifier to an object. Common types: SUBSURF, MIRROR, BEVEL, BOOLEAN, ARRAY, " +
+      "SOLIDIFY, DECIMATE, SMOOTH, EDGE_SPLIT, WIREFRAME. " +
+      "Use properties dict to set modifier settings (e.g. {levels: 2} for SUBSURF).",
+    schema: z.object({
+      name: z.string().describe("Target object name"),
+      modifier_type: z.string().describe("Modifier type enum (e.g. SUBSURF, MIRROR, BEVEL)"),
+      modifier_name: z.string().optional().describe("Custom name for the modifier"),
+      properties: z.record(z.unknown()).optional().describe("Modifier properties to set (e.g. {levels: 2})"),
+    }),
+  }
+)
+
+const applyModifier = tool(
+  async ({ name, modifier }: { name: string; modifier: string }) =>
+    executeMcpCommand("apply_modifier", { name, modifier }),
+  {
+    name: "apply_modifier",
+    description:
+      "Apply (bake) a modifier on an object, making its effect permanent and removing it from the stack.",
+    schema: z.object({
+      name: z.string().describe("Object name"),
+      modifier: z.string().describe("Name of the modifier to apply"),
+    }),
+  }
+)
+
+const applyTransforms = tool(
+  async ({ name, location, rotation, scale }: { name: string; location?: boolean; rotation?: boolean; scale?: boolean }) =>
+    executeMcpCommand("apply_transforms", { name, location, rotation, scale }),
+  {
+    name: "apply_transforms",
+    description:
+      "Apply (freeze) an object's transforms to its mesh data. " +
+      "Resets location/rotation/scale to identity while keeping visual appearance. " +
+      "Essential before exporting models.",
+    schema: z.object({
+      name: z.string().describe("Object name"),
+      location: z.boolean().optional().describe("Apply location (default true)"),
+      rotation: z.boolean().optional().describe("Apply rotation (default true)"),
+      scale: z.boolean().optional().describe("Apply scale (default true)"),
+    }),
+  }
+)
+
+const shadeSmooth = tool(
+  async ({ name, smooth, angle }: { name: string; smooth?: boolean; angle?: number }) =>
+    executeMcpCommand("shade_smooth", { name, smooth, angle }),
+  {
+    name: "shade_smooth",
+    description:
+      "Set smooth or flat shading on a mesh object. " +
+      "Use angle (degrees) for auto-smooth by angle (e.g. 30 = edges sharper than 30° stay sharp).",
+    schema: z.object({
+      name: z.string().describe("Object name"),
+      smooth: z.boolean().optional().describe("True for smooth, false for flat (default true)"),
+      angle: z.number().optional().describe("Auto-smooth angle in degrees (e.g. 30)"),
+    }),
+  }
+)
+
 // ---------- PolyHaven Tools ---------
 
 const getPolyhavenCategories = tool(
@@ -341,6 +471,14 @@ const ALL_TOOLS = [
   getViewportScreenshotTool,
   listMaterials,
   deleteObject,
+  setObjectTransform,
+  renameObject,
+  duplicateObject,
+  joinObjects,
+  addModifier,
+  applyModifier,
+  applyTransforms,
+  shadeSmooth,
   getPolyhavenCategories,
   searchPolyhavenAssets,
   downloadPolyhavenAsset,
