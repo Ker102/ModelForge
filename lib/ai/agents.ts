@@ -138,51 +138,58 @@ const getViewportScreenshotTool = tool(
 // ---------- PolyHaven Tools ---------
 
 const getPolyhavenCategories = tool(
-  async () => executeMcpCommand("get_polyhaven_categories"),
+  async ({ asset_type }: { asset_type: string }) =>
+    executeMcpCommand("get_polyhaven_categories", { asset_type }),
   {
     name: "get_polyhaven_categories",
-    description: "List available PolyHaven asset categories.",
-    schema: z.object({}),
+    description: "List available PolyHaven asset categories for a given type.",
+    schema: z.object({
+      asset_type: z.string().describe("Asset type: hdris, textures, models, or all"),
+    }),
   }
 )
 
 const searchPolyhavenAssets = tool(
-  async ({ query, type }: { query: string; type?: string }) =>
-    executeMcpCommand("search_polyhaven_assets", { query, type }),
+  async ({ asset_type, categories }: { asset_type?: string; categories?: string }) =>
+    executeMcpCommand("search_polyhaven_assets", { asset_type, categories }),
   {
     name: "search_polyhaven_assets",
-    description: "Search PolyHaven for textures, HDRIs, and 3D models.",
+    description:
+      "Search PolyHaven for textures, HDRIs, and 3D models. " +
+      "Filter by asset_type (hdris, textures, models, all) and/or categories.",
     schema: z.object({
-      query: z.string().describe("Search query"),
-      type: z.string().optional().describe("Asset type: textures, hdris, models"),
+      asset_type: z.string().optional().describe("Asset type filter: hdris, textures, models, or all"),
+      categories: z.string().optional().describe("Category filter string"),
     }),
   }
 )
 
 const downloadPolyhavenAsset = tool(
-  async ({ asset_id, type, resolution }: { asset_id: string; type: string; resolution?: string }) =>
-    executeMcpCommand("download_polyhaven_asset", { asset_id, type, resolution }),
+  async ({ asset_id, asset_type, resolution, file_format }: { asset_id: string; asset_type: string; resolution?: string; file_format?: string }) =>
+    executeMcpCommand("download_polyhaven_asset", { asset_id, asset_type, resolution, file_format }),
   {
     name: "download_polyhaven_asset",
-    description: "Download a PolyHaven asset by ID.",
+    description: "Download a PolyHaven asset by ID and import it into the scene.",
     schema: z.object({
-      asset_id: z.string().describe("PolyHaven asset ID"),
-      type: z.string().describe("Asset type"),
+      asset_id: z.string().describe("PolyHaven asset ID (slug)"),
+      asset_type: z.string().describe("Asset type: hdris, textures, or models"),
       resolution: z.string().optional().describe("Resolution (default: 1k)"),
+      file_format: z.string().optional().describe("File format (hdr/exr for HDRIs, jpg/png for textures, gltf/fbx for models)"),
     }),
   }
 )
 
 const setTexture = tool(
-  async ({ object_name, texture_path, uv_project }: { object_name: string; texture_path: string; uv_project?: boolean }) =>
-    executeMcpCommand("set_texture", { object_name, texture_path, uv_project }),
+  async ({ object_name, texture_id }: { object_name: string; texture_id: string }) =>
+    executeMcpCommand("set_texture", { object_name, texture_id }),
   {
     name: "set_texture",
-    description: "Apply a texture to an object.",
+    description:
+      "Apply a previously downloaded PolyHaven texture to an object. " +
+      "The texture must be downloaded first via download_polyhaven_asset.",
     schema: z.object({
-      object_name: z.string().describe("Target object name"),
-      texture_path: z.string().describe("Path to texture file"),
-      uv_project: z.boolean().optional().describe("Auto UV project"),
+      object_name: z.string().describe("Target Blender object name"),
+      texture_id: z.string().describe("PolyHaven texture asset ID (the same ID used for download)"),
     }),
   }
 )
@@ -225,37 +232,43 @@ const getHyper3dStatus = tool(
 )
 
 const createRodinJob = tool(
-  async ({ prompt, image_url }: { prompt: string; image_url?: string }) =>
-    executeMcpCommand("create_rodin_job", { prompt, image_url }),
+  async ({ text_prompt, images }: { text_prompt?: string; images?: string[] }) =>
+    executeMcpCommand("create_rodin_job", { text_prompt, images }),
   {
     name: "create_rodin_job",
-    description: "Create a Hyper3D Rodin neural 3D generation job.",
+    description:
+      "Create a Hyper3D Rodin neural 3D generation job. " +
+      "Provide either a text prompt or reference images (not both).",
     schema: z.object({
-      prompt: z.string().describe("Text description of the 3D model to generate"),
-      image_url: z.string().optional().describe("Optional reference image URL"),
+      text_prompt: z.string().optional().describe("Text description of the 3D model to generate"),
+      images: z.array(z.string()).optional().describe("Optional reference image URLs for image-to-3D"),
     }),
   }
 )
 
 const pollRodinJobStatus = tool(
-  async ({ job_id }: { job_id: string }) => executeMcpCommand("poll_rodin_job_status", { job_id }),
+  async ({ subscription_key }: { subscription_key: string }) =>
+    executeMcpCommand("poll_rodin_job_status", { subscription_key }),
   {
     name: "poll_rodin_job_status",
-    description: "Poll the status of a Rodin generation job.",
+    description: "Poll the status of a Rodin generation job using the subscription key from create_rodin_job.",
     schema: z.object({
-      job_id: z.string().describe("Rodin job ID to poll"),
+      subscription_key: z.string().describe("Subscription key returned by create_rodin_job"),
     }),
   }
 )
 
 const importGeneratedAsset = tool(
-  async ({ file_path }: { file_path: string }) =>
-    executeMcpCommand("import_generated_asset", { file_path }),
+  async ({ task_uuid, name }: { task_uuid: string; name: string }) =>
+    executeMcpCommand("import_generated_asset", { task_uuid, name }),
   {
     name: "import_generated_asset",
-    description: "Import a generated 3D asset into the Blender scene.",
+    description:
+      "Import a completed Hyper3D Rodin generated asset into the Blender scene. " +
+      "Requires the task UUID from the generation job.",
     schema: z.object({
-      file_path: z.string().describe("Path to the generated asset file"),
+      task_uuid: z.string().describe("Task UUID from the Rodin generation job"),
+      name: z.string().describe("Name to assign to the imported object in Blender"),
     }),
   }
 )
