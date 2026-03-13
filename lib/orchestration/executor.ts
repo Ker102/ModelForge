@@ -10,6 +10,7 @@
  */
 
 import { createBlenderAgentV2, type BlenderAgentV2Options } from "@/lib/ai/agents"
+import { createMcpClient } from "@/lib/mcp"
 import type { ExecutionPlan, ExecutionLogEntry, AgentStreamEvent, PlanStep } from "./types"
 import type { StrategyDecision } from "./strategy-types"
 import type { LlmProviderSpec } from "@/lib/llm"
@@ -84,12 +85,34 @@ export class PlanExecutor {
         timestamp: new Date().toISOString(),
       })
 
+      // ── Addon detection: discover installed addons before creating agent ──
+      let detectedAddonModules: string[] | undefined
+      try {
+        const mcpClient = createMcpClient()
+        const addonResponse = await mcpClient.execute({
+          type: "list_installed_addons",
+          params: {},
+        })
+        if (addonResponse.status !== "error" && addonResponse.result) {
+          const result = addonResponse.result as { addons?: Array<{ module: string }> }
+          if (result.addons) {
+            detectedAddonModules = result.addons.map((a) => a.module)
+            log("system", `Detected ${detectedAddonModules.length} installed addons`, "system")
+          }
+        }
+      } catch {
+        // Addon detection is best-effort — don't block execution
+        log("system", "Addon detection skipped (connection not available)", "system")
+      }
+
       // Build the v2 agent
       const agentOptions: BlenderAgentV2Options = {
         allowPolyHaven: options.allowPolyHaven,
         allowSketchfab: options.allowSketchfab,
         allowHyper3d: options.allowHyper3d,
         useRAG: true,
+        enableAddonDetection: true,
+        detectedAddonModules,
         onStreamEvent: options.onStreamEvent,
       }
 

@@ -191,8 +191,8 @@ export function getAddonPromptHints(
   }
 
   const lines = [
-    "\\n## Detected Blender Addons",
-    "The following third-party addons are installed and available for use via execute_code:\\n",
+    "\n## Detected Blender Addons",
+    "The following third-party addons are installed and available for use via execute_code:\n",
   ]
 
   for (const addon of matched) {
@@ -201,5 +201,5 @@ export function getAddonPromptHints(
     lines.push("")
   }
 
-  return { matched, promptBlock: lines.join("\\n") }
+  return { matched, promptBlock: lines.join("\n") }
 }
