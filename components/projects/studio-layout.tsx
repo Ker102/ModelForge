@@ -181,14 +181,18 @@ export function StudioLayout({ projectId }: StudioLayoutProps) {
 
                                 // Extract command results
                                 const rawCommands = Array.isArray(event.commandSuggestions) ? event.commandSuggestions as Record<string, unknown>[] : []
-                                const commandResults: StepCommandResult[] = rawCommands.map((cmd) => ({
-                                    id: String(cmd.id ?? ""),
-                                    tool: String(cmd.tool ?? ""),
-                                    status: (cmd.status as StepCommandResult["status"]) ?? "pending",
-                                    confidence: typeof cmd.confidence === "number" ? cmd.confidence : undefined,
-                                    description: typeof cmd.description === "string" ? cmd.description : undefined,
-                                    error: typeof cmd.error === "string" ? cmd.error : undefined,
-                                }))
+                                const VALID_CMD_STATUSES = new Set<StepCommandResult["status"]>(["pending", "executed", "failed", "skipped"])
+                                const commandResults: StepCommandResult[] = rawCommands.map((cmd) => {
+                                    const rawStatus = cmd.status as StepCommandResult["status"]
+                                    return {
+                                        id: String(cmd.id ?? ""),
+                                        tool: String(cmd.tool ?? ""),
+                                        status: VALID_CMD_STATUSES.has(rawStatus) ? rawStatus : "pending",
+                                        confidence: typeof cmd.confidence === "number" ? cmd.confidence : undefined,
+                                        description: typeof cmd.description === "string" ? cmd.description : undefined,
+                                        error: typeof cmd.error === "string" ? cmd.error : undefined,
+                                    }
+                                })
 
                                 updateStep(stepId, {
                                     status: "done",
@@ -227,13 +231,15 @@ export function StudioLayout({ projectId }: StudioLayoutProps) {
                     }
                 }
 
-                // If we didn't get a "complete" event, mark as done anyway
+                // If we didn't get a "complete" event, decide final status
                 setWorkflowSteps((prev) =>
-                    prev.map((s) =>
-                        s.id === stepId && s.status === "running"
-                            ? { ...s, status: "done" }
-                            : s
-                    )
+                    prev.map((s) => {
+                        if (s.id !== stepId || s.status !== "running") return s
+                        // Check if there were execution errors
+                        const hasErrors = s.planData?.errors && s.planData.errors.length > 0
+                        const hasFailed = s.planData?.executionSuccess === false
+                        return { ...s, status: hasErrors || hasFailed ? "failed" : "done" }
+                    })
                 )
             } catch (err) {
                 if (err instanceof DOMException && err.name === "AbortError") return

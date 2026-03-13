@@ -34,6 +34,11 @@ const VECTOR_CAST = Prisma.raw(`::vector(${EMBEDDING_DIMENSIONS})`)
  * Helper: format a number[] as a Prisma-safe SQL fragment "[1.0,2.0,...]::vector(768)"
  */
 function vectorLiteral(embedding: number[]) {
+  if (embedding.length !== EMBEDDING_DIMENSIONS) {
+    throw new Error(
+      `Embedding dimension mismatch: expected ${EMBEDDING_DIMENSIONS}, got ${embedding.length}`
+    )
+  }
   return Prisma.sql`${`[${embedding.join(",")}]`}${VECTOR_CAST}`
 }
 
