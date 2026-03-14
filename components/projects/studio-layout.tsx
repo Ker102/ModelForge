@@ -12,18 +12,16 @@ interface StudioLayoutProps {
     projectId: string
 }
 
-// ── localStorage persistence helpers ────────────────────────────
-const STORAGE_KEY_PREFIX = "modelforge:studio-steps:"
-
-function loadPersistedSteps(projectId: string): WorkflowTimelineStep[] {
-    if (typeof window === "undefined") return []
+// ── API persistence helpers (replaces localStorage) ─────────────
+async function fetchPersistedSteps(projectId: string): Promise<WorkflowTimelineStep[]> {
     try {
-        const raw = localStorage.getItem(`${STORAGE_KEY_PREFIX}${projectId}`)
-        if (!raw) return []
-        const parsed = JSON.parse(raw) as WorkflowTimelineStep[]
-        if (!Array.isArray(parsed)) return []
+        const res = await fetch(`/api/projects/studio-session?projectId=${projectId}`)
+        if (!res.ok) return []
+        const data = await res.json()
+        const steps = data.steps as WorkflowTimelineStep[] | undefined
+        if (!Array.isArray(steps)) return []
         // Steps that were "running" when the page closed can't be resumed — mark as failed
-        return parsed.map((step) =>
+        return steps.map((step) =>
             step.status === "running"
                 ? { ...step, status: "failed" as const, error: step.error ?? "Session interrupted" }
                 : step
@@ -33,29 +31,54 @@ function loadPersistedSteps(projectId: string): WorkflowTimelineStep[] {
     }
 }
 
-function savePersistedSteps(projectId: string, steps: WorkflowTimelineStep[]) {
-    if (typeof window === "undefined") return
+async function savePersistedSteps(projectId: string, steps: WorkflowTimelineStep[]) {
     try {
-        // Strip monitoring logs before saving to keep localStorage size reasonable
+        // Strip monitoring logs before saving to keep payload reasonable
         const slim = steps.map(({ monitoringLogs, ...rest }) => rest)
-        localStorage.setItem(`${STORAGE_KEY_PREFIX}${projectId}`, JSON.stringify(slim))
+        await fetch("/api/projects/studio-session", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ projectId, steps: slim }),
+        })
     } catch (err) {
         console.warn("[StudioLayout] Failed to persist steps:", err)
+    }
+}
+
+async function deletePersistedSteps(projectId: string) {
+    try {
+        await fetch(`/api/projects/studio-session?projectId=${projectId}`, { method: "DELETE" })
+    } catch (err) {
+        console.warn("[StudioLayout] Failed to delete steps:", err)
     }
 }
 
 export function StudioLayout({ projectId }: StudioLayoutProps) {
     const [activeCategory, setActiveCategory] = useState("shape")
     const [assistantOpen, setAssistantOpen] = useState(false)
-    const [workflowSteps, setWorkflowSteps] = useState<WorkflowTimelineStep[]>(
-        () => loadPersistedSteps(projectId)
-    )
+    const [workflowSteps, setWorkflowSteps] = useState<WorkflowTimelineStep[]>([])
+    const [stepsLoading, setStepsLoading] = useState(true)
     const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
     const abortControllerRef = useRef<AbortController | null>(null)
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const initialLoadDone = useRef(false)
 
-    // ── Debounced save to localStorage ───────────────────────────
+    // ── Load steps from API on mount ─────────────────────────────
     useEffect(() => {
+        let cancelled = false
+        fetchPersistedSteps(projectId).then((steps) => {
+            if (!cancelled) {
+                setWorkflowSteps(steps)
+                setStepsLoading(false)
+                initialLoadDone.current = true
+            }
+        })
+        return () => { cancelled = true }
+    }, [projectId])
+
+    // ── Debounced save to API ────────────────────────────────────
+    useEffect(() => {
+        if (!initialLoadDone.current) return // Don't save until initial load completes
         if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
         saveTimerRef.current = setTimeout(() => {
             savePersistedSteps(projectId, workflowSteps)
@@ -333,9 +356,7 @@ export function StudioLayout({ projectId }: StudioLayoutProps) {
         abortControllerRef.current?.abort()
         setWorkflowSteps([])
         setSelectedStepId(null)
-        try {
-            localStorage.removeItem(`${STORAGE_KEY_PREFIX}${projectId}`)
-        } catch { /* ignore */ }
+        deletePersistedSteps(projectId)
     }, [projectId])
 
     const handleToolRunNow = useCallback(
