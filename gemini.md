@@ -1,26 +1,33 @@
 # gemini.md — ModelForge Dev Tracker
 
 ## Current Task
-Filesystem reorganization (complete)
+Session 2026-03-14 (evening) — Agent execution fix + persistence + observability
 
-## What Changed (Latest)
-- **Filesystem Reorganization**:
-  - Root decluttered: 5 docs moved to `docs/`, 3 stale files deleted
-  - `batch_scrape_markdown(8)/(9)` → `data/blender-api-docs/`
-  - `scripts/` organized into `db/`, `ingestion/`, `test/`, `maintenance/`
-  - `logs/` old sessions archived to `logs/archive/`
-  - `tmp/` added to `.gitignore`
-- **Studio Chat Persistence**:
-  - `studio-layout.tsx` — localStorage save/load for workflow steps
-  - `workflow-timeline.tsx` — 'Clear' button + `onClearTimeline` prop
-- **Auth Pages Teal Redesign** + **BETA Badge on Blender Agent**
+## What Changed (Session 2026-03-14 Evening)
 
-## Previous Changes
-- CodeRabbit Fixes (PR #21): DEFAULT_MODEL, status validation, error scrolling
-- Phase 5: Material/Lighting/Camera/Render tools (8 new tools)
-- Phase 1-4: Transform, Modifier, Hierarchy/Export, Addon Detection tools
+### 🔴→✅ Agent Tool Execution Fix
+- **Root cause found via LangSmith**: `MiddlewareError: System message should be the first one`
+- `lib/ai/agents.ts` `createRAGMiddleware()` — was prepending a `SystemMessage` before the existing messages array, violating LangGraph's message ordering constraint
+- **Fix**: RAG context now appended to the existing system message's content instead of creating a new one
 
-## Next Steps
-- Debug agent tool execution failure (all steps show red X)
-- Push + PR for CodeRabbit review
-- DB-backed Studio session persistence (P1)
+### LangSmith Observability ✅
+- `LANGSMITH_TRACING=true` already configured in `.env` with valid API key
+- LangChain auto-detects env vars — traces ARE flowing (5 runs visible, 33k tokens)
+- Debug script `scripts/test/debug-langsmith.ts` confirmed working
+- The failed LangSmith trace (`019cedfc-...`) contained the exact error that revealed the root cause
+
+## Previous Changes (Session 2026-03-14)
+- Studio Chat Persistence (localStorage), Auth Pages Teal Redesign, BETA Badge, Filesystem Reorganization
+
+## Known Issues / Blockers
+- ~~Agent tool execution: All steps show red X~~ **FIXED** — RAG middleware SystemMessage ordering
+- **gcloud auth expiry**: Vertex AI OAuth tokens expire frequently
+
+## Remaining Tasks
+1. ~~Debug agent tool execution failure~~ ✅ Fixed
+2. Push branch + PR for CodeRabbit review (ongoing)
+3. DB-backed Studio session persistence (localStorage → Prisma/PostgreSQL)
+4. Feature brainstorm P2/P3 implementation
+
+## Branch
+`feature/addon-tools-phase3`

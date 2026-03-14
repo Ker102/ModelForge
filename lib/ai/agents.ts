@@ -848,13 +848,28 @@ function createRAGMiddleware() {
             const results = await similaritySearch(content, { limit: 3 })
             if (results.length > 0) {
               const context = formatContextFromSources(results)
-              // Inject RAG context as a system message hint
-              const ragMessage = new SystemMessage(
-                `\n<rag_context>\nRelevant Blender script references:\n${context}\n</rag_context>`
-              )
+              const ragBlock = `\n<rag_context>\nRelevant Blender script references:\n${context}\n</rag_context>`
+
+              // Append RAG context to the existing system message instead of
+              // prepending a new SystemMessage — LangGraph requires the system
+              // message to be first and only one.
+              const updatedMessages = messages.map((m, idx) => {
+                const isSystem =
+                  (typeof (m as Record<string, unknown>)._getType === "function" &&
+                    ((m as Record<string, unknown>)._getType as () => string)() === "system") ||
+                  (m as Record<string, unknown>).role === "system"
+                if (idx === 0 && isSystem) {
+                  const original = typeof (m as Record<string, unknown>).content === "string"
+                    ? (m as Record<string, unknown>).content as string
+                    : ""
+                  return new SystemMessage(original + ragBlock)
+                }
+                return m
+              })
+
               return handler({
                 ...request,
-                messages: [ragMessage, ...messages],
+                messages: updatedMessages,
               })
             }
           } catch {
