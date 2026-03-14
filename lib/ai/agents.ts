@@ -22,6 +22,7 @@ import { createGeminiModel, DEFAULT_MODEL } from "@/lib/ai"
 import { similaritySearch } from "@/lib/ai/vectorstore"
 import { formatContextFromSources } from "@/lib/ai/rag"
 import type { AgentStreamEvent } from "@/lib/orchestration/types"
+import { getAddonPromptHints } from "@/lib/ai/addon-registry"
 
 import { readFileSync } from "fs"
 import path from "path"
@@ -403,6 +404,181 @@ const exportObject = tool(
   }
 )
 
+const listInstalledAddons = tool(
+  async () => executeMcpCommand("list_installed_addons"),
+  {
+    name: "list_installed_addons",
+    description:
+      "List all enabled Blender addons with metadata. Use this to discover what " +
+      "additional capabilities are available (e.g. Node Wrangler, Rigify, LoopTools). " +
+      "Call this early to adapt your approach based on installed addons.",
+    schema: z.object({}),
+  }
+)
+
+// ---------- Phase 5: Material Tools ---------
+
+const createMaterial = tool(
+  async ({ name, color, metallic, roughness }: { name: string; color?: number[]; metallic?: number; roughness?: number }) =>
+    executeMcpCommand("create_material", { name, color, metallic, roughness }),
+  {
+    name: "create_material",
+    description:
+      "Create a new Principled BSDF material. Optionally set base color [R,G,B] (0-1), " +
+      "metallic (0-1), and roughness (0-1). Returns the material name.",
+    schema: z.object({
+      name: z.string().describe("Material name"),
+      color: z.array(z.number()).min(3).max(4).optional().describe("Base color [R,G,B] or [R,G,B,A] in 0-1 range"),
+      metallic: z.number().min(0).max(1).optional().describe("Metallic value 0-1"),
+      roughness: z.number().min(0).max(1).optional().describe("Roughness value 0-1"),
+    }),
+  }
+)
+
+const assignMaterial = tool(
+  async ({ object_name, material_name, slot_index }: { object_name: string; material_name: string; slot_index?: number }) =>
+    executeMcpCommand("assign_material", { object_name, material_name, slot_index }),
+  {
+    name: "assign_material",
+    description:
+      "Assign an existing material to a Blender object. Appends to a new slot by default, " +
+      "or replaces at a specific slot_index.",
+    schema: z.object({
+      object_name: z.string().describe("Target object name"),
+      material_name: z.string().describe("Material name to assign"),
+      slot_index: z.number().optional().describe("Slot index to replace (omit to append)"),
+    }),
+  }
+)
+
+// ---------- Phase 5: Lighting Tools ---------
+
+const addLight = tool(
+  async ({ light_type, name, location, energy, color }: { light_type?: string; name?: string; location?: number[]; energy?: number; color?: number[] }) =>
+    executeMcpCommand("add_light", { light_type, name, location, energy, color }),
+  {
+    name: "add_light",
+    description:
+      "Add a new light to the scene. Types: POINT, SUN, SPOT, AREA. " +
+      "Set energy (watts), color [R,G,B] (0-1), and location [x,y,z].",
+    schema: z.object({
+      light_type: z.string().optional().describe("Light type: POINT (default), SUN, SPOT, AREA"),
+      name: z.string().optional().describe("Custom name for the light"),
+      location: z.array(z.number()).length(3).optional().describe("[x,y,z] world location"),
+      energy: z.number().optional().describe("Light power in watts"),
+      color: z.array(z.number()).length(3).optional().describe("[R,G,B] light color 0-1"),
+    }),
+  }
+)
+
+const setLightProperties = tool(
+  async ({ name, energy, color, shadow_soft_size, spot_size, spot_blend, size }: { name: string; energy?: number; color?: number[]; shadow_soft_size?: number; spot_size?: number; spot_blend?: number; size?: number }) =>
+    executeMcpCommand("set_light_properties", { name, energy, color, shadow_soft_size, spot_size, spot_blend, size }),
+  {
+    name: "set_light_properties",
+    description:
+      "Modify properties on an existing light. Set energy, color, shadow_soft_size. " +
+      "For SPOT lights: spot_size (degrees), spot_blend. For AREA lights: size.",
+    schema: z.object({
+      name: z.string().describe("Light object name"),
+      energy: z.number().optional().describe("Light power in watts"),
+      color: z.array(z.number()).length(3).optional().describe("[R,G,B] 0-1"),
+      shadow_soft_size: z.number().optional().describe("Shadow softness radius"),
+      spot_size: z.number().optional().describe("Spot cone angle in degrees (SPOT only)"),
+      spot_blend: z.number().optional().describe("Spot edge softness 0-1 (SPOT only)"),
+      size: z.number().optional().describe("Area light size (AREA only)"),
+    }),
+  }
+)
+
+// ---------- Phase 5: Camera Tools ---------
+
+const addCamera = tool(
+  async ({ name, location, rotation, lens, sensor_width }: { name?: string; location?: number[]; rotation?: number[]; lens?: number; sensor_width?: number }) =>
+    executeMcpCommand("add_camera", { name, location, rotation, lens, sensor_width }),
+  {
+    name: "add_camera",
+    description:
+      "Add a new camera to the scene with optional position, rotation (degrees), " +
+      "focal length (mm), and sensor width.",
+    schema: z.object({
+      name: z.string().optional().describe("Camera name"),
+      location: z.array(z.number()).length(3).optional().describe("[x,y,z] world location"),
+      rotation: z.array(z.number()).length(3).optional().describe("[x,y,z] rotation in degrees"),
+      lens: z.number().optional().describe("Focal length in mm (default 50)"),
+      sensor_width: z.number().optional().describe("Sensor width in mm (default 36)"),
+    }),
+  }
+)
+
+const setCameraProperties = tool(
+  async ({ name, lens, sensor_width, clip_start, clip_end, dof_use, dof_focus_distance, dof_aperture_fstop, set_active }: {
+    name: string; lens?: number; sensor_width?: number; clip_start?: number; clip_end?: number;
+    dof_use?: boolean; dof_focus_distance?: number; dof_aperture_fstop?: number; set_active?: boolean
+  }) =>
+    executeMcpCommand("set_camera_properties", { name, lens, sensor_width, clip_start, clip_end, dof_use, dof_focus_distance, dof_aperture_fstop, set_active }),
+  {
+    name: "set_camera_properties",
+    description:
+      "Modify properties on an existing camera. Set lens, sensor_width, clip range, " +
+      "depth of field settings (dof_use, dof_focus_distance, dof_aperture_fstop), " +
+      "and set_active=true to make it the scene camera.",
+    schema: z.object({
+      name: z.string().describe("Camera object name"),
+      lens: z.number().optional().describe("Focal length in mm"),
+      sensor_width: z.number().optional().describe("Sensor width in mm"),
+      clip_start: z.number().optional().describe("Near clipping distance"),
+      clip_end: z.number().optional().describe("Far clipping distance"),
+      dof_use: z.boolean().optional().describe("Enable/disable depth of field"),
+      dof_focus_distance: z.number().optional().describe("Focus distance in meters"),
+      dof_aperture_fstop: z.number().optional().describe("F-stop value for DoF"),
+      set_active: z.boolean().optional().describe("Set as the active scene camera"),
+    }),
+  }
+)
+
+// ---------- Phase 5: Render Tools ---------
+
+const setRenderSettings = tool(
+  async ({ engine, resolution_x, resolution_y, resolution_percentage, samples, use_denoising, film_transparent, output_path, file_format }: {
+    engine?: string; resolution_x?: number; resolution_y?: number; resolution_percentage?: number;
+    samples?: number; use_denoising?: boolean; film_transparent?: boolean; output_path?: string; file_format?: string
+  }) =>
+    executeMcpCommand("set_render_settings", { engine, resolution_x, resolution_y, resolution_percentage, samples, use_denoising, film_transparent, output_path, file_format }),
+  {
+    name: "set_render_settings",
+    description:
+      "Configure render settings: engine (EEVEE, CYCLES), resolution, samples, denoising, " +
+      "film_transparent (for transparent backgrounds), output path and file format.",
+    schema: z.object({
+      engine: z.string().optional().describe("Render engine: EEVEE, CYCLES"),
+      resolution_x: z.number().optional().describe("Horizontal resolution in pixels"),
+      resolution_y: z.number().optional().describe("Vertical resolution in pixels"),
+      resolution_percentage: z.number().optional().describe("Resolution scale percentage (default 100)"),
+      samples: z.number().optional().describe("Render samples (higher = better quality)"),
+      use_denoising: z.boolean().optional().describe("Enable denoising (Cycles only)"),
+      film_transparent: z.boolean().optional().describe("Transparent background"),
+      output_path: z.string().optional().describe("Output file path"),
+      file_format: z.string().optional().describe("File format: PNG, JPEG, EXR, etc."),
+    }),
+  }
+)
+
+const renderImage = tool(
+  async ({ output_path, file_format }: { output_path?: string; file_format?: string }) =>
+    executeMcpCommand("render_image", { output_path, file_format }),
+  {
+    name: "render_image",
+    description:
+      "Render the current scene to an image file. Uses current render settings unless " +
+      "output_path or file_format are provided to override.",
+    schema: z.object({
+      output_path: z.string().optional().describe("Output file path (overrides scene settings)"),
+      file_format: z.string().optional().describe("File format: PNG, JPEG, EXR, etc. (overrides scene settings)"),
+    }),
+  }
+)
+
 // ---------- PolyHaven Tools ---------
 
 const getPolyhavenCategories = tool(
@@ -581,6 +757,15 @@ const ALL_TOOLS = [
   moveToCollection,
   setVisibility,
   exportObject,
+  listInstalledAddons,
+  createMaterial,
+  assignMaterial,
+  addLight,
+  setLightProperties,
+  addCamera,
+  setCameraProperties,
+  setRenderSettings,
+  renderImage,
   getPolyhavenCategories,
   searchPolyhavenAssets,
   downloadPolyhavenAsset,
@@ -696,6 +881,10 @@ export interface BlenderAgentV2Options {
   allowHyper3d?: boolean
   /** Use RAG for context enrichment */
   useRAG?: boolean
+  /** Enable dynamic addon detection — detects installed addons and adapts system prompt */
+  enableAddonDetection?: boolean
+  /** Pre-fetched addon modules for prompt injection (skips runtime detection) */
+  detectedAddonModules?: string[]
   /** Callback for streaming agent events to UI */
   onStreamEvent?: (event: AgentStreamEvent) => void
 }
@@ -719,6 +908,8 @@ export function createBlenderAgentV2(options: BlenderAgentV2Options = {}) {
     allowSketchfab = false,
     allowHyper3d = false,
     useRAG = true,
+    enableAddonDetection = true,
+    detectedAddonModules,
     onStreamEvent,
   } = options
 
@@ -729,6 +920,15 @@ export function createBlenderAgentV2(options: BlenderAgentV2Options = {}) {
     if (!allowHyper3d && HYPER3D_TOOL_NAMES.has(t.name)) return false
     return true
   })
+
+  // Build dynamic system prompt with addon detection
+  let dynamicPrompt = SYSTEM_PROMPT
+  if (enableAddonDetection && detectedAddonModules) {
+    const { promptBlock } = getAddonPromptHints(detectedAddonModules)
+    if (promptBlock) {
+      dynamicPrompt = SYSTEM_PROMPT + "\n" + promptBlock
+    }
+  }
 
   // Build middleware stack
   const middleware = [
@@ -745,7 +945,7 @@ export function createBlenderAgentV2(options: BlenderAgentV2Options = {}) {
   const agent = createAgent({
     model,
     tools,
-    systemPrompt: SYSTEM_PROMPT,
+    systemPrompt: dynamicPrompt,
     middleware,
     checkpointer,
   })

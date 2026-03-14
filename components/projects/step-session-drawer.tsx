@@ -292,7 +292,11 @@ export function StepSessionDrawer({
                                         </span>
                                     )}
                                     {cmd.error && (
-                                        <span className="text-[10px] truncate max-w-[40%]" style={{ color: "hsl(0 84% 60%)" }}>
+                                        <span
+                                            className="text-[10px] max-w-[40%] overflow-x-auto whitespace-nowrap"
+                                            style={{ color: "hsl(0 84% 60%)" }}
+                                            title={cmd.error}
+                                        >
                                             {cmd.error}
                                         </span>
                                     )}

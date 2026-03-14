@@ -225,6 +225,15 @@ class BlenderMCPServer:
             "move_to_collection": self.move_to_collection,
             "set_visibility": self.set_visibility,
             "export_object": self.export_object,
+            "list_installed_addons": self.list_installed_addons,
+            "create_material": self.create_material,
+            "assign_material": self.assign_material,
+            "add_light": self.add_light,
+            "set_light_properties": self.set_light_properties,
+            "add_camera": self.add_camera,
+            "set_camera_properties": self.set_camera_properties,
+            "set_render_settings": self.set_render_settings,
+            "render_image": self.render_image,
             "get_polyhaven_status": self.get_polyhaven_status,
             "get_hyper3d_status": self.get_hyper3d_status,
             "get_sketchfab_status": self.get_sketchfab_status,
@@ -1072,6 +1081,330 @@ class BlenderMCPServer:
             }
         except Exception as e:
             return {"error": f"Failed to export: {str(e)}"}
+
+    # ---------- Phase 3: Dynamic Addon Detection ----------
+
+    def list_installed_addons(self):
+        """List all enabled Blender addons with metadata for dynamic capability detection"""
+        try:
+            import addon_utils
+            addons = []
+            for mod in addon_utils.modules():
+                addon_name = mod.__name__
+                is_enabled = addon_name in bpy.context.preferences.addons
+
+                if not is_enabled:
+                    continue
+
+                info = {
+                    "module": addon_name,
+                    "name": getattr(mod, "bl_info", {}).get("name", addon_name),
+                    "description": getattr(mod, "bl_info", {}).get("description", ""),
+                    "category": getattr(mod, "bl_info", {}).get("category", ""),
+                    "version": str(getattr(mod, "bl_info", {}).get("version", "")),
+                    "author": getattr(mod, "bl_info", {}).get("author", ""),
+                }
+                addons.append(info)
+
+            return {
+                "addons": addons,
+                "count": len(addons),
+                "blender_version": ".".join(str(v) for v in bpy.app.version),
+            }
+        except Exception as e:
+            return {"error": f"Failed to list addons: {str(e)}"}
+
+    # ---------- Phase 5: Material / Lighting / Camera / Render Tools ----------
+
+    def create_material(self, name, color=None, metallic=None, roughness=None, use_nodes=True):
+        """Create a new Principled BSDF material with optional base color, metallic, and roughness."""
+        try:
+            mat = bpy.data.materials.new(name=name)
+            mat.use_nodes = bool(use_nodes)
+
+            if mat.use_nodes and mat.node_tree:
+                bsdf = mat.node_tree.nodes.get("Principled BSDF")
+                if bsdf:
+                    if color is not None:
+                        # Accept [R,G,B] or [R,G,B,A] in 0-1 range
+                        c = list(color)
+                        if len(c) == 3:
+                            c.append(1.0)
+                        bsdf.inputs["Base Color"].default_value = c
+                    if metallic is not None:
+                        bsdf.inputs["Metallic"].default_value = float(metallic)
+                    if roughness is not None:
+                        bsdf.inputs["Roughness"].default_value = float(roughness)
+
+            return {
+                "success": True,
+                "material": mat.name,
+                "use_nodes": mat.use_nodes,
+            }
+        except Exception as e:
+            return {"error": f"Failed to create material: {str(e)}"}
+
+    def assign_material(self, object_name, material_name, slot_index=None):
+        """Assign an existing material to an object (appends a new slot or replaces at slot_index)."""
+        try:
+            obj = bpy.data.objects.get(object_name)
+            if not obj:
+                return {"error": f"Object not found: {object_name}"}
+            mat = bpy.data.materials.get(material_name)
+            if not mat:
+                return {"error": f"Material not found: {material_name}"}
+
+            if slot_index is not None:
+                idx = int(slot_index)
+                while len(obj.material_slots) <= idx:
+                    obj.data.materials.append(None)
+                obj.material_slots[idx].material = mat
+            else:
+                obj.data.materials.append(mat)
+
+            return {
+                "success": True,
+                "object": obj.name,
+                "material": mat.name,
+                "total_slots": len(obj.material_slots),
+            }
+        except Exception as e:
+            return {"error": f"Failed to assign material: {str(e)}"}
+
+    def add_light(self, light_type='POINT', name=None, location=None, energy=None, color=None):
+        """Add a new light to the scene. Types: POINT, SUN, SPOT, AREA."""
+        try:
+            valid = {'POINT', 'SUN', 'SPOT', 'AREA'}
+            lt = light_type.upper()
+            if lt not in valid:
+                return {"error": f"Invalid light type: {light_type}. Use one of {valid}"}
+
+            light_name = name or f"{lt.capitalize()}Light"
+            light_data = bpy.data.lights.new(name=light_name, type=lt)
+            if energy is not None:
+                light_data.energy = float(energy)
+            if color is not None:
+                light_data.color = tuple(float(c) for c in color[:3])
+
+            light_obj = bpy.data.objects.new(name=light_name, object_data=light_data)
+            bpy.context.collection.objects.link(light_obj)
+
+            if location is not None:
+                light_obj.location = tuple(float(v) for v in location[:3])
+
+            return {
+                "success": True,
+                "name": light_obj.name,
+                "type": lt,
+                "energy": light_data.energy,
+                "color": list(light_data.color),
+                "location": list(light_obj.location),
+            }
+        except Exception as e:
+            return {"error": f"Failed to add light: {str(e)}"}
+
+    def set_light_properties(self, name, energy=None, color=None, shadow_soft_size=None,
+                              spot_size=None, spot_blend=None, size=None):
+        """Set properties on an existing light object."""
+        try:
+            obj = bpy.data.objects.get(name)
+            if not obj:
+                return {"error": f"Object not found: {name}"}
+            if obj.type != 'LIGHT':
+                return {"error": f"Object '{name}' is not a light (type: {obj.type})"}
+
+            light = obj.data
+            changes = []
+
+            if energy is not None:
+                light.energy = float(energy)
+                changes.append(f"energy={energy}")
+            if color is not None:
+                light.color = tuple(float(c) for c in color[:3])
+                changes.append(f"color={list(light.color)}")
+            if shadow_soft_size is not None:
+                light.shadow_soft_size = float(shadow_soft_size)
+                changes.append(f"shadow_soft_size={shadow_soft_size}")
+            if spot_size is not None and light.type == 'SPOT':
+                import math
+                light.spot_size = math.radians(float(spot_size))
+                changes.append(f"spot_size={spot_size}°")
+            if spot_blend is not None and light.type == 'SPOT':
+                light.spot_blend = float(spot_blend)
+                changes.append(f"spot_blend={spot_blend}")
+            if size is not None and light.type == 'AREA':
+                light.size = float(size)
+                changes.append(f"size={size}")
+
+            if not changes:
+                return {"error": "No valid properties provided"}
+
+            return {
+                "success": True,
+                "light": name,
+                "light_type": light.type,
+                "changes": changes,
+            }
+        except Exception as e:
+            return {"error": f"Failed to set light properties: {str(e)}"}
+
+    def add_camera(self, name=None, location=None, rotation=None, lens=None, sensor_width=None):
+        """Add a new camera to the scene."""
+        try:
+            import math
+            cam_name = name or "Camera"
+            cam_data = bpy.data.cameras.new(name=cam_name)
+            if lens is not None:
+                cam_data.lens = float(lens)
+            if sensor_width is not None:
+                cam_data.sensor_width = float(sensor_width)
+
+            cam_obj = bpy.data.objects.new(name=cam_name, object_data=cam_data)
+            bpy.context.collection.objects.link(cam_obj)
+
+            if location is not None:
+                cam_obj.location = tuple(float(v) for v in location[:3])
+            if rotation is not None:
+                cam_obj.rotation_euler = tuple(math.radians(float(v)) for v in rotation[:3])
+
+            return {
+                "success": True,
+                "name": cam_obj.name,
+                "lens": cam_data.lens,
+                "sensor_width": cam_data.sensor_width,
+                "location": list(cam_obj.location),
+                "rotation_deg": [round(math.degrees(r), 2) for r in cam_obj.rotation_euler],
+            }
+        except Exception as e:
+            return {"error": f"Failed to add camera: {str(e)}"}
+
+    def set_camera_properties(self, name, lens=None, sensor_width=None, clip_start=None,
+                               clip_end=None, dof_use=None, dof_focus_distance=None,
+                               dof_aperture_fstop=None, set_active=None):
+        """Set properties on an existing camera. Optionally set it as the active scene camera."""
+        try:
+            obj = bpy.data.objects.get(name)
+            if not obj:
+                return {"error": f"Object not found: {name}"}
+            if obj.type != 'CAMERA':
+                return {"error": f"Object '{name}' is not a camera (type: {obj.type})"}
+
+            cam = obj.data
+            changes = []
+
+            if lens is not None:
+                cam.lens = float(lens)
+                changes.append(f"lens={lens}mm")
+            if sensor_width is not None:
+                cam.sensor_width = float(sensor_width)
+                changes.append(f"sensor_width={sensor_width}")
+            if clip_start is not None:
+                cam.clip_start = float(clip_start)
+                changes.append(f"clip_start={clip_start}")
+            if clip_end is not None:
+                cam.clip_end = float(clip_end)
+                changes.append(f"clip_end={clip_end}")
+            if dof_use is not None:
+                cam.dof.use_dof = bool(dof_use)
+                changes.append(f"dof_use={dof_use}")
+            if dof_focus_distance is not None:
+                cam.dof.focus_distance = float(dof_focus_distance)
+                changes.append(f"dof_focus_distance={dof_focus_distance}")
+            if dof_aperture_fstop is not None:
+                cam.dof.aperture_fstop = float(dof_aperture_fstop)
+                changes.append(f"dof_aperture_fstop={dof_aperture_fstop}")
+            if set_active is not None and set_active:
+                bpy.context.scene.camera = obj
+                changes.append("set_active=True")
+
+            if not changes:
+                return {"error": "No valid properties provided"}
+
+            return {
+                "success": True,
+                "camera": name,
+                "changes": changes,
+            }
+        except Exception as e:
+            return {"error": f"Failed to set camera properties: {str(e)}"}
+
+    def set_render_settings(self, engine=None, resolution_x=None, resolution_y=None,
+                             resolution_percentage=None, samples=None, use_denoising=None,
+                             film_transparent=None, output_path=None, file_format=None):
+        """Set render engine and render settings. Engines: BLENDER_EEVEE_NEXT, CYCLES."""
+        try:
+            scene = bpy.context.scene
+            changes = []
+
+            if engine is not None:
+                eng = engine.upper()
+                # Map common aliases
+                if eng in ('EEVEE', 'EEVEE_NEXT'):
+                    eng = 'BLENDER_EEVEE_NEXT'
+                scene.render.engine = eng
+                changes.append(f"engine={eng}")
+            if resolution_x is not None:
+                scene.render.resolution_x = int(resolution_x)
+                changes.append(f"resolution_x={resolution_x}")
+            if resolution_y is not None:
+                scene.render.resolution_y = int(resolution_y)
+                changes.append(f"resolution_y={resolution_y}")
+            if resolution_percentage is not None:
+                scene.render.resolution_percentage = int(resolution_percentage)
+                changes.append(f"resolution_percentage={resolution_percentage}")
+            if samples is not None:
+                if scene.render.engine == 'CYCLES':
+                    scene.cycles.samples = int(samples)
+                else:
+                    scene.eevee.taa_render_samples = int(samples)
+                changes.append(f"samples={samples}")
+            if use_denoising is not None:
+                if scene.render.engine == 'CYCLES':
+                    scene.cycles.use_denoising = bool(use_denoising)
+                changes.append(f"use_denoising={use_denoising}")
+            if film_transparent is not None:
+                scene.render.film_transparent = bool(film_transparent)
+                changes.append(f"film_transparent={film_transparent}")
+            if output_path is not None:
+                scene.render.filepath = output_path
+                changes.append(f"output_path={output_path}")
+            if file_format is not None:
+                scene.render.image_settings.file_format = file_format.upper()
+                changes.append(f"file_format={file_format}")
+
+            if not changes:
+                return {"error": "No valid settings provided"}
+
+            return {
+                "success": True,
+                "engine": scene.render.engine,
+                "resolution": f"{scene.render.resolution_x}x{scene.render.resolution_y}",
+                "changes": changes,
+            }
+        except Exception as e:
+            return {"error": f"Failed to set render settings: {str(e)}"}
+
+    def render_image(self, output_path=None, file_format=None, open_after=False):
+        """Render the current scene and optionally save to a file. Returns the output path."""
+        try:
+            scene = bpy.context.scene
+
+            if output_path:
+                scene.render.filepath = output_path
+            if file_format:
+                scene.render.image_settings.file_format = file_format.upper()
+
+            bpy.ops.render.render(write_still=True)
+
+            return {
+                "success": True,
+                "output_path": bpy.path.abspath(scene.render.filepath),
+                "engine": scene.render.engine,
+                "resolution": f"{scene.render.resolution_x}x{scene.render.resolution_y}",
+                "file_format": scene.render.image_settings.file_format,
+            }
+        except Exception as e:
+            return {"error": f"Failed to render: {str(e)}"}
 
     def get_polyhaven_categories(self, asset_type):
         """Get categories for a specific asset type from Polyhaven"""
