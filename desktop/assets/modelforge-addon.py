@@ -1490,16 +1490,20 @@ class BlenderMCPServer:
                     file_info = files_data["hdri"][resolution][file_format]
                     file_url = file_info["url"]
 
-                    # For HDRIs, we need to save to a temporary file first
-                    # since Blender can't properly load HDR data directly from memory
-                    with tempfile.NamedTemporaryFile(suffix=f".{file_format}", delete=False) as tmp_file:
-                        # Download the file
+                    # Save HDRI to a persistent cache directory so Blender can
+                    # reference the file after loading (temp files get deleted and
+                    # cause pink 'missing texture' errors)
+                    cache_dir = os.path.join(os.path.expanduser("~"), ".modelforge", "cache", "hdris")
+                    os.makedirs(cache_dir, exist_ok=True)
+                    cache_path = os.path.join(cache_dir, f"{asset_id}_{resolution}.{file_format}")
+
+                    # Download the file (skip if already cached)
+                    if not os.path.isfile(cache_path):
                         response = requests.get(file_url, headers=REQ_HEADERS)
                         if response.status_code != 200:
                             return {"error": f"Failed to download HDRI: {response.status_code}"}
-
-                        tmp_file.write(response.content)
-                        tmp_path = tmp_file.name
+                        with open(cache_path, 'wb') as f:
+                            f.write(response.content)
 
                     try:
                         # Create a new world if none exists
@@ -1507,6 +1511,7 @@ class BlenderMCPServer:
                             bpy.data.worlds.new("World")
 
                         world = bpy.data.worlds[0]
+                        world.use_nodes = True
                         node_tree = world.node_tree
 
                         # Clear existing nodes
@@ -1520,10 +1525,10 @@ class BlenderMCPServer:
                         mapping = node_tree.nodes.new(type='ShaderNodeMapping')
                         mapping.location = (-600, 0)
 
-                        # Load the image from the temporary file
+                        # Load the image from the persistent cache file
                         env_tex = node_tree.nodes.new(type='ShaderNodeTexEnvironment')
                         env_tex.location = (-400, 0)
-                        env_tex.image = bpy.data.images.load(tmp_path)
+                        env_tex.image = bpy.data.images.load(cache_path)
 
                         # Use a color space that exists in all Blender versions
                         if file_format.lower() == 'exr':
@@ -1556,13 +1561,6 @@ class BlenderMCPServer:
 
                         # Set as active world
                         bpy.context.scene.world = world
-
-                        # Clean up temporary file
-                        try:
-                            if tmp_path and os.path.isfile(tmp_path):
-                                os.remove(tmp_path)
-                        except OSError:
-                            pass
 
                         return {
                             "success": True,
