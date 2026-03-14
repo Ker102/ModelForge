@@ -21,7 +21,7 @@ from contextlib import redirect_stdout, suppress
 bl_info = {
     "name": "ModelForge Blender",
     "author": "ModelForge Team",
-    "version": (1, 0, 0),
+    "version": (1, 1, 0),
     "blender": (3, 0, 0),
     "location": "View3D > Sidebar > ModelForge",
     "description": "Connect Blender to ModelForge AI Assistant",
