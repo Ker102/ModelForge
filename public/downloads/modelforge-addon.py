@@ -1145,7 +1145,8 @@ class BlenderMCPServer:
             return {"error": f"Failed to create material: {str(e)}"}
 
     def assign_material(self, object_name, material_name, slot_index=None):
-        """Assign an existing material to an object (appends a new slot or replaces at slot_index)."""
+        """Assign a material to an object. Replaces slot 0 by default (so the material is visible).
+        Use slot_index to target a specific slot, or slot_index=-1 to append to a new slot."""
         try:
             obj = bpy.data.objects.get(object_name)
             if not obj:
@@ -1154,18 +1155,30 @@ class BlenderMCPServer:
             if not mat:
                 return {"error": f"Material not found: {material_name}"}
 
-            if slot_index is not None:
+            if slot_index is not None and int(slot_index) == -1:
+                # Explicit append mode
+                obj.data.materials.append(mat)
+                assigned_slot = len(obj.material_slots) - 1
+            elif slot_index is not None:
+                # Replace specific slot
                 idx = int(slot_index)
                 while len(obj.material_slots) <= idx:
                     obj.data.materials.append(None)
                 obj.material_slots[idx].material = mat
+                assigned_slot = idx
             else:
-                obj.data.materials.append(mat)
+                # Default: replace slot 0 (or create it) so the material is immediately visible
+                if len(obj.material_slots) > 0:
+                    obj.material_slots[0].material = mat
+                else:
+                    obj.data.materials.append(mat)
+                assigned_slot = 0
 
             return {
                 "success": True,
                 "object": obj.name,
                 "material": mat.name,
+                "slot": assigned_slot,
                 "total_slots": len(obj.material_slots),
             }
         except Exception as e:
