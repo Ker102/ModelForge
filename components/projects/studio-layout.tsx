@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useRef } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import { StudioSidebar } from "./studio-sidebar"
 import { StudioWorkspace } from "./studio-workspace"
 import { StudioAdvisor } from "./studio-advisor"
@@ -12,12 +12,58 @@ interface StudioLayoutProps {
     projectId: string
 }
 
+// ── localStorage persistence helpers ────────────────────────────
+const STORAGE_KEY_PREFIX = "modelforge:studio-steps:"
+
+function loadPersistedSteps(projectId: string): WorkflowTimelineStep[] {
+    if (typeof window === "undefined") return []
+    try {
+        const raw = localStorage.getItem(`${STORAGE_KEY_PREFIX}${projectId}`)
+        if (!raw) return []
+        const parsed = JSON.parse(raw) as WorkflowTimelineStep[]
+        if (!Array.isArray(parsed)) return []
+        // Steps that were "running" when the page closed can't be resumed — mark as failed
+        return parsed.map((step) =>
+            step.status === "running"
+                ? { ...step, status: "failed" as const, error: step.error ?? "Session interrupted" }
+                : step
+        )
+    } catch {
+        return []
+    }
+}
+
+function savePersistedSteps(projectId: string, steps: WorkflowTimelineStep[]) {
+    if (typeof window === "undefined") return
+    try {
+        // Strip monitoring logs before saving to keep localStorage size reasonable
+        const slim = steps.map(({ monitoringLogs, ...rest }) => rest)
+        localStorage.setItem(`${STORAGE_KEY_PREFIX}${projectId}`, JSON.stringify(slim))
+    } catch (err) {
+        console.warn("[StudioLayout] Failed to persist steps:", err)
+    }
+}
+
 export function StudioLayout({ projectId }: StudioLayoutProps) {
     const [activeCategory, setActiveCategory] = useState("shape")
     const [assistantOpen, setAssistantOpen] = useState(false)
-    const [workflowSteps, setWorkflowSteps] = useState<WorkflowTimelineStep[]>([])
+    const [workflowSteps, setWorkflowSteps] = useState<WorkflowTimelineStep[]>(
+        () => loadPersistedSteps(projectId)
+    )
     const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
     const abortControllerRef = useRef<AbortController | null>(null)
+    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    // ── Debounced save to localStorage ───────────────────────────
+    useEffect(() => {
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+        saveTimerRef.current = setTimeout(() => {
+            savePersistedSteps(projectId, workflowSteps)
+        }, 500)
+        return () => {
+            if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+        }
+    }, [workflowSteps, projectId])
 
     // ── Helpers ──────────────────────────────────────────────────
 
@@ -283,6 +329,15 @@ export function StudioLayout({ projectId }: StudioLayoutProps) {
         executeStep(first.id, prompt)
     }, [workflowSteps, executeStep])
 
+    const handleClearTimeline = useCallback(() => {
+        abortControllerRef.current?.abort()
+        setWorkflowSteps([])
+        setSelectedStepId(null)
+        try {
+            localStorage.removeItem(`${STORAGE_KEY_PREFIX}${projectId}`)
+        } catch { /* ignore */ }
+    }, [projectId])
+
     const handleToolRunNow = useCallback(
         (tool: ToolEntry, inputs: Record<string, string>) => {
             const stepId = `run-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
@@ -367,6 +422,7 @@ export function StudioLayout({ projectId }: StudioLayoutProps) {
                 onRemoveStep={handleRemoveStep}
                 onStepClick={handleStepClick}
                 onRunAll={handleRunAll}
+                onClearTimeline={handleClearTimeline}
             />
         </div>
     )
