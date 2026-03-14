@@ -1,85 +1,136 @@
-# ModelForge Blender Agent — Test Prompts & AI Model Analysis
+# ModelForge Blender Agent — Stress Test Prompts
 
-## Test Prompts by Tool Category
+## How to Use
 
-Each prompt below is designed to test a specific tool category in the Studio mode.
-Run them one at a time and verify the agent completes the task correctly.
+Run each prompt one at a time in Studio mode. After each prompt completes,
+verify the result visually in Blender and note any issues before moving on.
+
+**Reset scene between tests** (type in Studio): `Delete everything and start with a default cube`
 
 ---
 
-### 1. Shape (Geometry Generation)
+### Test 1: Materials + Lighting Basics
+**Tests:** `create_material`, `assign_material`, `add_light`, `set_light_properties`
 ```
-Create a low-poly medieval sword with a detailed cross-guard and pommel.
-The blade should be slightly tapered and about 1.2 meters long.
+Make the default cube a glossy red metallic material (like a sports car),
+then add a large soft area light above it and a blue-tinted fill light
+from the lower right.
 ```
+**What to verify:**
+- Cube should have a red metallic material (not matte, should reflect light)
+- Two new lights visible in scene outliner
+- Agent should use `create_material` + `assign_material`, NOT `execute_code` for the material
+- Agent should use `add_light` for each light, NOT `execute_code`
 
-### 2. Cleanup (Mesh Optimization)
-```
-Clean up the mesh in the scene: remove duplicate vertices, recalculate normals
-to face outward, remove any loose vertices or edges, and apply smooth shading.
-```
+---
 
-### 3. Unwrap (UV Mapping)
+### Test 2: Multi-Object Scene with Transforms
+**Tests:** `execute_code`, `duplicate_object`, `rename_object`, `set_object_transform`, `create_material`, `assign_material`
 ```
-UV unwrap all mesh objects in the scene using Smart UV Project with an island
-margin of 0.02. Make sure each object has a proper UV map named "UVMap".
+Create a display podium scene: make a flat cylinder as a pedestal in the center,
+place three different colored spheres on top of it spaced evenly apart (red, green, blue),
+and name them Ball_Red, Ball_Green, and Ball_Blue.
 ```
+**What to verify:**
+- Pedestal cylinder should be flat and centered
+- Three named spheres sitting ON the pedestal (not floating)
+- Each sphere should have its own colored material
+- Scene outliner shows all named objects
 
-### 4. Paint (Materials & Texturing)
-```
-Apply a realistic brushed gold material to the sword blade with subtle
-anisotropic reflections, and a dark leather wrap material to the grip
-with a bump texture for stitching detail.
-```
+---
 
-### 5. Skeleton (Rigging)
+### Test 3: Modifier Chain + Smooth Shading
+**Tests:** `add_modifier`, `shade_smooth`, `create_material`, `assign_material`
 ```
-Add a simple armature to the sword with 3 bones: a root bone at the pommel,
-a blade bone spanning the blade length, and a tip bone at the blade end.
-Parent the mesh to the armature with automatic weights.
+Take the default cube and turn it into a smooth organic shape: add a subdivision
+surface modifier (level 3), apply smooth shading, and give it a jade-green
+semi-translucent material with slight subsurface scattering.
 ```
+**What to verify:**
+- Cube should look like a smooth rounded shape (SubSurf level 3)
+- Smooth shaded (no facets visible)
+- Green material with some translucency
+- Modifier visible in properties panel
 
-### 6. Motion (Animation)
-```
-Create a spinning animation for the sword: rotate it 360 degrees around the
-Z-axis over 120 frames with ease-in-out interpolation. Set the timeline to
-start at frame 1 and end at frame 120.
-```
+---
 
-### 7. Effects (Particles & Physics)
+### Test 4: Camera Setup + Render
+**Tests:** `add_camera`, `set_camera_properties`, `set_render_settings`, `render_image`
 ```
-Add a particle system to emit small golden sparkle particles from the blade
-edge. Use a short lifetime of 15 frames, random velocity, and a small emissive
-material so they glow. Emit about 100 particles per frame.
+Set up a camera for a product shot: place it at a 45-degree angle looking down
+at the scene center, use a 85mm portrait lens, enable depth of field focused
+at 5 meters with f/2.8 aperture, then render the scene at 1920x1080 using EEVEE.
 ```
+**What to verify:**
+- Camera appears in scene at correct angle
+- Switch to camera view (Numpad 0) — should frame the scene nicely
+- Agent should use `add_camera` + `set_camera_properties`, NOT `execute_code`
+- Render settings panel shows 1920x1080, EEVEE
+- A rendered image should be produced
 
-### 8. Lighting (Scene Illumination)
-```
-Set up a three-point lighting rig: a warm key light (3500K) at 45 degrees
-from front-left, a cool fill light (6500K) at lower intensity from the right,
-and a subtle rim light from behind. Use area lights for soft shadows.
-```
+---
 
-### 9. Scene (Environment Setup)
+### Test 5: Organization + Export Pipeline
+**Tests:** `duplicate_object`, `move_to_collection`, `rename_object`, `export_object`, `set_visibility`
 ```
-Create a simple studio backdrop: add a curved plane as an infinity cove behind
-the sword, set the world background to a dark gradient, and position the camera
-at a 30-degree angle looking slightly down at the sword.
+Duplicate the cube, move the original into a collection called "Archive" and hide it
+in the viewport. Rename the duplicate to "HeroCube". Then export only HeroCube
+as a GLB file.
 ```
+**What to verify:**
+- "Archive" collection should exist in outliner
+- Original cube should be hidden (eye icon off)
+- "HeroCube" should be visible
+- GLB file should exist on disk
+- Agent should use `move_to_collection`, `set_visibility`, `export_object` directly
 
-### 10. Render (Output Configuration)
-```
-Configure Cycles render settings: set resolution to 1920x1080, samples to 256,
-enable denoising with OpenImageDenoise, set film to transparent background,
-and configure the output format as PNG with 16-bit color depth.
-```
+---
 
-### 11. Export (File Output)
+### Test 6: Complex Scene from Scratch (Full Pipeline)
+**Tests:** `execute_code`, `create_material`, `assign_material`, `add_light`, `add_camera`, `set_render_settings`, `shade_smooth`, `add_modifier`
 ```
-Export the sword mesh as a glTF 2.0 binary (.glb) file with embedded textures.
-Include only the mesh and materials, not the lights or camera. Apply modifiers
-before export.
+Build a desktop scene: create a wooden table (flat box, 2m x 1m x 0.05m, raised
+to 0.75m height), place a metallic silver laptop on it (simplified box shape),
+and add a coffee mug next to it (cylinder with handle). Give each object
+appropriate materials. Add warm overhead lighting and render the scene.
 ```
+**What to verify:**
+- Table at correct height (0.75m)
+- Laptop and mug ON the table surface (not floating, not clipping through)
+- Each object has a distinct material
+- Scene is properly lit (not too dark, not blown out)
+- Rendered image produced
+
+---
+
+### Test 7: PolyHaven HDRI + Material
+**Tests:** `search_polyhaven_assets`, `download_polyhaven_asset`, `create_material`, `assign_material`
+```
+Search PolyHaven for a studio HDRI and apply it as the scene background.
+Then make the default cube a mirror-like chrome material so it reflects
+the HDRI environment.
+```
+**What to verify:**
+- Background should show a studio environment (not pink, not black)
+- Cube should be highly reflective (chrome look)
+- HDRI reflections visible on the cube surface
+- In rendered mode, the environment should be visible
+
+---
+
+### Test 8: Edit Existing Scene (Non-Destructive)
+**Tests:** `get_scene_info`, `get_object_info`, `set_object_transform`, `set_light_properties`, `create_material`, `assign_material`
+```
+Look at the current scene and tell me what objects are in it, then make these
+changes without deleting anything: move the cube 2 units up, change any existing
+light to have double its current energy, and make the cube bright orange.
+```
+**What to verify:**
+- Agent should call `get_scene_info` first to discover the scene
+- Cube should move up (Z increased by 2) but not be recreated
+- Light energy should be doubled from whatever it was
+- Cube color changes to orange
+- No objects deleted — everything else preserved
 
 ---
 
