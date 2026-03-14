@@ -1,29 +1,30 @@
 # gemini.md — ModelForge Dev Tracker
 
 ## Current Task
-Phase 1: Core Addon Tool Expansion (8 new tools)
+Phase 5 complete — Material/Lighting/Camera/Render tools
 
 ## What Changed (Latest)
-- **Phase 1A — Transform Tools** (4 new commands added to addon + agent):
-  - `set_object_transform` — set location/rotation(degrees)/scale
-  - `rename_object` — rename object + data block
-  - `duplicate_object` — clone with optional linked/new_name
-  - `join_objects` — merge multiple MESH objects into one
-- **Phase 1B — Modifier & Mesh Tools** (4 new commands):
-  - `add_modifier` — add any modifier type with optional properties
-  - `apply_modifier` — bake modifier to mesh
-  - `apply_transforms` — freeze transforms to data
-  - `shade_smooth` — smooth/flat/auto-smooth-by-angle
-- All 8 tools: Python handlers in `modelforge-addon.py`, TS tool defs in `agents.ts`
-- Handler dispatch, ALL_TOOLS array, and `desktop/assets/` sync updated
+- **CodeRabbit Fixes (PR #21)**:
+  - DEFAULT_MODEL → `gemini-2.5-pro` in `lib/ai/index.ts` and `lib/gemini.ts`
+  - Failed autopilot steps now correctly marked `"failed"` in `studio-layout.tsx`
+  - Command status validated against union type in `studio-layout.tsx`
+  - Error text scrollable (not truncated) in `step-session-drawer.tsx`
+  - vectorLiteral() dimension validation in `vectorstore.ts`
+- **Phase 5 — Material/Lighting/Camera/Render Tools** (8 new tools):
+  - `create_material` — Principled BSDF with color/metallic/roughness
+  - `assign_material` — assign material to object by slot
+  - `add_light` — POINT/SUN/SPOT/AREA with energy/color/location
+  - `set_light_properties` — modify existing light properties
+  - `add_camera` — create camera with lens/position/rotation
+  - `set_camera_properties` — lens/DoF/clip/set active
+  - `set_render_settings` — engine/resolution/samples/denoising
+  - `render_image` — render scene to file
 
 ## Previous Changes
-- Bug fixes: duplicate node wiring, deprecated shaders, temp file leak, use_nodes safety
-- New tools: `list_materials`, `delete_object`, `get_all_object_info` pagination
+- Phase 1-4: Transform, Modifier, Hierarchy/Export, Addon Detection tools
 - LangChain v1 migration, agent refactoring, viewport screenshot middleware
+- Curated addons page, README update
 
 ## Next Steps
-- Phase 2: Medium-priority tools (parent_set, set_origin, export_object, etc.)
-- Phase 3: Dynamic addon detection — `list_installed_addons`, addon registry, dynamic prompts
-- Phase 4: Curated "Recommended Addons" page on ModelForge website
-- Git commit after verification
+- Push + PR for CodeRabbit review
+- Feature brainstorm P2/P3 implementation
