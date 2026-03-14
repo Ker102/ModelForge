@@ -1338,10 +1338,17 @@ class BlenderMCPServer:
 
             if engine is not None:
                 eng = engine.upper()
-                # Map common aliases
-                if eng in ('EEVEE', 'EEVEE_NEXT'):
-                    eng = 'BLENDER_EEVEE_NEXT'
-                scene.render.engine = eng
+                # Map common aliases — auto-detect which name the Blender version accepts
+                if eng in ('EEVEE', 'EEVEE_NEXT', 'BLENDER_EEVEE_NEXT'):
+                    # Try BLENDER_EEVEE_NEXT first (Blender 4.x), fall back to BLENDER_EEVEE (3.x)
+                    try:
+                        scene.render.engine = 'BLENDER_EEVEE_NEXT'
+                        eng = 'BLENDER_EEVEE_NEXT'
+                    except TypeError:
+                        scene.render.engine = 'BLENDER_EEVEE'
+                        eng = 'BLENDER_EEVEE'
+                else:
+                    scene.render.engine = eng
                 changes.append(f"engine={eng}")
             if resolution_x is not None:
                 scene.render.resolution_x = int(resolution_x)
@@ -1355,7 +1362,7 @@ class BlenderMCPServer:
             if samples is not None:
                 if scene.render.engine == 'CYCLES':
                     scene.cycles.samples = int(samples)
-                else:
+                elif hasattr(scene.eevee, 'taa_render_samples'):
                     scene.eevee.taa_render_samples = int(samples)
                 changes.append(f"samples={samples}")
             if use_denoising is not None:
